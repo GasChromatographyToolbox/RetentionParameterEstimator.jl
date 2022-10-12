@@ -10,6 +10,7 @@ using OptimizationOptimisers
 using OptimizationCMAEvolutionStrategy
 using Dierckx
 using DataFrames
+using CSV
 #using BenchmarkTools
 
 include("Load.jl")

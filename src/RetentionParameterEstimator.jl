@@ -9,6 +9,7 @@ using OptimizationBBO
 using OptimizationOptimisers
 using OptimizationCMAEvolutionStrategy
 using Dierckx
+using DataFrames
 #using BenchmarkTools
 
 include("Load.jl")

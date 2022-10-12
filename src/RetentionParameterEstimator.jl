@@ -1,4 +1,4 @@
-module RetentionDataEstimator
+module RetentionParameterEstimator
 
 #using Reexport
 using GasChromatographySimulator

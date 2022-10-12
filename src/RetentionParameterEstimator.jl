@@ -9,7 +9,7 @@ using OptimizationBBO
 using OptimizationOptimisers
 using OptimizationCMAEvolutionStrategy
 using Dierckx
-using BenchmarkTools
+#using BenchmarkTools
 
 include("Load.jl")
 include("Loss.jl")

@@ -125,7 +125,7 @@ function optimize_Kcentric_single(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, �
     bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
                 BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
     
-    optf = OptimizationFunction(RetentionDataEstimator.opt_Kcentric, Optimization.AutoForwardDiff())
+    optf = OptimizationFunction(opt_Kcentric, Optimization.AutoForwardDiff())
 	
     if typeof(size(tR)) == Tuple{Int64, Int64}
         n2 = size(tR)[2]
@@ -171,7 +171,7 @@ function optimize_Kcentric_all(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, ΔCp
 	x0 = [Tchar_e; θchar_e; ΔCp_e]
 	lb = [lb_Tchar; lb_θchar; lb_ΔCp]
 	ub = [ub_Tchar; ub_θchar; ub_ΔCp]
-	optf = OptimizationFunction(RetentionDataEstimator.opt_Kcentric, Optimization.AutoForwardDiff())
+	optf = OptimizationFunction(opt_Kcentric, Optimization.AutoForwardDiff())
 	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
 		prob = OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
 	else
@@ -331,7 +331,7 @@ function optimize_dL(tR, gas, prog, opt, Tchar::Array{Number}, θchar::Array{Num
 	x0 = [L_e, d_e]
 	lb = [lb_L, lb_d]
 	ub = [ub_L, ub_d]
-	optf = OptimizationFunction(RetentionDataEstimator.opt_Kcentric, Optimization.AutoForwardDiff())
+	optf = OptimizationFunction(opt_Kcentric, Optimization.AutoForwardDiff())
 	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
 		prob = OptimizationProblem(optf, x0, p)
 	else

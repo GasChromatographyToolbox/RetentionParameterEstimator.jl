@@ -2,7 +2,7 @@ module RetentionDataEstimator
 
 #using Reexport
 using GasChromatographySimulator
-using ForwardDiff
+#using ForwardDiff
 using Optimization
 using OptimizationOptimJL
 using OptimizationBBO

@@ -4,5 +4,10 @@ authors = ["Jan Leppert <jleppert@uni-bonn.de>"]
 version = "0.1.0"
 
 [deps]
+Dierckx = "39dd38d3-220a-591b-8e3c-4c3a8c710a94"
 GasChromatographySimulator = "dd82b6e2-56ef-419d-b271-0be268cb65f5"
 Optimization = "7f7a1694-90dd-40f0-9382-eb1efda571ba"
+OptimizationBBO = "3e6eede4-6085-4f62-9a71-46d9bc1eb92b"
+OptimizationCMAEvolutionStrategy = "bd407f91-200f-4536-9381-e4ba712f53f8"
+OptimizationOptimJL = "36348300-93cb-4f02-beb5-3c3902f8871e"
+OptimizationOptimisers = "42dfb2eb-d2b4-4451-abcd-913932933ac1"

@@ -306,18 +306,18 @@ end
 
 # benchmark for one solute, using optimization with estimated initial values
 # benchmark time measurement -> function, extract :times, :memory, allocs / input: parameters for BenchmarkTools, meassured RT, system parameters as dictionary
-function benchmark_optimize(file, tR_meas, solute_names, column, options, TPs, PPs, method, method_short_name)
-	#times = Array{Float64}(undef, length(solute_names))
-	#memory = Array{Float64}(undef, length(solute_names))
-	#allocs = Array{Float64}(undef, length(solute_names))
-	b = @benchmark optimize($tR_meas, $solute_names, $column, $options, $TPs, $PPs, $method, $method_short_name) seconds = 600
-	times = sum(b.times)/length(b.times)
-	memory = b.memory
-	allocs = b.allocs
-	df = DataFrame(Methods=method_short_name, Times=times, Memory=memory, Allocs=allocs)
-    CSV.write(file, df; append=true)
-	return df
-end
+#function benchmark_optimize(file, tR_meas, solute_names, column, options, TPs, PPs, method, method_short_name)
+#	#times = Array{Float64}(undef, length(solute_names))
+#	#memory = Array{Float64}(undef, length(solute_names))
+#	#allocs = Array{Float64}(undef, length(solute_names))
+#	b = @benchmark optimize($tR_meas, $solute_names, $column, $options, $TPs, $PPs, $method, $method_short_name) seconds = 600
+#	times = sum(b.times)/length(b.times)
+#	memory = b.memory
+#	allocs = b.allocs
+#	df = DataFrame(Methods=method_short_name, Times=times, Memory=memory, Allocs=allocs)
+#   CSV.write(file, df; append=true)
+#	return df
+#end
 
 ## functions to estimate L and d while the retention parameters are known
 function optimize_dL(tR, gas, prog, opt, Tchar::Array{Number}, θchar::Array{Number}, ΔCp::Array{Number}, L_e, d_e, lb_L, lb_d, ub_L, ub_d, method; maxiters=10000)

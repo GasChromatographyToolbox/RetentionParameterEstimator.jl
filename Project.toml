@@ -2,3 +2,7 @@ name = "RetentionParameterEstimator"
 uuid = "0afdae40-3141-486e-b874-33af99ac38b5"
 authors = ["Jan Leppert <jleppert@uni-bonn.de>"]
 version = "0.1.0"
+
+[deps]
+GasChromatographySimulator = "dd82b6e2-56ef-419d-b271-0be268cb65f5"
+Optimization = "7f7a1694-90dd-40f0-9382-eb1efda571ba"

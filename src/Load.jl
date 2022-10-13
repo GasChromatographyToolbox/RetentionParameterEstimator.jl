@@ -1,8 +1,7 @@
 # functions for loading the measured retention data and the necessary informations (column definition, programs, ...)
 
 function load_chromatograms(file)
-    load = CSV.File(file, header=0, silencewarnings=true)
-    n = length(load)
+    n = open(f->countlines(f), file)
     column = DataFrame(CSV.File(file, header=1, limit=1))
     n_meas = Int((n - 2 - 3)/3) 
     TP = DataFrame(CSV.File(file, header=3, limit=n_meas))

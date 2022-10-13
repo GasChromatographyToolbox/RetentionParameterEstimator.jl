@@ -38,10 +38,10 @@ function Program(TP, FpinP, L; pout="vacuum", time_unit="min")
     end
     a_gf = [zeros(length(time_steps)) zeros(length(time_steps)) L.*ones(length(time_steps)) zeros(length(time_steps))]
     gf(x) = gradient(x, a_gf)
-    T_itp = temperature_interpolation(time_steps, temp_steps, gf, L)
-    Fpin_itp = steps_interpolation(time_steps, Fpin_steps)
-    pout_itp = steps_interpolation(time_steps, pout_steps)
-    prog = Program(time_steps, temp_steps, Fpin_steps, pout_steps, gf, a_gf, T_itp, Fpin_itp, pout_itp)
+    T_itp = GasChromatographySimulator.temperature_interpolation(time_steps, temp_steps, gf, L)
+    Fpin_itp = GasChromatographySimulator.steps_interpolation(time_steps, Fpin_steps)
+    pout_itp = GasChromatographySimulator.steps_interpolation(time_steps, pout_steps)
+    prog = GasChromatographySimulator.Program(time_steps, temp_steps, Fpin_steps, pout_steps, gf, a_gf, T_itp, Fpin_itp, pout_itp)
     return prog
 end
 

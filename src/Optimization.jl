@@ -139,21 +139,17 @@ function optimize_Kcentric_single(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, �
 		lb = [lb_Tchar[i], lb_θchar[i], lb_ΔCp[i]]
 		ub = [ub_Tchar[i], ub_θchar[i], ub_ΔCp[i]]
 		if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
-			prob = OptimizationOptimJL.OptimizationProblem(optf, x0, p)
-            opt_sol[i] = solve(prob, method)
+			prob = OptimizationProblem(optf, x0, p)
 		else
-            if method in optimisers
-                prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-                opt_sol[i] = solve(prob, method, maxiters=maxiters)
-            elseif method in bbos
-                prob = OptimizationBBO.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-                opt_sol[i] = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
-            else
-                prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-                opt_sol[i] = solve(prob, method)
-            end
+			prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
 		end
-        
+        if method in optimisers
+            opt_sol[i] = solve(prob, method, maxiters=maxiters)
+        elseif method in bbos
+            opt_sol[i] = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
+        else
+		    opt_sol[i] = solve(prob, method) #-> :u (Array of the optimized parameters), :minimum (minima of the optimization function) , :retcode (Boolean, successful?)
+        end
     end
 	return opt_sol
 end

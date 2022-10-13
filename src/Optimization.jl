@@ -145,8 +145,8 @@ function optimize_Kcentric_single(tR, L, d, gas, prog, opt, Tchar_e, Î¸char_e, Î
 		end
         if method in optimisers
             opt_sol[i] = solve(prob, method, maxiters=maxiters)
-        elseif method in bbos
-            opt_sol[i] = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
+        #elseif method in bbos
+        #    opt_sol[i] = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
         else
 		    opt_sol[i] = solve(prob, method) #-> :u (Array of the optimized parameters), :minimum (minima of the optimization function) , :retcode (Boolean, successful?)
         end

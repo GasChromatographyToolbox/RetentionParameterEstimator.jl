@@ -1,6 +1,7 @@
 # functions used for the optimization of the loss-function 
 
 # this function is a modified version from GasChromatographySimulator
+# if it works, put this function into GasChromatographySimulator
 """
     Program(TP, FpinP, L; pout="vacuum", time_unit="min")
 
@@ -81,41 +82,41 @@ function opt_Kcentric(x_Kcentric, p)
     return loss(tR, Tchar, θchar, ΔCp, L, d, prog, opt, gas)[1]
 end
 
-function opt_dL(x_dL, p)
-	tR = p[1]
-	prog = p[2]
-	opt = p[3]
-    gas = p[4]
-	Tchar = p[5] # Array length = number solutes
-	θchar = p[6] # Array length = number solutes
-	ΔCp = p[7] # Array length = number solutes
+#function opt_dL(x_dL, p)
+#	tR = p[1]
+#	prog = p[2]
+#	opt = p[3]
+#    gas = p[4]
+#	Tchar = p[5] # Array length = number solutes
+#	θchar = p[6] # Array length = number solutes
+#	ΔCp = p[7] # Array length = number solutes
     #if length(size(tR)) == 1
 	#	ns = 1
 	#else
 	#	ns = size(tR)[2]
 	#end
-	L = x_dL[1]
-	d = x_dL[2]
-    return loss(tR, Tchar, θchar, ΔCp, L, d, prog, opt, gas)[1]
-end
+#	L = x_dL[1]
+#	d = x_dL[2]
+#    return loss(tR, Tchar, θchar, ΔCp, L, d, prog, opt, gas)[1]
+#end
 
-function opt_dLKcentric(x_Kcentric, p)
-	tR = p[1]
-	prog = p[2]
-	opt = p[3]
-    gas = p[4]
-    if length(size(tR)) == 1
-		ns = 1
-	else
-		ns = size(tR)[2]
-	end
-	L = x_dLKcentric[1]
-	d = x_dLKcentric[2]
-	Tchar = x_dLKcentric[3:ns+2] # Array length = number solutes
-	θchar = x_dLKcentric[ns+2+1:2*(ns+2)] # Array length = number solutes
-	ΔCp = x_dLKcentric[2*(ns+2)+1:3*(ns+2)] # Array length = number solutes
-    return loss(tR, Tchar, θchar, ΔCp, L, d, prog, opt, gas)[1]
-end
+#function opt_dLKcentric(x_dLKcentric, p)
+#	tR = p[1]
+#	prog = p[2]
+#	opt = p[3]
+#    gas = p[4]
+#    if length(size(tR)) == 1
+#		ns = 1
+#	else
+#		ns = size(tR)[2]
+#	end
+#	L = x_dLKcentric[1]
+#	d = x_dLKcentric[2]
+#	Tchar = x_dLKcentric[3:ns+2] # Array length = number solutes
+#	θchar = x_dLKcentric[ns+2+1:2*(ns+2)] # Array length = number solutes
+#	ΔCp = x_dLKcentric[2*(ns+2)+1:3*(ns+2)] # Array length = number solutes
+#    return loss(tR, Tchar, θchar, ΔCp, L, d, prog, opt, gas)[1]
+#end
 
 # optimize every solute separatly, tR is a 2D-array with RT of different programs in the first dimension and different solutes in the second dimension  
 function optimize_Kcentric_single(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000)
@@ -182,7 +183,7 @@ function optimize_Kcentric_all(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, ΔCp
     elseif method in bbos
         opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
     else
-        opt_sol = solve(prob, method) #-> :u (Array of the optimized parameters), :minimum (minima of the optimization function) , :retcode (Boolean, successful?)
+        opt_sol = solve(prob, method)
     end
 	return opt_sol
 end
@@ -190,72 +191,79 @@ end
 
 
 # optimization for retention parameters, every solute separatly
-function optimize(tR_meas, solute_names, column, options, TPs, PPs, method, method_short_name; maxiters=10000, relbound=0.5, mode="single")
-	L = column.L[1]
-    d = column.d[1]
-    gas = string(column.gas[1])
-    pout = string(column.pout[1])
-    time_unit = string(column.time_unit[1])
-
-    if length(size(tR_meas)) == 1
-        ns = 1
-    else
-        ns = size(tR_meas)[2]
-    end
-
-	prog = Array{GasChromatographySimulator.Program}(undef, length(TPs.measurement))
-    for i=1:length(TPs.measurement)
-        prog[i] = GasChromatographySimulator.Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:end])), column.L[1]; pout=string(column.pout[1]), time_unit=string(column.time_unit[1]))
-    end
-    # estimation of start parameter only works with single ramp programs
-	Tchar_est, θchar_est, ΔCp_est = estimate_start_parameter(tR_meas, TPs, PPs, L, d, gas; pout=pout, time_unit=time_unit, control=options.control)
-
-    method_short_names = Array{String}(undef, ns)
-    Tchar = Array{Float64}(undef, ns)
-	θchar = Array{Float64}(undef, ns)
-	ΔCp = Array{Float64}(undef, ns)
-    min = Array{Float64}(undef, ns)
-    retcode = Array{Any}(undef, ns)
-    if mode == "single"
-	    sol = optimize_Kcentric_single(tR_meas, L, d, gas, prog, options, Tchar_est, θchar_est, ΔCp_est, relbound.*Tchar_est, relbound.*θchar_est, relbound.*ΔCp_est, (1.0+relbound).*Tchar_est, (1.0+relbound).*θchar_est, (1.0+relbound).*ΔCp_est, method; maxiters=maxiters)
-        for j=1:ns
-            method_short_names[j] = method_short_name
-            Tchar[j] = sol[j][1]
-            θchar[j] = sol[j][2]
-            ΔCp[j] = sol[j][3]
-            min[j] = sol[j].minimum
-            retcode[j] = sol[j].retcode
-        end
-    else
-        sol = optimize_Kcentric_all(tR_meas, L, d, gas, prog, options, Tchar_est, θchar_est, ΔCp_est, relbound.*Tchar_est, relbound.*θchar_est, relbound.*ΔCp_est, (1.0+relbound).*Tchar_est, (1.0+relbound).*θchar_est, (1.0+relbound).*ΔCp_est, method; maxiters=maxiters)
-        Tchar = sol[1:ns] # Array length = number solutes
-        θchar = sol[ns+1:2*ns] # Array length = number solutes
-        ΔCp = sol[2*ns+1:3*ns] # Array length = number solutes
-        for j=1:ns
-            min[j] = sol.minimum
-            retcode[j] = sol.retcode
-            method_short_names[j] = method_short_name
-        end
-    end
-	df = DataFrame(Name=solute_names, Methods=method_short_names, Tchar=Tchar, θchar=θchar, ΔCp=ΔCp, min=min, retcode=retcode)
-    #CSV.write(file, df)
-	return df, sol
-end
+#function optimize(tR_meas, solute_names, column, options, TPs, PPs, method, method_short_name; maxiters=10000, relbound=0.5, mode="single")
+#	L = column[:L]
+#    d = column[:d]
+#    gas = column[:gas]
+#    pout = column[:pout]
+#    time_unit = column[:time_unit]
+#
+#    if column[:time_unit] == "min"
+#        a = 60.0
+#    else
+#        a = 1.0
+#    end
+#
+#    if length(size(tR_meas)) == 1
+#        ns = 1
+#    else
+#        ns = size(tR_meas)[2]
+#    end
+#
+#	prog = Array{GasChromatographySimulator.Program}(undef, length(TPs.measurement))
+#    for i=1:length(TPs.measurement)
+#        prog[i] = GasChromatographySimulator.Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:end])), column.L[1]; pout=string(column.pout[1]), time_unit=string(column.time_unit[1]))
+#    end
+#    # estimation of start parameter only works with single ramp programs, here tR_meas should be in the same unit as the programs
+#	Tchar_est, θchar_est, ΔCp_est = estimate_start_parameter(tR_meas, TPs, PPs, L, d, gas; pout=pout, time_unit=time_unit, control=options.control)
+#
+#    method_short_names = Array{String}(undef, ns)
+#    Tchar = Array{Float64}(undef, ns)
+#	θchar = Array{Float64}(undef, ns)
+#	ΔCp = Array{Float64}(undef, ns)
+#    min = Array{Float64}(undef, ns)
+#    retcode = Array{Any}(undef, ns)
+#    if mode == "single"
+#        # here tR_meas should be in seconds
+#	    sol = optimize_Kcentric_single(tR_meas.*60.0, L, d, gas, prog, options, Tchar_est, θchar_est, ΔCp_est, relbound.*Tchar_est, relbound.*θchar_est, relbound.*ΔCp_est, (1.0+relbound).*Tchar_est, (1.0+relbound).*θchar_est, (1.0+relbound).*ΔCp_est, method; maxiters=maxiters)
+#        for j=1:ns
+#            method_short_names[j] = method_short_name
+#            Tchar[j] = sol[j][1]
+#            θchar[j] = sol[j][2]
+#            ΔCp[j] = sol[j][3]
+#            min[j] = sol[j].minimum
+#            retcode[j] = sol[j].retcode
+#        end
+#    else
+#        sol = optimize_Kcentric_all(tR_meas, L, d, gas, prog, options, Tchar_est, θchar_est, ΔCp_est, relbound.*Tchar_est, relbound.*θchar_est, relbound.*ΔCp_est, (1.0+relbound).*Tchar_est, (1.0+relbound).*θchar_est, (1.0+relbound).*ΔCp_est, method; maxiters=maxiters)
+#        Tchar = sol[1:ns] # Array length = number solutes
+#        θchar = sol[ns+1:2*ns] # Array length = number solutes
+#        ΔCp = sol[2*ns+1:3*ns] # Array length = number solutes
+#        for j=1:ns
+#            min[j] = sol.minimum
+#            retcode[j] = sol.retcode
+#            method_short_names[j] = method_short_name
+#        end
+#    end
+#	df = DataFrame(Name=solute_names, Methods=method_short_names, Tchar=Tchar, θchar=θchar, ΔCp=ΔCp, min=min, retcode=retcode)
+#    #CSV.write(file, df)
+#	return df, sol
+#end
 
 # optimization for retention parameters, every solute separatly and write results in file
-function optimize(file, tR_meas, solute_names, column, options, TPs, PPs, method, method_short_name; maxiters=10000, relbound=0.5, mode="single")
-	df, sol = optimize(tR_meas, solute_names, column, options, TPs, PPs, method, method_short_name; maxiters=maxiters, relbound=relbound, mode=mode)
-    CSV.write(file, df)
-	return df, sol
-end
+#function optimize(file, tR_meas, solute_names, column, options, TPs, PPs, method, method_short_name; maxiters=10000, relbound=0.5, mode="single")
+#	df, sol = optimize(tR_meas, solute_names, column, options, TPs, PPs, method, method_short_name; maxiters=maxiters, relbound=relbound, mode=mode)
+#    CSV.write(file, df)
+#	return df, sol
+#end
 
-# fixed initial value
-function optimize(tR_meas, solute_names, column, options, TPs, PPs, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method, method_short_name; maxiters=10000, mode="single")
-	L = column.L[1]
-    d = column.d[1]
-    gas = string(column.gas[1])
-    pout = string(column.pout[1])
-    time_unit = string(column.time_unit[1])
+# with given initial value
+function optimize(tR_meas, solute_names, column, options, TPs, PPs, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, mode="single")
+    if column[:time_unit] == "min"
+        a = 60.0
+    else
+        a = 1.0
+    end
 
     if length(size(tR_meas)) == 1
         ns = 1
@@ -265,18 +273,18 @@ function optimize(tR_meas, solute_names, column, options, TPs, PPs, Tchar_e, θc
 
 	prog = Array{GasChromatographySimulator.Program}(undef, length(TPs.measurement))
     for i=1:length(TPs.measurement)
-        prog[i] = GasChromatographySimulator.Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:end])), column.L[1]; pout=string(column.pout[1]), time_unit=string(column.time_unit[1]))
+        prog[i] = Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:end])), column[:L]; pout=column[:pout], time_unit=column[:time_unit])
     end
-    method_short_names = Array{String}(undef, ns)
+    #method_short_names = Array{String}(undef, ns)
     Tchar = Array{Float64}(undef, ns)
 	θchar = Array{Float64}(undef, ns)
 	ΔCp = Array{Float64}(undef, ns)
     min = Array{Float64}(undef, ns)
     retcode = Array{Any}(undef, ns)
     if mode == "single"
-	    sol = optimize_Kcentric_single(tR_meas, L, d, gas, prog, options, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters)
+	    sol = optimize_Kcentric_single(tR_meas.*a, column[:L], column[:d], column[:gas], prog, options, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters)
         for j=1:ns
-            method_short_names[j] = method_short_name
+            #method_short_names[j] = method_short_name
             Tchar[j] = sol[j][1]
             θchar[j] = sol[j][2]
             ΔCp[j] = sol[j][3]
@@ -284,65 +292,61 @@ function optimize(tR_meas, solute_names, column, options, TPs, PPs, Tchar_e, θc
             retcode[j] = sol[j].retcode
         end
     else
-        sol = optimize_Kcentric_all(tR_meas, L, d, gas, prog, options, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters)
+        sol = optimize_Kcentric_all(tR_meas, column[:L], dcolumn[:d], column[:gas], prog, options, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters)
         Tchar = sol[1:ns] # Array length = number solutes
         θchar = sol[ns+1:2*ns] # Array length = number solutes
         ΔCp = sol[2*ns+1:3*ns] # Array length = number solutes
         for j=1:ns
             min[j] = sol.minimum
             retcode[j] = sol.retcode
-            method_short_names[j] = method_short_name
+            #method_short_names[j] = method_short_name
         end
     end
-	df = DataFrame(Name=solute_names, Methods=method_short_names, Tchar=Tchar, θchar=θchar, ΔCp=ΔCp, min=min, retcode=retcode)
+	df = DataFrame(Name=solute_names, Tchar=Tchar, θchar=θchar, ΔCp=ΔCp, min=min, retcode=retcode)
 	return df, sol
 end
 
-function optimize(file, tR_meas, solute_names, column, options, TPs, PPs, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method, method_short_name; maxiters=10000, mode="single")
-	df, sol = optimize(tR_meas, solute_names, column, options, TPs, PPs, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method, method_short_name; maxiters=maxiters, mode=mode)
-    CSV.write(file, df)
-	return df, sol
+# optimization for retention parameters, every solute separatly
+function optimize(tR_meas, solute_names, column, options, TPs, PPs, method; maxiters=10000, relbound=0.5, mode="single")
+    Tchar_e, θchar_e, ΔCp_e = estimate_start_parameter(tR_meas, TPs, PPs, column[:L], column[:d], column[:gas]; pout=column[:pout], time_unit=column[:time_unit], control=options.control)
+    df, sol = optimize(tR_meas, solute_names, column, options, TPs, PPs,
+                        Tchar_e, θchar_e, ΔCp_e,
+                        Tchar_e.*relbound, θchar_e.*relbound, ΔCp_e.*relbound,
+                        Tchar_e.*(1+relbound), θchar_e.*(1+relbound), ΔCp_e.*(1+relbound),
+                        method; maxiters=10000, mode="single")
+    return df, sol
 end
 
-# benchmark for one solute, using optimization with estimated initial values
-# benchmark time measurement -> function, extract :times, :memory, allocs / input: parameters for BenchmarkTools, meassured RT, system parameters as dictionary
-#function benchmark_optimize(file, tR_meas, solute_names, column, options, TPs, PPs, method, method_short_name)
-#	#times = Array{Float64}(undef, length(solute_names))
-#	#memory = Array{Float64}(undef, length(solute_names))
-#	#allocs = Array{Float64}(undef, length(solute_names))
-#	b = @benchmark optimize($tR_meas, $solute_names, $column, $options, $TPs, $PPs, $method, $method_short_name) seconds = 600
-#	times = sum(b.times)/length(b.times)
-#	memory = b.memory
-#	allocs = b.allocs
-#	df = DataFrame(Methods=method_short_name, Times=times, Memory=memory, Allocs=allocs)
-#   CSV.write(file, df; append=true)
-#	return df
+#function optimize(file, tR_meas, solute_names, column, options, TPs, PPs, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method, method_short_name; maxiters=10000, mode="single")
+#	df, sol = optimize(tR_meas, solute_names, column, options, TPs, PPs, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method, method_short_name; maxiters=maxiters, mode=mode)
+#    CSV.write(file, df)
+#	return df, sol
 #end
 
 ## functions to estimate L and d while the retention parameters are known
-function optimize_dL(tR, gas, prog, opt, Tchar::Array{Number}, θchar::Array{Number}, ΔCp::Array{Number}, L_e, d_e, lb_L, lb_d, ub_L, ub_d, method; maxiters=10000)
-	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
-                    Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
-                    Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
-    bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
-                BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
-    
-    p = [tR, prog, opt, gas, Tchar, θchar, ΔCp]
-	x0 = [L_e, d_e]
-	lb = [lb_L, lb_d]
-	ub = [ub_L, ub_d]
-	optf = OptimizationFunction(opt_Kcentric, Optimization.AutoForwardDiff())
-	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
-		prob = OptimizationProblem(optf, x0, p)
-	else
-		prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-	end
-	if method in optimisers
-        opt_sol = solve(prob, method, maxiters=maxiters)
-    elseif method in bbos
-        opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
-    else
-        opt_sol = solve(prob, method) #-> :u (Array of the optimized parameters), :minimum (minima of the optimization function) , :retcode (Boolean, successful?)
-    end
-	return opt_sol
-end
+#function optimize_dL(tR, gas, prog, opt, Tchar::Array{Number}, θchar::Array{Number}, ΔCp::Array{Number}, L_e, d_e, lb_L, lb_d, ub_L, ub_d, method; maxiters=10000)
+#	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
+#                    Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
+#                    Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
+#    bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
+#                BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
+#    
+#    p = [tR, prog, opt, gas, Tchar, θchar, ΔCp]
+#	x0 = [L_e, d_e]
+#	lb = [lb_L, lb_d]
+#	ub = [ub_L, ub_d]
+#	optf = OptimizationFunction(opt_Kcentric, Optimization.AutoForwardDiff())
+#	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
+#		prob = OptimizationProblem(optf, x0, p)
+#	else
+#		prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
+#	end
+#	if method in optimisers
+#        opt_sol = solve(prob, method, maxiters=maxiters)
+#    elseif method in bbos
+#        opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
+#    else
+#        opt_sol = solve(prob, method) #-> :u (Array of the optimized parameters), :minimum (minima of the optimization function) , :retcode (Boolean, successful?)
+#    end
+#	return opt_sol
+#end

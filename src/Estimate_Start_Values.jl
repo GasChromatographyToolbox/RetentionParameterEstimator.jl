@@ -57,7 +57,7 @@ function estimate_start_parameter(tR_meas, TPs, PPs, L, d, gas; pout="vacuum", t
     end 
     Telu_meas = Array{Float64}(undef, size(tR_meas)[1], n2)
     for i=1:length(TPs)
-        prog[i] = GasChromatographySimulator.Program(TPs[i], PPs[i], L; pout=pout, time_unit=time_unit)
+        prog[i] = Program(TPs[i], PPs[i], L; pout=pout, time_unit=time_unit)
         tMref[i] = reference_holdup_time(prog[i], L, d, gas; control=control)/t_conv
         RT[i] = TPs[i][3] # single-ramp temperature programs are assumed
         Telu_meas[i,:] = elution_temperature(tR_meas[i,:], prog[i])
@@ -91,7 +91,7 @@ function estimate_start_parameter(tR_meas, TPs::DataFrame, PPs::DataFrame, L, d,
     end 
     Telu_meas = Array{Float64}(undef, size(tR_meas)[1], n2)
     for i=1:length(TPs.measurement)
-        prog[i] = GasChromatographySimulator.Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:end])), L; pout=pout, time_unit=time_unit)
+        prog[i] = Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:end])), L; pout=pout, time_unit=time_unit)
         tMref[i] = reference_holdup_time(prog[i], L, d, gas; control=control)/t_conv
         RT[i] = TPs[i, 4] # single-ramp temperature programs are assumed
         Telu_meas[i,:] = elution_temperature(tR_meas[i,:], prog[i])

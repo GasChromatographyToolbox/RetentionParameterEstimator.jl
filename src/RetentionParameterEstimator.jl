@@ -8,7 +8,7 @@ using OptimizationOptimJL
 using OptimizationBBO
 using OptimizationOptimisers
 using OptimizationCMAEvolutionStrategy
-using Dierckx
+using Interpolations
 using DataFrames
 using CSV
 #using BenchmarkTools

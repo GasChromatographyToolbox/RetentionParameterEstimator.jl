@@ -2,7 +2,7 @@
 
 function load_chromatograms(file)
     n = open(f->countlines(f), file)
-    col_df = DataFrame(CSV.File(file, header=1, limit=1))
+    col_df = DataFrame(CSV.File(file, header=1, limit=1, stringtype=String))
     column = Dict(   :L => col_df.L[1],
                         :d => col_df.d[1],
                         :df => col_df.df[1],
@@ -12,9 +12,9 @@ function load_chromatograms(file)
                         :time_unit => col_df.time_unit[1]
                     )
     n_meas = Int((n - 2 - 3)/3) 
-    TP = DataFrame(CSV.File(file, header=3, limit=n_meas))
-    PP = DataFrame(CSV.File(file, header=3+n_meas+1, limit=n_meas))
-    tRs = DataFrame(CSV.File(file, header=n-n_meas))
+    TP = DataFrame(CSV.File(file, header=3, limit=n_meas, stringtype=String))
+    PP = DataFrame(CSV.File(file, header=3+n_meas+1, limit=n_meas, stringtype=String)) # convert pressures from Pa(g) to Pa(a), add p_atm to this data set
+    tRs = DataFrame(CSV.File(file, header=n-n_meas, stringtype=String))
     solute_names = names(tRs)[2:end] # filter non-solute names out (columnx)
     filter!(x -> !occursin.("Column", x), solute_names)
     return column, TP, PP, tRs, solute_names

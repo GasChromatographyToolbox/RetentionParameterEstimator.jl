@@ -67,8 +67,10 @@ function estimate_start_parameter(tR_meas, TPs, PPs, L, d, gas; pout="vacuum", t
     θchar_est = Array{Float64}(undef, n2)
     ΔCp_est = Array{Float64}(undef, n2)
     for i=1:n2
-        spl = Spline1D(rT, Telu_meas[:,i])
-        Tchar_est[i] = spl(rT_nom)
+        interp = interpolate((rT, ), Telu_meas[:,i], Gridded(Linear()))
+        #spl = Spline1D(rT, Telu_meas[:,i])
+        #Tchar_est[i] = spl(rT_nom)
+        Tchar_est[i] = interp(rT_nom)
         θchar_est[i] = 22.0*(Tchar_est[i]/Tst)^0.7 # factor of φ?
         ΔCp_est[i] = 100.0
     end
@@ -101,8 +103,10 @@ function estimate_start_parameter(tR_meas, TPs::DataFrame, PPs::DataFrame, L, d,
     θchar_est = Array{Float64}(undef, n2)
     ΔCp_est = Array{Float64}(undef, n2)
     for i=1:n2
-        spl = Spline1D(rT, Telu_meas[:,i])
-        Tchar_est[i] = spl(rT_nom)
+        interp = interpolate((rT, ), Telu_meas[:,i], Gridded(Linear()))
+        #spl = Spline1D(rT, Telu_meas[:,i])
+        #Tchar_est[i] = spl(rT_nom)
+        Tchar_est[i] = interp(rT_nom)
         θchar_est[i] = 22.0*(Tchar_est[i]/Tst)^0.7 # factor of φ?
         ΔCp_est[i] = 100.0
     end
@@ -127,8 +131,10 @@ function estimate_start_parameter(Telu_meas, tMref_meas, TPs)
     θchar_est = Array{Float64}(undef, size(Telu_meas)[2])
     ΔCp_est = Array{Float64}(undef, size(Telu_meas)[2])
     for i=1:size(Telu_meas)[2]
-        spl = Spline1D(rT, Telu_meas[:,i])
-        Tchar_est[i] = spl(rT_nom)
+        interp = interpolate((rT, ), Telu_meas[:,i], Gridded(Linear()))
+        #spl = Spline1D(rT, Telu_meas[:,i])
+        #Tchar_est[i] = spl(rT_nom)
+        Tchar_est[i] = interp(rT_nom)
         θchar_est[i] = 22.0*(Tchar_est[i]/Tst)^0.7 # factor of φ?
         ΔCp_est[i] = 100.0
     end

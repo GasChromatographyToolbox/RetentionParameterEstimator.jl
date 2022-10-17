@@ -27,9 +27,14 @@ julia> Program((40.0, 1.0, 5.0, 280.0, 2.0, 20.0, 320.0, 2.0),
 function Program(TP, FpinP, L; pout="vacuum", time_unit="min")
     ts1, Ts = GasChromatographySimulator.conventional_program(TP; time_unit=time_unit)
     ts2, Fps = GasChromatographySimulator.conventional_program(FpinP; time_unit=time_unit)
-    time_steps = GasChromatographySimulator.common_time_steps(ts1, ts2)
-    temp_steps = GasChromatographySimulator.new_value_steps(Ts, ts1, time_steps)
-    Fpin_steps = GasChromatographySimulator.new_value_steps(Fps, ts2, time_steps)
+    # remove additional 0.0 which are not at the first position
+    ts1_ = ts1[[1; findall(0.0.!=ts1)]]
+	Ts_ = Ts[[1; findall(0.0.!=ts1)]]
+	ts2_ = ts2[[1; findall(0.0.!=ts2)]]
+	Fps_ = Fps[[1; findall(0.0.!=ts2)]]
+    time_steps = GasChromatographySimulator.common_time_steps(ts1_, ts2_)
+    temp_steps = GasChromatographySimulator.new_value_steps(Ts_, ts1_, time_steps)
+    Fpin_steps = GasChromatographySimulator.new_value_steps(Fps_, ts2_, time_steps)
     if pout == "vacuum"
         pout_steps = zeros(length(time_steps))
     elseif isa(pout, Number)

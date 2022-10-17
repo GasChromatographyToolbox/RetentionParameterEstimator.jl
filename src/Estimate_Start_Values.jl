@@ -60,7 +60,7 @@ function estimate_start_parameter(tR_meas, TPs, PPs, L, d, gas; pout="vacuum", t
         prog[i] = Program(TPs[i], PPs[i], L; pout=pout, time_unit=time_unit)
         tMref[i] = reference_holdup_time(prog[i], L, d, gas; control=control)/t_conv
         RT[i] = TPs[i][3] # single-ramp temperature programs are assumed
-        Telu_meas[i,:] = elution_temperature(tR_meas[i,:], prog[i])
+        Telu_meas[i,:] = elution_temperature(tR_meas[i,:]*t_conv, prog[i])
     end 
     rT = RT.*tMref./θref
     Tchar_est = Array{Float64}(undef, n2)

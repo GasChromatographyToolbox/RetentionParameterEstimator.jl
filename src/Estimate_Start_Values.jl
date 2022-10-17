@@ -10,8 +10,13 @@ function reference_holdup_time(prog, L, d, gas; control="Pressure")
     # estimate the time of the temperature program for T=Tref
     t_ = prog.time_steps
     T_ = prog.temp_steps
-    spl = Spline1D(cumsum(t_), T_ .- Tref)
-    tref = roots(spl)[1]
+    if length(t_) <= 3
+    	spl = Spline1D(T_ .- Tref, cumsum(t_); k=length(t_)-1)
+		tref = spl(0.0)
+	else
+		spl = Spline1D(cumsum(t_), T_ .- Tref)
+		tref = roots(spl)[1]
+	end
     # inlet and outlet pressure at time tref
     Fpin_ref = prog.Fpin_itp(tref)
     pout_ref = prog.pout_itp(tref)

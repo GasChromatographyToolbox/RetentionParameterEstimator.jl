@@ -297,7 +297,7 @@ function optimize(tR_meas, solute_names, column, options, TPs, PPs, Tchar_e, θc
             retcode[j] = sol[j].retcode
         end
     else
-        sol = optimize_Kcentric_all(tR_meas, column[:L], dcolumn[:d], column[:gas], prog, options, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters)
+        sol = optimize_Kcentric_all(tR_meas, column[:L], column[:d], column[:gas], prog, options, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters)
         Tchar = sol[1:ns] # Array length = number solutes
         θchar = sol[ns+1:2*ns] # Array length = number solutes
         ΔCp = sol[2*ns+1:3*ns] # Array length = number solutes

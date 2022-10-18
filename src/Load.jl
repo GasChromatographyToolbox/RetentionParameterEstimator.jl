@@ -61,19 +61,17 @@ function load_chromatograms__(file) # new version
     tRs = DataFrame(CSV.File(file, header=n-n_meas, stringtype=String))
     solute_names = names(tRs)[2:end] # filter non-solute names out (columnx)
     filter!(x -> !occursin.("Column", x), solute_names)
-    TPs, PPs, pamb = extract_temperature_and_pressure_programs(TPprog)
-    return column, TPs, PPs, tRs[!,1:(length(solute_names)+1)], solute_names, pamb
+    TPs, PPs = extract_temperature_and_pressure_programs(TPprog)
+    return column, TPs, PPs, tRs[!,1:(length(solute_names)+1)], solute_names
 end
 
 function load_chromatograms(file; version="with ambient pressure")
     if version == "with ambient pressure" # standard version, pressure program listed together with temperature program
         column, TPs, PPs, tRs, solute_names, pamb = load_chromatograms__(file)
-        return column, TPs, PPs, tRs, solute_names, pamb
     elseif version == "with pressure program" # old version, where pressure program was listed separatly
-        column, TP, PP, tRs, solute_names = load_chromatograms_(file)
-        return column, TP, PP, tRs, solute_names
+        column, TPs, PPs, tRs, solute_names = load_chromatograms_(file)
     else
         column, TPs, PPs, tRs, solute_names, pamb = load_chromatograms__(file)
-        return column, TPs, PPs, tRs, solute_names, pamb
     end
+    return column, TPs, PPs, tRs, solute_names
 end

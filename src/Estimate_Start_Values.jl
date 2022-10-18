@@ -60,7 +60,7 @@ function estimate_start_parameter(tR_meas, TPs, PPs, L, d, gas; pout="vacuum", t
         prog[i] = Program(TPs[i], PPs[i], L; pout=pout, time_unit=time_unit)
         tMref[i] = reference_holdup_time(prog[i], L, d, gas; control=control)/t_conv
         RT[i] = TPs[i][3] # single-ramp temperature programs are assumed
-        Telu_meas[i,:] = elution_temperature(tR_meas[i,:]*t_conv, prog[i])
+        Telu_meas[i,:] = elution_temperature(tR_meas[i,:].*t_conv, prog[i])
     end 
     rT = RT.*tMref./θref
     Telu_max = Array{Float64}(undef, n2)
@@ -98,7 +98,7 @@ function estimate_start_parameter(tR_meas, TPs::DataFrame, PPs::DataFrame, L, d,
         prog[i] = Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:end])), L; pout=pout, time_unit=time_unit)
         tMref[i] = reference_holdup_time(prog[i], L, d, gas; control=control)/t_conv
         RT[i] = TPs[i, 4] # single-ramp temperature programs are assumed
-        Telu_meas[i,:] = elution_temperature(tR_meas[i,:], prog[i])
+        Telu_meas[i,:] = elution_temperature(tR_meas[i,:].*60.0, prog[i])
     end 
     rT = RT.*tMref./θref
     Telu_max = Array{Float64}(undef, n2)

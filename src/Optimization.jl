@@ -278,7 +278,12 @@ function optimize(tR_meas, solute_names, column, options, TPs, PPs, Tchar_e, θc
 
 	prog = Array{GasChromatographySimulator.Program}(undef, length(TPs.measurement))
     for i=1:length(TPs.measurement)
-        prog[i] = Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:end])), column[:L]; pout=column[:pout], time_unit=column[:time_unit])
+        if column[:pout] == "atmospheric"
+            pout = PPs[i, end]
+        else
+            pout = "vacuum"
+        end
+        prog[i] = Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:(end-1)])), column[:L]; pout=pout, time_unit=column[:time_unit])
     end
     #method_short_names = Array{String}(undef, ns)
     Tchar = Array{Float64}(undef, ns)

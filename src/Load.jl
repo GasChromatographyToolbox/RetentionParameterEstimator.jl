@@ -1,6 +1,6 @@
 # functions for loading the measured retention data and the necessary informations (column definition, programs, ...)
 
-function load_chromatograms_(file)
+function load_chromatograms_(file)# old version
     n = open(f->countlines(f), file)
     col_df = DataFrame(CSV.File(file, header=1, limit=1, stringtype=String))
     column = Dict(   :L => col_df.L[1],
@@ -13,7 +13,7 @@ function load_chromatograms_(file)
                     )
     n_meas = Int((n - 2 - 3)/3) 
     TP = DataFrame(CSV.File(file, header=3, limit=n_meas, stringtype=String))
-    PP = DataFrame(CSV.File(file, header=3+n_meas+1, limit=n_meas, stringtype=String)) # convert pressures from Pa(g) to Pa(a), add p_atm to this data set
+    PP = DataFrame(CSV.File(file, header=3+n_meas+1, limit=n_meas, stringtype=String))
     tRs = DataFrame(CSV.File(file, header=n-n_meas, stringtype=String))
     solute_names = names(tRs)[2:end] # filter non-solute names out (columnx)
     filter!(x -> !occursin.("Column", x), solute_names)
@@ -25,7 +25,7 @@ function extract_temperature_and_pressure_programs(TPprog)
     pamb = TPprog[!, iP[end]]
     #iT = 2:(iP[1]-1) # column index of temperature program information
     TPs = TPprog[!,1:(iP[1]-1)] 
-    PPs = DataFrame(measurement = TPs.measurement, p1 = TPprog[!,iP[1]].+pamb, t1 = TPs.t1)
+    PPs = DataFrame(measurement = TPs.measurement, p1 = TPprog[!,iP[1]].+pamb, t1 = TPs.t1) # pressure program in Pa(a)
     iTrate = findall(occursin.("RT", names(TPs))) # column index of heating rates 
     heatingrates = Array{Array{Union{Missing, Float64}}}(undef, length(iTrate))
     Tdiff = Array{Array{Union{Missing, Float64}}}(undef, length(iTrate))
@@ -37,13 +37,14 @@ function extract_temperature_and_pressure_programs(TPprog)
     for i=1:length(iTrate)
         pressurerates[i] = (TPprog[!,iP[i+1]] .- TPprog[!,iP[i]]) .* heatingrates[i] ./ Tdiff[i]
         PPs[!,"RP$(i)"] = pressurerates[i]
-        PPs[!,"p$(i+1)"] = TPprog[!, iP[i+1]].+TPprog[!, iP[end]]
+        PPs[!,"p$(i+1)"] = TPprog[!, iP[i+1]].+pamb
         PPs[!,"t$(i+1)"] = TPs[!,"t$(i+1)"]
     end 
-    return TPs, PPs, pamb
+    PPs[!,"pamb"] = pamb
+    return TPs, PPs
 end
 
-function load_chromatograms__(file)
+function load_chromatograms__(file) # new version
     n = open(f->countlines(f), file)
     col_df = DataFrame(CSV.File(file, header=1, limit=1, stringtype=String))
     column = Dict(   :L => col_df.L[1],

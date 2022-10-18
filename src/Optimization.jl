@@ -318,7 +318,7 @@ function optimize(tR_meas, solute_names, column, options, TPs, PPs, method; maxi
     else
         a = 1.0
     end
-    Tchar_e, θchar_e, ΔCp_e = estimate_start_parameter(tR_meas.*a, TPs, PPs, column[:L], column[:d], column[:gas]; pout=column[:pout], time_unit=column[:time_unit], control=options.control)
+    Tchar_e, θchar_e, ΔCp_e = estimate_start_parameter(tR_meas, TPs, PPs, column[:L], column[:d], column[:gas]; pout=column[:pout], time_unit=column[:time_unit], control=options.control)
     df, sol = optimize(tR_meas, solute_names, column, options, TPs, PPs,
                         Tchar_e, θchar_e, ΔCp_e,
                         Tchar_e.*relbound, θchar_e.*relbound, ΔCp_e.*relbound,

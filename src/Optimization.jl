@@ -323,7 +323,7 @@ function optimize(tR_meas, solute_names, column, options, TPs, PPs, method; maxi
                         Tchar_e, θchar_e, ΔCp_e,
                         Tchar_e.*relbound, θchar_e.*relbound, ΔCp_e.*relbound,
                         Tchar_e.*(1+relbound), θchar_e.*(1+relbound), ΔCp_e.*(1+relbound),
-                        method; maxiters=10000, mode="single")
+                        method; maxiters=maxiters, mode=mode)
     return df, sol
 end
 

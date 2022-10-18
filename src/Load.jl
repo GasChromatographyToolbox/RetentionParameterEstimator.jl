@@ -67,11 +67,11 @@ end
 
 function load_chromatograms(file; version="with ambient pressure")
     if version == "with ambient pressure" # standard version, pressure program listed together with temperature program
-        column, TPs, PPs, tRs, solute_names, pamb = load_chromatograms__(file)
+        column, TPs, PPs, tRs, solute_names = load_chromatograms__(file)
     elseif version == "with pressure program" # old version, where pressure program was listed separatly
         column, TPs, PPs, tRs, solute_names = load_chromatograms_(file)
     else
-        column, TPs, PPs, tRs, solute_names, pamb = load_chromatograms__(file)
+        column, TPs, PPs, tRs, solute_names = load_chromatograms__(file)
     end
     return column, TPs, PPs, tRs, solute_names
 end

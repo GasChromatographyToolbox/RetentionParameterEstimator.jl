@@ -313,7 +313,12 @@ end
 
 # optimization for retention parameters, every solute separatly
 function optimize(tR_meas, solute_names, column, options, TPs, PPs, method; maxiters=10000, relbound=0.5, mode="single")
-    Tchar_e, θchar_e, ΔCp_e = estimate_start_parameter(tR_meas, TPs, PPs, column[:L], column[:d], column[:gas]; pout=column[:pout], time_unit=column[:time_unit], control=options.control)
+    if column[:time_unit] == "min"
+        a = 60.0
+    else
+        a = 1.0
+    end
+    Tchar_e, θchar_e, ΔCp_e = estimate_start_parameter(tR_meas.*a, TPs, PPs, column[:L], column[:d], column[:gas]; pout=column[:pout], time_unit=column[:time_unit], control=options.control)
     df, sol = optimize(tR_meas, solute_names, column, options, TPs, PPs,
                         Tchar_e, θchar_e, ΔCp_e,
                         Tchar_e.*relbound, θchar_e.*relbound, ΔCp_e.*relbound,

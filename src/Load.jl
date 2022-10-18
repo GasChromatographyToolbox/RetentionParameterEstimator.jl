@@ -22,24 +22,24 @@ end
 
 function extract_temperature_and_pressure_programs(TPprog)
     iP = findall(occursin.("p", names(TPprog))) # column index of pressure information
+    pamb = TPprog[!, iP[end]]
     #iT = 2:(iP[1]-1) # column index of temperature program information
     TPs = TPprog[!,1:(iP[1]-1)] 
-    PPs = DataFrame(measurement = TPs.measurement, p1 = TPprog[!,iP[1]].+TPprog[!,iP[end]], t1 = TPs.t1)
+    PPs = DataFrame(measurement = TPs.measurement, p1 = TPprog[!,iP[1]].+pamb, t1 = TPs.t1)
     iTrate = findall(occursin.("RT", names(TPs))) # column index of heating rates 
-    heatingrates = Array{Array{Float64}}(undef, length(iTrate))
-    Tdiff = Array{Array{Float64}}(undef, length(iTrate))
+    heatingrates = Array{Array{Union{Missing, Float64}}}(undef, length(iTrate))
+    Tdiff = Array{Array{Union{Missing, Float64}}}(undef, length(iTrate))
     for i=1:length(iTrate)
         heatingrates[i] = TPs[!, iTrate[i]]
         Tdiff[i] = TPs[!, iTrate[i]+1] .- TPs[!, iTrate[i]-2]
     end
-    pressurerates = Array{Array{Float64}}(undef, length(iTrate))
+    pressurerates = Array{Array{Union{Missing, Float64}}}(undef, length(iTrate))
     for i=1:length(iTrate)
         pressurerates[i] = (TPprog[!,iP[i+1]] .- TPprog[!,iP[i]]) .* heatingrates[i] ./ Tdiff[i]
         PPs[!,"RP$(i)"] = pressurerates[i]
         PPs[!,"p$(i+1)"] = TPprog[!, iP[i+1]].+TPprog[!, iP[end]]
         PPs[!,"t$(i+1)"] = TPs[!,"t$(i+1)"]
     end 
-    pamb = TPprog[!, iP[end]]
     return TPs, PPs, pamb
 end
 
@@ -61,7 +61,7 @@ function load_chromatograms__(file)
     solute_names = names(tRs)[2:end] # filter non-solute names out (columnx)
     filter!(x -> !occursin.("Column", x), solute_names)
     TPs, PPs, pamb = extract_temperature_and_pressure_programs(TPprog)
-    return column, TPs, PPs, tRs, solute_names, pamb
+    return column, TPs, PPs, tRs[!,1:(length(solute_names)+1)], solute_names, pamb
 end
 
 function load_chromatograms(file; version="with ambient pressure")

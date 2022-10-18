@@ -12,6 +12,12 @@ db_path = "./data"
 db_file = "Database_SLB5ms.csv"
 pout = "vacuum"
 time_unit = "min"
-par = RetentionParameterEstimator.conventional_GC(L, d, df, sp, gas, TP, PP, solutes, db_path, db_file; pout=pout, time_unit=time_unit)
 
+# Simulation_Test.jl
+par = RetentionParameterEstimator.conventional_GC(L, d, df, sp, gas, TP, PP, solutes, db_path, db_file; pout=pout, time_unit=time_unit)
 @test par.prog.time_steps[2] == 3.0*60.0
+
+tR_sim, tR_sim_randn, par_sim = RetentionParameterEstimator.sim_test_chrom(L, d, df, sp, gas, [TP, TP], [PP, PP], solutes, db_path, db_file; pout=pout, time_unit=time_unit)
+@test tR_sim[1,1] == tR_sim[2,1]
+# more meaningful test?
+

@@ -78,27 +78,54 @@ function program_header!(df_P, c)
     return rename!(df_P, header)
 end
 
-function save_simulation(file, column, measurement_name, TPs, PPs, solutes, tR_meas)
+function save_simulation(file, column, measurement_name, TPs, PPs, pamb, solutes, tR_meas)
     # save the results:
     #
     # system information in header
     # L, d, df, sp, gas, pout, time_unit
     CSV.write(file, DataFrame(column))
-    # temperature Program
-    # measurment_name, TP
-    df_TP = DataFrame([measurement_name convert_vector_of_vector_to_2d_array(TPs)], :auto)
-    program_header!(df_TP, "T")
-    CSV.write(file, df_TP, append=true, writeheader=true)
-    # pressure Program
-    # measurement_name, PP 
-    df_PP = DataFrame([measurement_name convert_vector_of_vector_to_2d_array(PPs)], :auto)
-    program_header!(df_PP, "p")
-    CSV.write(file, df_PP, append=true, writeheader=true)
+    # Program
+    # measurment_name, TP, p1, p2, ... , pamb
+    TPm = RetentionParameterEstimator.convert_vector_of_vector_to_2d_array(TPs)
+    PPm = RetentionParameterEstimator.convert_vector_of_vector_to_2d_array(PPs)
+    df_prog = DataFrame([measurement_name TPm PPm[:,1:3:end].-pamb fill(pamb, length(measurement_name))], :auto)
+    # header naming for Program
+    header = Array{Symbol}(undef, size(df_prog)[2])
+    header[1] = :measurement
+    header[end] = :pamb
+    np = size(df_prog)[2] - 2 # number of program columns (temperature and pressure)
+    nrates = Int((np - 3)/4) # number of rates of the temperature program
+    i1 = 1
+    i2 = 1
+    i3 = 1
+    for i=2:(np-nrates) # temperature program part
+        if i in collect(2:3:(np-nrates))
+            header[i] = Symbol(string("T", "$(i1)"))
+            i1 = i1 + 1
+        elseif i in collect(3:3:(np-nrates))
+            header[i] = Symbol("t$(i2)")
+            i2 = i2 + 1
+        else
+            header[i] = Symbol(string("RT", "$(i3)"))
+            i3 = i3 + 1
+        end
+    end
+    for i=(np-nrates+1):(size(df_prog)[2]-1) # pressure part
+        header[i] = Symbol(string("p$(i-(np-nrates))"))
+    end
+    rename!(df_prog, header)
+    
+    CSV.write(file, df_prog, append=true, writeheader=true)
     # retention times
-    # measurement_name, tR 
+    # measurement_name, tR
+    if column[:time_unit] == "min"
+        a = 60.0
+    else
+        a = 1.0
+    end 
     df_tR = DataFrame(measurement=measurement_name)
     for i=1:length(solutes)
-        df_tR[!, solutes[i]] = tR_meas[:,i]
+        df_tR[!, solutes[i]] = tR_meas[:,i]./a
     end
     CSV.write(file, df_tR, append=true, writeheader=true)
 end

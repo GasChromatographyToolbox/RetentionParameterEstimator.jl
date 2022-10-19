@@ -25,19 +25,22 @@ function sim_test_chrom(L, d, df, sp, gas, TPs, PPs, solutes, db_path, db_file; 
         par_meas[i] = conventional_GC(L, d, df, sp, gas, TPs[i], PPs[i], solutes, db_path, db_file; pout=pout, time_unit=time_unit)
     end
 
-    #pl_meas = Array{DataFrame}(undef, length(TPs))
     tR_meas = Array{Float64}(undef, length(TPs), length(solutes))
-    tR_meas_randn = Array{Float64}(undef, length(TPs), length(solutes))
     for i=1:length(TPs)
         pl_meas = GasChromatographySimulator.simulate(par_meas[i])[1]
         for j=1:length(solutes)
             jj = findfirst(pl_meas.Name.==solutes[j])
             tR_meas[i,j] = pl_meas.tR[jj]
-            tR_meas_randn[i,j] = pl_meas.tR[jj]*(1+randn()*0.005) # add here a random ± time
         end
     end
-    return tR_meas, tR_meas_randn, par_meas
+    return tR_meas, par_meas
 end
+
+function sim_test_chrom(column, TPs, PPs, solutes, db_path, db_file)
+    tR_meas, par_meas = sim_test_chrom(column[:L], column[:d], column[:df], column[:sp], column[:gas], TPs, PPs, solutes, db_path, db_file; pout=column[:pout], time_unit=column[:time_unit])
+    return tR_meas, par_meas
+end
+
 
 function convert_vector_of_vector_to_2d_array(TPs)
     nTP = Array{Int}(undef, length(TPs))

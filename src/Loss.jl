@@ -52,16 +52,21 @@ function loss(tR, Tchar, θchar, ΔCp, L, d, prog, opt, gas)
 	#opt = p[5]
 
 	if length(size(tR)) == 1
+		ns = 1 # number of solutes
+		np = size(tR)[1] # number of programs
+	elseif length(size(tR)) == 0
 		ns = 1
+		np = 1
 	else
 		ns = size(tR)[2]
+		np = size(tR)[1]
 	end
 	#Tchar = p_Kcentric[1:ns] # Array length = number solutes
 	#θchar = p_Kcentric[ns+1:2*ns] # Array length = number solutes
 	#ΔCp = p_Kcentric[2*ns+1:3*ns] # Array length = number solutes
-	tRcalc = Array{Any}(undef, size(tR)[1], ns)
+	tRcalc = Array{Any}(undef, np, ns)
 	for j=1:ns
-		for i=1:size(tR)[1]
+		for i=1:np
 			tRcalc[i,j] = tR_calc(Tchar[j], θchar[j], ΔCp[j], L, d, prog[i], opt, gas)
 		end
 	end

@@ -307,7 +307,6 @@ function optimize_LdKcentric(tR, gas, prog, opt, L_e, d_e, Tchar_e, θchar_e, Δ
 	if method in optimisers
         opt_sol = solve(prob, method, maxiters=maxiters)
     elseif method in bbos
-	if method in bbos
         opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
     else
         opt_sol = solve(prob, method)
@@ -335,7 +334,6 @@ function optimize_LKcentric(tR, d, gas, prog, opt, L_e, Tchar_e, θchar_e, ΔCp_
 	if method in optimisers
         opt_sol = solve(prob, method, maxiters=maxiters)
     elseif method in bbos
-	if method in bbos
         opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
     else
         opt_sol = solve(prob, method)
@@ -363,7 +361,6 @@ function optimize_dKcentric(tR, L, gas, prog, opt, d_e, Tchar_e, θchar_e, ΔCp_
 	if method in optimisers
         opt_sol = solve(prob, method, maxiters=maxiters)
     elseif method in bbos
-	if method in bbos
         opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
     else
         opt_sol = solve(prob, method)

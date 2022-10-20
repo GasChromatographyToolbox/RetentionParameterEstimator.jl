@@ -564,7 +564,7 @@ function optimize_all_(tR_meas, solute_names, column, options, TPs, PPs, Tchar_e
         end
         df = DataFrame(Name=solute_names, Tchar=Tchar, θchar=θchar, ΔCp=ΔCp, min=min, retcode=retcode)
     elseif mode == "Kcentric"
-        sol = optimize_Kcentric_all(tR_meas.*a, column[:L], column[:d], column[:gas], prog, options, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters)
+        sol = optimize_Kcentric_all_(tR_meas.*a, column[:L], column[:d], column[:gas], prog, options, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters)
         Tchar = sol[1:ns] # Array length = number solutes
         θchar = sol[ns+1:2*ns] # Array length = number solutes
         ΔCp = sol[2*ns+1:3*ns] # Array length = number solutes
@@ -580,7 +580,7 @@ function optimize_all_(tR_meas, solute_names, column, options, TPs, PPs, Tchar_e
         ub_L = L_e*100
         lb_d = d_e/100
         ub_d = d_e*100
-        sol = optimize_LdKcentric(tR_meas.*a, column[:gas], prog, options, L_e, d_e, Tchar_e, θchar_e, ΔCp_e, lb_L, lb_d, lb_Tchar, lb_θchar, lb_ΔCp, ub_L, ub_d, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters)
+        sol = optimize_LdKcentric_(tR_meas.*a, column[:gas], prog, options, L_e, d_e, Tchar_e, θchar_e, ΔCp_e, lb_L, lb_d, lb_Tchar, lb_θchar, lb_ΔCp, ub_L, ub_d, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters)
         L = sol[1].*ones(ns)
         d = sol[2].*ones(ns)
         Tchar = sol[3:ns+2] # Array length = number solutes
@@ -595,7 +595,7 @@ function optimize_all_(tR_meas, solute_names, column, options, TPs, PPs, Tchar_e
         L_e = column[:L]
         lb_L = L_e/100
         ub_L = L_e*100
-        sol = optimize_LKcentric(tR_meas.*a, column[:d], column[:gas], prog, options, L_e, Tchar_e, θchar_e, ΔCp_e, lb_L, lb_Tchar, lb_θchar, lb_ΔCp, ub_L, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters)
+        sol = optimize_LKcentric_(tR_meas.*a, column[:d], column[:gas], prog, options, L_e, Tchar_e, θchar_e, ΔCp_e, lb_L, lb_Tchar, lb_θchar, lb_ΔCp, ub_L, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters)
         L = sol[1].*ones(ns)
         Tchar = sol[2:ns+1] # Array length = number solutes
         θchar = sol[ns+1+1:2*ns+1] # Array length = number solutes
@@ -609,7 +609,7 @@ function optimize_all_(tR_meas, solute_names, column, options, TPs, PPs, Tchar_e
         d_e = column[:d]
         lb_d = d_e/100
         ub_d = d_e*100
-        sol = optimize_dKcentric(tR_meas.*a, column[:L], column[:gas], prog, options, d_e, Tchar_e, θchar_e, ΔCp_e, lb_d, lb_Tchar, lb_θchar, lb_ΔCp, ub_d, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters)
+        sol = optimize_dKcentric_(tR_meas.*a, column[:L], column[:gas], prog, options, d_e, Tchar_e, θchar_e, ΔCp_e, lb_d, lb_Tchar, lb_θchar, lb_ΔCp, ub_d, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters)
         d = sol[1].*ones(ns)
         Tchar = sol[2:ns+1] # Array length = number solutes
         θchar = sol[ns+1+1:2*ns+1] # Array length = number solutes

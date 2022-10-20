@@ -151,8 +151,8 @@ function optimize_Kcentric_all(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, ΔCp
 	end
 	if method in optimisers
         opt_sol = solve(prob, method, maxiters=maxiters)
-    elseif method in bbos
-        opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
+    #elseif method in bbos
+    #    opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
     else
         opt_sol = solve(prob, method)
     end
@@ -306,8 +306,8 @@ function optimize_LdKcentric(tR, gas, prog, opt, L_e, d_e, Tchar_e, θchar_e, Δ
 	end
 	if method in optimisers
         opt_sol = solve(prob, method, maxiters=maxiters)
-    elseif method in bbos
-        opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
+    #elseif method in bbos
+    #    opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
     else
         opt_sol = solve(prob, method)
     end
@@ -333,8 +333,8 @@ function optimize_LKcentric(tR, d, gas, prog, opt, L_e, Tchar_e, θchar_e, ΔCp_
 	end
 	if method in optimisers
         opt_sol = solve(prob, method, maxiters=maxiters)
-    elseif method in bbos
-        opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
+    #elseif method in bbos
+    #    opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
     else
         opt_sol = solve(prob, method)
     end
@@ -360,14 +360,15 @@ function optimize_dKcentric(tR, L, gas, prog, opt, d_e, Tchar_e, θchar_e, ΔCp_
 	end
 	if method in optimisers
         opt_sol = solve(prob, method, maxiters=maxiters)
-    elseif method in bbos
-        opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
+    #elseif method in bbos
+    #    opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
     else
         opt_sol = solve(prob, method)
     end
 	return opt_sol
 end
 
+# rename this function later
 function optimize_all(tR_meas, solute_names, column, options, TPs, PPs, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, mode="LdKcentric")
     # mode = "LdKcentric", "LKcentric", "dKcentric", "Kcentric", "Kcentric_single"
     if column[:time_unit] == "min"
@@ -407,7 +408,7 @@ function optimize_all(tR_meas, solute_names, column, options, TPs, PPs, Tchar_e,
             retcode[j] = sol[j].retcode
         end
         df = DataFrame(Name=solute_names, Tchar=Tchar, θchar=θchar, ΔCp=ΔCp, min=min, retcode=retcode)
-    elseif mode == "Kcentic"
+    elseif mode == "Kcentric"
         sol = optimize_Kcentric_all(tR_meas.*a, column[:L], column[:d], column[:gas], prog, options, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters)
         Tchar = sol[1:ns] # Array length = number solutes
         θchar = sol[ns+1:2*ns] # Array length = number solutes
@@ -417,7 +418,7 @@ function optimize_all(tR_meas, solute_names, column, options, TPs, PPs, Tchar_e,
             retcode[j] = sol.retcode
         end
         df = DataFrame(Name=solute_names, Tchar=Tchar, θchar=θchar, ΔCp=ΔCp, min=min, retcode=retcode)
-    elseif mode == "LdKcentic"
+    elseif mode == "LdKcentric"
         L_e = column[:L]
         d_e = column[:d]
         lb_L = L_e/100
@@ -435,7 +436,7 @@ function optimize_all(tR_meas, solute_names, column, options, TPs, PPs, Tchar_e,
             retcode[j] = sol.retcode
         end
         df = DataFrame(Name=solute_names, L=L, d=d, Tchar=Tchar, θchar=θchar, ΔCp=ΔCp, min=min, retcode=retcode)
-    elseif mode == "LKcentic"
+    elseif mode == "LKcentric"
         L_e = column[:L]
         lb_L = L_e/100
         ub_L = L_e*100
@@ -449,7 +450,7 @@ function optimize_all(tR_meas, solute_names, column, options, TPs, PPs, Tchar_e,
             retcode[j] = sol.retcode
         end
         df = DataFrame(Name=solute_names, L=L, Tchar=Tchar, θchar=θchar, ΔCp=ΔCp, min=min, retcode=retcode)
-    elseif mode == "dKcentic"
+    elseif mode == "dKcentric"
         d_e = column[:d]
         lb_d = d_e/100
         ub_d = d_e*100

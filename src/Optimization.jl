@@ -129,7 +129,7 @@ function optimize_Kcentric_single(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, �
 		x0 = [Tchar_e[i], θchar_e[i], ΔCp_e[i]]
 		lb = [lb_Tchar[i], lb_θchar[i], lb_ΔCp[i]]
 		ub = [ub_Tchar[i], ub_θchar[i], ub_ΔCp[i]]
-		if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
+		if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
 			prob = OptimizationProblem(optf, x0, p)
 		else
 			prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
@@ -165,7 +165,7 @@ function optimize_Kcentric_single_(tR, L, d, df, gas, prog, opt, Tchar_e, θchar
 		x0 = [Tchar_e[i], θchar_e[i], ΔCp_e[i]]
 		lb = [lb_Tchar[i], lb_θchar[i], lb_ΔCp[i]]
 		ub = [ub_Tchar[i], ub_θchar[i], ub_ΔCp[i]]
-		if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
+		if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
 			prob = OptimizationProblem(optf, x0, p)
 		else
 			prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
@@ -199,7 +199,7 @@ function optimize_Kcentric_all(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, ΔCp
 	lb = [lb_Tchar; lb_θchar; lb_ΔCp]
 	ub = [ub_Tchar; ub_θchar; ub_ΔCp]
 	optf = OptimizationFunction(opt_Kcentric, Optimization.AutoForwardDiff())
-	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
+	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
 		prob = OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
 	else
 		prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
@@ -354,7 +354,7 @@ function optimize_LdKcentric(tR, gas, prog, opt, L_e, d_e, Tchar_e, θchar_e, Δ
 	lb = [lb_L; lb_d; lb_Tchar; lb_θchar; lb_ΔCp]
 	ub = [ub_L; ub_d; ub_Tchar; ub_θchar; ub_ΔCp]
 	optf = OptimizationFunction(opt_LdKcentric, Optimization.AutoForwardDiff())
-	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
+	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
 		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
 	else
 		prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
@@ -381,7 +381,7 @@ function optimize_LKcentric(tR, d, gas, prog, opt, L_e, Tchar_e, θchar_e, ΔCp_
 	lb = [lb_L; lb_Tchar; lb_θchar; lb_ΔCp]
 	ub = [ub_L; ub_Tchar; ub_θchar; ub_ΔCp]
 	optf = OptimizationFunction(opt_LKcentric, Optimization.AutoForwardDiff())
-	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
+	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
 		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
 	else
 		prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
@@ -408,7 +408,7 @@ function optimize_dKcentric(tR, L, gas, prog, opt, d_e, Tchar_e, θchar_e, ΔCp_
 	lb = [lb_d; lb_Tchar; lb_θchar; lb_ΔCp]
 	ub = [ub_d; ub_Tchar; ub_θchar; ub_ΔCp]
 	optf = OptimizationFunction(opt_dKcentric, Optimization.AutoForwardDiff())
-	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
+	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
 		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
 	else
 		prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)

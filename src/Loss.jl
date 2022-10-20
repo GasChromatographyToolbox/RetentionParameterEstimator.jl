@@ -40,6 +40,26 @@ function tR_calc(A, B, C, L, d, df, prog, opt, gas)
 	return tR
 end
 
+function tR_calc_(Tchar, θchar, ΔCp, L, d, df, prog, opt, gas)
+	# df has no influence on the result (is hidden in Tchar, θchar, ΔCp)
+	R = 8.3145
+	#k(x,t,Tchar,θchar,ΔCp) = exp((ΔCp/R + Tchar/θchar)*(Tchar/prog.T_itp(x,t)-1) + ΔCp/R*log(prog.T_itp(x,t)/Tchar))
+	#k(x,t,Tchar,θchar,ΔCp,d,df) = GasChromatographySimulator.retention_factor(x,t, prog.T_itp, d, df, Tchar, θchar, ΔCp, df/d)
+	#rM(x,t,L,d) = GasChromatographySimulator.mobile_phase_residency(x,t, prog.T_itp, prog.Fpin_itp, prog.pout_itp, L, d, gas; ng=opt.ng, vis=opt.vis, control=opt.control)
+	#r(t,p,x) = (1+k(x,t,p[1],p[2],p[3]))*rM(x,t,p[4],p[5])
+	#r(t,p,x) = (1+k(x,t,p[1],p[2],p[3],p[5],p[6]))*rM(x,t,p[4],p[5]) -> df has to be added as variable
+
+	# alternivly
+	r(t,p,x) = residency(x, t, prog.T_itp, prog.Fpin_itp, prog.pout_itp, p[4], p[5], p[6], gas, p[1], p[2], p[3], p[6]/p[5]; ng=opt.ng, vis=opt.vis, control=opt.control)
+	t₀ = 0.0
+	xspan = (0.0, L)
+	p = [Tchar, θchar, ΔCp, L, d, df]
+	prob = ODEProblem(r, t₀, xspan, p)
+	solution = solve(prob, alg=opt.alg, abstol=opt.abstol, reltol=opt.reltol)
+	tR = solution.u[end]
+	return tR
+end
+
 """
     loss(tR, Tchar, θchar, ΔCp, L, d, prog, opt, gas)
 
@@ -108,6 +128,26 @@ function loss(tR, A, B, C, L, d, df, prog, opt, gas)
 	for j=1:ns
 		for i=1:np
 			tRcalc[i,j] = tR_calc(A[j], B[j], C[j], L, d, df, prog[i], opt, gas)
+		end
+	end
+	return sum((tR.-tRcalc).^2), tRcalc
+end	
+
+function loss_(tR, Tchar, θchar, ΔCp, L, d, df, prog, opt, gas)
+	if length(size(tR)) == 1
+		ns = 1 # number of solutes
+		np = size(tR)[1] # number of programs
+	elseif length(size(tR)) == 0
+		ns = 1
+		np = 1
+	else
+		ns = size(tR)[2]
+		np = size(tR)[1]
+	end
+	tRcalc = Array{Any}(undef, np, ns)
+	for j=1:ns
+		for i=1:np
+			tRcalc[i,j] = tR_calc_(Tchar[j], θchar[j], ΔCp[j], L, d, df, prog[i], opt, gas)
 		end
 	end
 	return sum((tR.-tRcalc).^2), tRcalc

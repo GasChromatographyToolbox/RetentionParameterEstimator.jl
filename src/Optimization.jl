@@ -51,6 +51,8 @@ function Program(TP, FpinP, L; pout="vacuum", time_unit="min")
     return prog
 end
 
+#------------------
+# Optimization only for the K-centric retention parameters
 """
     opt_Kcentric(x_Kcentric, p)
 
@@ -86,42 +88,6 @@ function opt_Kcentric(x_Kcentric, p)
 	ΔCp = x_Kcentric[2*ns+1:3*ns] # Array length = number solutes
     return loss(tR, Tchar, θchar, ΔCp, L, d, prog, opt, gas)[1]
 end
-
-#function opt_dL(x_dL, p)
-#	tR = p[1]
-#	prog = p[2]
-#	opt = p[3]
-#    gas = p[4]
-#	Tchar = p[5] # Array length = number solutes
-#	θchar = p[6] # Array length = number solutes
-#	ΔCp = p[7] # Array length = number solutes
-    #if length(size(tR)) == 1
-	#	ns = 1
-	#else
-	#	ns = size(tR)[2]
-	#end
-#	L = x_dL[1]
-#	d = x_dL[2]
-#    return loss(tR, Tchar, θchar, ΔCp, L, d, prog, opt, gas)[1]
-#end
-
-#function opt_dLKcentric(x_dLKcentric, p)
-#	tR = p[1]
-#	prog = p[2]
-#	opt = p[3]
-#    gas = p[4]
-#    if length(size(tR)) == 1
-#		ns = 1
-#	else
-#		ns = size(tR)[2]
-#	end
-#	L = x_dLKcentric[1]
-#	d = x_dLKcentric[2]
-#	Tchar = x_dLKcentric[3:ns+2] # Array length = number solutes
-#	θchar = x_dLKcentric[ns+2+1:2*(ns+2)] # Array length = number solutes
-#	ΔCp = x_dLKcentric[2*(ns+2)+1:3*(ns+2)] # Array length = number solutes
-#    return loss(tR, Tchar, θchar, ΔCp, L, d, prog, opt, gas)[1]
-#end
 
 # optimize every solute separatly, tR is a 2D-array with RT of different programs in the first dimension and different solutes in the second dimension  
 function optimize_Kcentric_single(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000)
@@ -193,76 +159,8 @@ function optimize_Kcentric_all(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, ΔCp
 	return opt_sol
 end
 
-
-
-# optimization for retention parameters, every solute separatly
-#function optimize(tR_meas, solute_names, column, options, TPs, PPs, method, method_short_name; maxiters=10000, relbound=0.5, mode="single")
-#	L = column[:L]
-#    d = column[:d]
-#    gas = column[:gas]
-#    pout = column[:pout]
-#    time_unit = column[:time_unit]
-#
-#    if column[:time_unit] == "min"
-#        a = 60.0
-#    else
-#        a = 1.0
-#    end
-#
-#    if length(size(tR_meas)) == 1
-#        ns = 1
-#    else
-#        ns = size(tR_meas)[2]
-#    end
-#
-#	prog = Array{GasChromatographySimulator.Program}(undef, length(TPs.measurement))
-#    for i=1:length(TPs.measurement)
-#        prog[i] = GasChromatographySimulator.Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:end])), column.L[1]; pout=string(column.pout[1]), time_unit=string(column.time_unit[1]))
-#    end
-#    # estimation of start parameter only works with single ramp programs, here tR_meas should be in the same unit as the programs
-#	Tchar_est, θchar_est, ΔCp_est = estimate_start_parameter(tR_meas, TPs, PPs, L, d, gas; pout=pout, time_unit=time_unit, control=options.control)
-#
-#    method_short_names = Array{String}(undef, ns)
-#    Tchar = Array{Float64}(undef, ns)
-#	θchar = Array{Float64}(undef, ns)
-#	ΔCp = Array{Float64}(undef, ns)
-#    min = Array{Float64}(undef, ns)
-#    retcode = Array{Any}(undef, ns)
-#    if mode == "single"
-#        # here tR_meas should be in seconds
-#	    sol = optimize_Kcentric_single(tR_meas.*60.0, L, d, gas, prog, options, Tchar_est, θchar_est, ΔCp_est, relbound.*Tchar_est, relbound.*θchar_est, relbound.*ΔCp_est, (1.0+relbound).*Tchar_est, (1.0+relbound).*θchar_est, (1.0+relbound).*ΔCp_est, method; maxiters=maxiters)
-#        for j=1:ns
-#            method_short_names[j] = method_short_name
-#            Tchar[j] = sol[j][1]
-#            θchar[j] = sol[j][2]
-#            ΔCp[j] = sol[j][3]
-#            min[j] = sol[j].minimum
-#            retcode[j] = sol[j].retcode
-#        end
-#    else
-#        sol = optimize_Kcentric_all(tR_meas, L, d, gas, prog, options, Tchar_est, θchar_est, ΔCp_est, relbound.*Tchar_est, relbound.*θchar_est, relbound.*ΔCp_est, (1.0+relbound).*Tchar_est, (1.0+relbound).*θchar_est, (1.0+relbound).*ΔCp_est, method; maxiters=maxiters)
-#        Tchar = sol[1:ns] # Array length = number solutes
-#        θchar = sol[ns+1:2*ns] # Array length = number solutes
-#        ΔCp = sol[2*ns+1:3*ns] # Array length = number solutes
-#        for j=1:ns
-#            min[j] = sol.minimum
-#            retcode[j] = sol.retcode
-#            method_short_names[j] = method_short_name
-#        end
-#    end
-#	df = DataFrame(Name=solute_names, Methods=method_short_names, Tchar=Tchar, θchar=θchar, ΔCp=ΔCp, min=min, retcode=retcode)
-#    #CSV.write(file, df)
-#	return df, sol
-#end
-
-# optimization for retention parameters, every solute separatly and write results in file
-#function optimize(file, tR_meas, solute_names, column, options, TPs, PPs, method, method_short_name; maxiters=10000, relbound=0.5, mode="single")
-#	df, sol = optimize(tR_meas, solute_names, column, options, TPs, PPs, method, method_short_name; maxiters=maxiters, relbound=relbound, mode=mode)
-#    CSV.write(file, df)
-#	return df, sol
-#end
-
 # with given initial value
+# DELETE
 function optimize(tR_meas, solute_names, column, options, TPs, PPs, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, mode="single")
     if column[:time_unit] == "min"
         a = 60.0
@@ -316,7 +214,8 @@ function optimize(tR_meas, solute_names, column, options, TPs, PPs, Tchar_e, θc
 	return df, sol
 end
 
-# optimization for retention parameters, every solute separatly
+# optimization for retention parameters
+# DELETE
 function optimize(tR_meas, solute_names, column, options, TPs, PPs, method; maxiters=10000, relbound=0.5, mode="single")
     if column[:time_unit] == "min"
         a = 60.0
@@ -332,36 +231,242 @@ function optimize(tR_meas, solute_names, column, options, TPs, PPs, method; maxi
     return df, sol
 end
 
-#function optimize(file, tR_meas, solute_names, column, options, TPs, PPs, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method, method_short_name; maxiters=10000, mode="single")
-#	df, sol = optimize(tR_meas, solute_names, column, options, TPs, PPs, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method, method_short_name; maxiters=maxiters, mode=mode)
-#    CSV.write(file, df)
-#	return df, sol
-#end
+#------------------
+# Optimization for L, d and K-centric retention parameters together
+function opt_LdKcentric(x_LdKcentric, p)
+	tR = p[1]
+	prog = p[2]
+	opt = p[3]
+    gas = p[4]
+    if length(size(tR)) == 1
+		ns = 1
+	else
+		ns = size(tR)[2]
+	end
+	L = x_LdKcentric[1]
+	d = x_LdKcentric[2]
+	Tchar = x_LdKcentric[3:ns+2] # Array length = number solutes
+	θchar = x_LdKcentric[ns+2+1:2*ns+2] # Array length = number solutes
+	ΔCp = x_LdKcentric[2*ns+2+1:3*ns+2] # Array length = number solutes
+    return loss(tR, Tchar, θchar, ΔCp, L, d, prog, opt, gas)[1]
+end
 
-## functions to estimate L and d while the retention parameters are known
-#function optimize_dL(tR, gas, prog, opt, Tchar::Array{Number}, θchar::Array{Number}, ΔCp::Array{Number}, L_e, d_e, lb_L, lb_d, ub_L, ub_d, method; maxiters=10000)
-#	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
-#                    Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
-#                    Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
-#    bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
-#                BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
-#    
-#    p = [tR, prog, opt, gas, Tchar, θchar, ΔCp]
-#	x0 = [L_e, d_e]
-#	lb = [lb_L, lb_d]
-#	ub = [ub_L, ub_d]
-#	optf = OptimizationFunction(opt_Kcentric, Optimization.AutoForwardDiff())
-#	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
-#		prob = OptimizationProblem(optf, x0, p)
-#	else
-#		prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-#	end
-#	if method in optimisers
-#        opt_sol = solve(prob, method, maxiters=maxiters)
-#    elseif method in bbos
-#        opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
-#    else
-#        opt_sol = solve(prob, method) #-> :u (Array of the optimized parameters), :minimum (minima of the optimization function) , :retcode (Boolean, successful?)
-#    end
-#	return opt_sol
-#end
+function opt_LKcentric(x_LKcentric, p)
+	tR = p[1]
+	d = p[2]
+	prog = p[3]
+	opt = p[4]
+    gas = p[5]
+    if length(size(tR)) == 1
+		ns = 1
+	else
+		ns = size(tR)[2]
+	end
+	L = x_LKcentric[1]
+	Tchar = x_LKcentric[2:ns+1] # Array length = number solutes
+	θchar = x_LKcentric[ns+1+1:2*ns+1] # Array length = number solutes
+	ΔCp = x_LKcentric[2*ns+1+1:3*ns+1] # Array length = number solutes
+    return RetentionParameterEstimator.loss(tR, Tchar, θchar, ΔCp, L, d, prog, opt, gas)[1]
+end
+
+function opt_dKcentric(x_dKcentric, p)
+	tR = p[1]
+	L = p[2]
+	prog = p[3]
+	opt = p[4]
+    gas = p[5]
+    if length(size(tR)) == 1
+		ns = 1
+	else
+		ns = size(tR)[2]
+	end
+	d = x_dKcentric[1]
+	Tchar = x_dKcentric[2:ns+1] # Array length = number solutes
+	θchar = x_dKcentric[ns+1+1:2*ns+1] # Array length = number solutes
+	ΔCp = x_dKcentric[2*ns+1+1:3*ns+1] # Array length = number solutes
+    return RetentionParameterEstimator.loss(tR, Tchar, θchar, ΔCp, L, d, prog, opt, gas)[1]
+end
+
+function optimize_LdKcentric(tR, gas, prog, opt, L_e, d_e, Tchar_e, θchar_e, ΔCp_e, lb_L, lb_d, lb_Tchar, lb_θchar, lb_ΔCp, ub_L, ub_d, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000)
+	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
+                    Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
+                    Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
+    bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
+                BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
+    
+    p = [tR, prog, opt, gas]
+	x0 = [L_e; d_e; Tchar_e; θchar_e; ΔCp_e]
+	lb = [lb_L; lb_d; lb_Tchar; lb_θchar; lb_ΔCp]
+	ub = [ub_L; ub_d; ub_Tchar; ub_θchar; ub_ΔCp]
+	optf = OptimizationFunction(opt_LdKcentric, Optimization.AutoForwardDiff())
+	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
+		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+	else
+		prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
+	end
+	if method in optimisers
+        opt_sol = solve(prob, method, maxiters=maxiters)
+    elseif method in bbos
+	if method in bbos
+        opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
+    else
+        opt_sol = solve(prob, method)
+    end
+	return opt_sol
+end
+
+function optimize_LKcentric(tR, d, gas, prog, opt, L_e, Tchar_e, θchar_e, ΔCp_e, lb_L, lb_Tchar, lb_θchar, lb_ΔCp, ub_L, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000)
+	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
+                    Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
+                    Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
+    bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
+                BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
+    
+    p = [tR, d, prog, opt, gas]
+	x0 = [L_e; Tchar_e; θchar_e; ΔCp_e]
+	lb = [lb_L; lb_Tchar; lb_θchar; lb_ΔCp]
+	ub = [ub_L; ub_Tchar; ub_θchar; ub_ΔCp]
+	optf = OptimizationFunction(opt_LKcentric, Optimization.AutoForwardDiff())
+	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
+		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+	else
+		prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
+	end
+	if method in optimisers
+        opt_sol = solve(prob, method, maxiters=maxiters)
+    elseif method in bbos
+	if method in bbos
+        opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
+    else
+        opt_sol = solve(prob, method)
+    end
+	return opt_sol
+end
+
+function optimize_dKcentric(tR, L, gas, prog, opt, d_e, Tchar_e, θchar_e, ΔCp_e, lb_d, lb_Tchar, lb_θchar, lb_ΔCp, ub_d, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000)
+	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
+                    Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
+                    Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
+    bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
+                BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
+    
+    p = [tR, L, prog, opt, gas]
+	x0 = [d_e; Tchar_e; θchar_e; ΔCp_e]
+	lb = [lb_d; lb_Tchar; lb_θchar; lb_ΔCp]
+	ub = [ub_d; ub_Tchar; ub_θchar; ub_ΔCp]
+	optf = OptimizationFunction(opt_dKcentric, Optimization.AutoForwardDiff())
+	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
+		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+	else
+		prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
+	end
+	if method in optimisers
+        opt_sol = solve(prob, method, maxiters=maxiters)
+    elseif method in bbos
+	if method in bbos
+        opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
+    else
+        opt_sol = solve(prob, method)
+    end
+	return opt_sol
+end
+
+function optimize_all(tR_meas, solute_names, column, options, TPs, PPs, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, mode="LdKcentric")
+    # mode = "LdKcentric", "LKcentric", "dKcentric", "Kcentric", "Kcentric_single"
+    if column[:time_unit] == "min"
+        a = 60.0
+    else
+        a = 1.0
+    end
+
+    if length(size(tR_meas)) == 1
+        ns = 1
+    else
+        ns = size(tR_meas)[2]
+    end
+
+	prog = Array{GasChromatographySimulator.Program}(undef, length(TPs.measurement))
+    for i=1:length(TPs.measurement)
+        if column[:pout] == "atmospheric"
+            pout = PPs[i, end]
+        else
+            pout = "vacuum"
+        end
+        prog[i] = Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:(end-1)])), column[:L]; pout=pout, time_unit=column[:time_unit])
+    end
+    
+    Tchar = Array{Float64}(undef, ns)
+	θchar = Array{Float64}(undef, ns)
+	ΔCp = Array{Float64}(undef, ns)
+    min = Array{Float64}(undef, ns)
+    retcode = Array{Any}(undef, ns)
+    if mode == "Kcentric_single"
+	    sol = optimize_Kcentric_single(tR_meas.*a, column[:L], column[:d], column[:gas], prog, options, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters)
+        for j=1:ns
+            Tchar[j] = sol[j][1]
+            θchar[j] = sol[j][2]
+            ΔCp[j] = sol[j][3]
+            min[j] = sol[j].minimum
+            retcode[j] = sol[j].retcode
+        end
+        df = DataFrame(Name=solute_names, Tchar=Tchar, θchar=θchar, ΔCp=ΔCp, min=min, retcode=retcode)
+    elseif mode == "Kcentic"
+        sol = optimize_Kcentric_all(tR_meas.*a, column[:L], column[:d], column[:gas], prog, options, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters)
+        Tchar = sol[1:ns] # Array length = number solutes
+        θchar = sol[ns+1:2*ns] # Array length = number solutes
+        ΔCp = sol[2*ns+1:3*ns] # Array length = number solutes
+        for j=1:ns
+            min[j] = sol.minimum
+            retcode[j] = sol.retcode
+        end
+        df = DataFrame(Name=solute_names, Tchar=Tchar, θchar=θchar, ΔCp=ΔCp, min=min, retcode=retcode)
+    elseif mode == "LdKcentic"
+        L_e = column[:L]
+        d_e = column[:d]
+        lb_L = L_e/100
+        ub_L = L_e*100
+        lb_d = d_e/100
+        ub_d = d_e*100
+        sol = optimize_LdKcentric(tR_meas.*a, column[:gas], prog, options, L_e, d_e, Tchar_e, θchar_e, ΔCp_e, lb_L, lb_d, lb_Tchar, lb_θchar, lb_ΔCp, ub_L, ub_d, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters)
+        L = sol[1].*ones(ns)
+        d = sol[2].*ones(ns)
+        Tchar = sol[3:ns+2] # Array length = number solutes
+        θchar = sol[ns+2+1:2*ns+2] # Array length = number solutes
+        ΔCp = sol[2*ns+2+1:3*ns+2] # Array length = number solutes
+        for j=1:ns
+            min[j] = sol.minimum
+            retcode[j] = sol.retcode
+        end
+        df = DataFrame(Name=solute_names, L=L, d=d, Tchar=Tchar, θchar=θchar, ΔCp=ΔCp, min=min, retcode=retcode)
+    elseif mode == "LKcentic"
+        L_e = column[:L]
+        lb_L = L_e/100
+        ub_L = L_e*100
+        sol = optimize_LKcentric(tR_meas.*a, column[:d], column[:gas], prog, options, L_e, Tchar_e, θchar_e, ΔCp_e, lb_L, lb_Tchar, lb_θchar, lb_ΔCp, ub_L, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters)
+        L = sol[1].*ones(ns)
+        Tchar = sol[2:ns+1] # Array length = number solutes
+        θchar = sol[ns+1+1:2*ns+1] # Array length = number solutes
+        ΔCp = sol[2*ns+1+1:3*ns+1] # Array length = number solutes
+        for j=1:ns
+            min[j] = sol.minimum
+            retcode[j] = sol.retcode
+        end
+        df = DataFrame(Name=solute_names, L=L, Tchar=Tchar, θchar=θchar, ΔCp=ΔCp, min=min, retcode=retcode)
+    elseif mode == "dKcentic"
+        d_e = column[:d]
+        lb_d = d_e/100
+        ub_d = d_e*100
+        sol = optimize_dKcentric(tR_meas.*a, column[:L], column[:gas], prog, options, d_e, Tchar_e, θchar_e, ΔCp_e, lb_d, lb_Tchar, lb_θchar, lb_ΔCp, ub_d, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters)
+        d = sol[1].*ones(ns)
+        Tchar = sol[2:ns+1] # Array length = number solutes
+        θchar = sol[ns+1+1:2*ns+1] # Array length = number solutes
+        ΔCp = sol[2*ns+1+1:3*ns+1] # Array length = number solutes
+        for j=1:ns
+            min[j] = sol.minimum
+            retcode[j] = sol.retcode
+        end
+        df = DataFrame(Name=solute_names, d=d, Tchar=Tchar, θchar=θchar, ΔCp=ΔCp, min=min, retcode=retcode)
+    end
+	
+	return df, sol
+end

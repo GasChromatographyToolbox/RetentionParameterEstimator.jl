@@ -356,7 +356,7 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, T
         end
         df = DataFrame(Name=solute_names, Tchar=Tchar, θchar=θchar, ΔCp=ΔCp, min=min, retcode=retcode)
     elseif mode == "LdratioKcentric"
-        Ldratio_e = colum[:L]/column[:d]
+        Ldratio_e = column[:L]/column[:d]
         lb_Ldratio = Ldratio_e/100
         ub_Ldratio = Ldratio_e*100
         sol = optimize_LdratioKcentric(tR_meas.*a, column[:L], column[:gas], prog, options, Ldratio_e, Tchar_e, θchar_e, ΔCp_e, lb_Ldratio, lb_Tchar, lb_θchar, lb_ΔCp, ub_Ldratio, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters, metric=metric)

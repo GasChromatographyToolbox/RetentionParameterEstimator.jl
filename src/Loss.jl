@@ -7,7 +7,7 @@ Calculates the retention time tR for a solute with the K-centric parameters `Tch
     
 """
 function tR_calc(Tchar, θchar, ΔCp, L, d, prog, opt, gas)
-	r(t,p,x) = GasChromatographySimulator.residency(x, t, prog.T_itp, prog.Fpin_itp, prog.pout_itp, p[4], p[5], p[5]*1-e3, gas, p[1], p[2], p[3], 1e-3; ng=opt.ng, vis=opt.vis, control=opt.control)
+	r(t,p,x) = GasChromatographySimulator.residency(x, t, prog.T_itp, prog.Fpin_itp, prog.pout_itp, p[4], p[5], p[5]*1e-3, gas, p[1], p[2], p[3], 1e-3; ng=opt.ng, vis=opt.vis, control=opt.control)
 	t₀ = 0.0
 	xspan = (0.0, L)
 	p = [Tchar, θchar, ΔCp, L, d]

@@ -150,8 +150,8 @@ function optimize_Kcentric_single(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, �
 	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
                     Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
                     Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
-    bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
-                BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
+    #bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
+    #            BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
     
     optf = OptimizationFunction(opt_Kcentric, Optimization.AutoForwardDiff())
 	
@@ -171,13 +171,13 @@ function optimize_Kcentric_single(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, �
 		else
 			prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
 		end
-        if method in optimisers
-            opt_sol[i] = solve(prob, method, maxiters=maxiters)
+        #if method in optimisers
+        #    opt_sol[i] = solve(prob, method, maxiters=maxiters)
         #elseif method in bbos
         #    opt_sol[i] = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
-        else
-		    opt_sol[i] = solve(prob, method) #-> :u (Array of the optimized parameters), :minimum (minima of the optimization function) , :retcode (Boolean, successful?)
-        end
+        #else
+		opt_sol[i] = solve(prob, method, maxiters=maxiters) #-> :u (Array of the optimized parameters), :minimum (minima of the optimization function) , :retcode (Boolean, successful?)
+        #end
     end
 	return opt_sol
 end
@@ -192,8 +192,8 @@ function optimize_Kcentric_all(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, ΔCp
 	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
                     Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
                     Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
-    bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
-                BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
+    #bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
+    #            BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
     
     p = [tR, L, d, prog, opt, gas, metric]
 	x0 = [Tchar_e; θchar_e; ΔCp_e]
@@ -205,13 +205,13 @@ function optimize_Kcentric_all(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, ΔCp
 	else
 		prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
 	end
-	if method in optimisers
-        opt_sol = solve(prob, method, maxiters=maxiters)
+	#if method in optimisers
+    #    opt_sol = solve(prob, method, maxiters=maxiters)
     #elseif method in bbos
     #    opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
-    else
-        opt_sol = solve(prob, method)
-    end
+    #else
+    opt_sol = solve(prob, method, maxiters=maxiters)
+    #end
 	return opt_sol
 end
 
@@ -279,8 +279,8 @@ function optimize_LdratioKcentric(tR, L, gas, prog, opt, Ldratio_e, Tchar_e, θc
 	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
                     Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
                     Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
-    bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
-                BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
+    #bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
+    #            BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
     
     p = [tR, L, prog, opt, gas, metric]
 	x0 = [Ldratio_e; Tchar_e; θchar_e; ΔCp_e]
@@ -292,13 +292,13 @@ function optimize_LdratioKcentric(tR, L, gas, prog, opt, Ldratio_e, Tchar_e, θc
 	else
 		prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
 	end
-	if method in optimisers
-        opt_sol = solve(prob, method, maxiters=maxiters)
+	#if method in optimisers
+    #    opt_sol = solve(prob, method, maxiters=maxiters)
     #elseif method in bbos
     #    opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
-    else
-        opt_sol = solve(prob, method)
-    end
+    #else
+    opt_sol = solve(prob, method, maxiters=maxiters)
+    #end
 	return opt_sol
 end
 

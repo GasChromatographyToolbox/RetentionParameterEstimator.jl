@@ -30,7 +30,7 @@ time_unit = "min"
     ΔCp = par.sub[3].ΔCp
     opt = par.opt
 
-    tR = RetentionParameterEstimator.tR_calc(Tchar, θchar, ΔCp, L, d, par.prog, opt, gas)
+    tR = RetentionParameterEstimator.tR_calc(Tchar, θchar, ΔCp, df/d, L, d, df, par.prog, opt, gas)
 
     pl.tR[3] == tR # false, because of odesys=true for GasChromatographySimulator
         # and in RetentionParameterEstimator only the migration ODE is used 

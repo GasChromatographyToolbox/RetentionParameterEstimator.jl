@@ -1,21 +1,17 @@
 # functions defining the loss-function
 
 """
-    tR_calc(Tchar, θchar, ΔCp, L, d, prog, opt, gas)
+    tR_calc(Tchar, θchar, ΔCp, φ₀, L, d, df, prog, opt, gas)
 
-Calculates the retention time tR for a solute with the K-centric parameters `Tchar` `θchar` and `ΔCp` for a column with length `L` and diameter `d`, the (conventional) program `prog`, options `opt` and mobile phase `gas`.
-    
+Calculates the retention time tR for a solute with the K-centric parameters `Tchar` `θchar` and `ΔCp` and the corresponding dimensionless film 
+thickness `φ₀` for a column with length `L`, internal diameter `d` and film thickness `df`, the (conventional) program `prog`, options `opt` and mobile phase `gas`.
+For this calculation only the ODE for the migration of a solute in a GC column is solved, using the function `GasChromatographySimulator.solving_migration`.
 """
-function tR_calc(Tchar, θchar, ΔCp, L, d, prog, opt, gas)
-	r(t,p,x) = GasChromatographySimulator.residency(x, t, prog.T_itp, prog.Fpin_itp, prog.pout_itp, p[4], p[5], p[5]*1e-3, gas, p[1], p[2], p[3], 1e-3; ng=opt.ng, vis=opt.vis, control=opt.control)
-	t₀ = 0.0
-	xspan = (0.0, L)
-	p = [Tchar, θchar, ΔCp, L, d]
-	prob = ODEProblem(r, t₀, xspan, p)
-	solution = solve(prob, alg=opt.alg, abstol=opt.abstol, reltol=opt.reltol)
+function tR_calc(Tchar, θchar, ΔCp, φ₀, L, d, df, prog, opt, gas)
+	solution = GasChromatographySimulator.solving_migration(Tchar, θchar, ΔCp, φ₀, L, d, df, prog, opt, gas)
 	tR = solution.u[end]
 	return tR
-end
+end# -> put this in GasChromatographySimulator
 
 function tR_calc(A, B, C, L, d, df, prog, opt, gas)
 	k(x,t,A,B,C,d,df) = exp(A + B/prog.T_itp(x,t) + C*log(prog.T_itp(x,t)) - log(d/(4*df)))
@@ -65,7 +61,7 @@ function loss(tR, Tchar, θchar, ΔCp, L, d, prog, opt, gas; metric="quadratic")
 	tRcalc = Array{Any}(undef, np, ns)
 	for j=1:ns
 		for i=1:np
-			tRcalc[i,j] = tR_calc(Tchar[j], θchar[j], ΔCp[j], L, d, prog[i], opt, gas)
+			tRcalc[i,j] = tR_calc(Tchar[j], θchar[j], ΔCp[j], 1e-3, L, d, d*1e-3, prog[i], opt, gas)
 		end
 	end
 	if metric == "abs"

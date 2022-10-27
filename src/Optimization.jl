@@ -514,7 +514,7 @@ function optimize_φKcentric(tR, L, d, φ₀, gas, prog, opt, φ_e, Tchar_e, θc
 	return opt_sol
 end
 
-function optimize_λφKcentric(tR, L, φ₀, gas, prog, opt, λ_e, φ_e, Tchar_e, θchar_e, ΔCp_e, lb_λ, lb_φ, lb_Tchar, lb_θchar, lb_ΔCp, ub_λn, ub_φ, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, metric="quadratic")
+function optimize_λφKcentric(tR, L, φ₀, gas, prog, opt, λ_e, φ_e, Tchar_e, θchar_e, ΔCp_e, lb_λ, lb_φ, lb_Tchar, lb_θchar, lb_ΔCp, ub_λ, ub_φ, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, metric="quadratic")
 	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
                     Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
                     Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]

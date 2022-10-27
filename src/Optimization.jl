@@ -310,10 +310,11 @@ function optimize_Kcentric_single(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, �
 		lb = [lb_Tchar[i], lb_θchar[i], lb_ΔCp[i]]
 		ub = [ub_Tchar[i], ub_θchar[i], ub_ΔCp[i]]
 		#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-		#	prob = OptimizationProblem(optf, x0, p)
-		#else
-			prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-		#end
+		if method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
+            prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+        else
+            prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
+        end
         #if method in optimisers
         #    opt_sol[i] = solve(prob, method, maxiters=maxiters)
         #elseif method in bbos
@@ -346,10 +347,11 @@ function optimize_ABC_single(tR, L, d, df, gas, prog, opt, Tchar_e, θchar_e, Δ
 		lb = [lb_Tchar[i], lb_θchar[i], lb_ΔCp[i]]
 		ub = [ub_Tchar[i], ub_θchar[i], ub_ΔCp[i]]
 		#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-		#	prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-		#else
-			prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-		#end
+		if method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
+            prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+        else
+            prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
+        end
         #if method in optimisers
         #    opt_sol[i] = solve(prob, method, maxiters=maxiters)
         #elseif method in bbos
@@ -380,10 +382,11 @@ function optimize_Kcentric_all(tR, L, d, gas, prog, opt, A_e, B_e, C_e, lb_A, lb
 	ub = [ub_A; ub_B; ub_C]
 	optf = OptimizationFunction(opt_Kcentric, Optimization.AutoForwardDiff())
 	#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-	#	prob = OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-	#else
-		prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-	#end
+	if method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
+		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+	else
+		prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
+	end
 	#if method in optimisers
     #    opt_sol = solve(prob, method, maxiters=maxiters)
     #elseif method in bbos
@@ -407,10 +410,11 @@ function optimize_ABC_all(tR, L, d, df, gas, prog, opt, A_e, B_e, C_e, lb_A, lb_
 	ub = [ub_A; ub_B; ub_C]
 	optf = OptimizationFunction(opt_KABC, Optimization.AutoForwardDiff())
 	#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-	#	prob = OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-	#else
-		prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-	#end
+	if method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
+		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+	else
+		prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
+	end
 	#if method in optimisers
     #    opt_sol = solve(prob, method, maxiters=maxiters)
     #elseif method in bbos

@@ -143,7 +143,7 @@ function opt_λφKcentric(x, p)
     else
         ns = size(tR)[2]
     end
-    L/λ = x[1]
+    λ = x[1]
     φ = x[2]
     Tchar = x[3:ns+2] # Array length = number solutes
     θchar = x[ns+3:2*ns+2] # Array length = number solutes

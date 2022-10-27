@@ -13,7 +13,7 @@ function tR_calc(Tchar, θchar, ΔCp, φ₀, L, d, df, prog, opt, gas)
 	return tR
 end# -> put this in GasChromatographySimulator
 
-function tR_calc(Tchar, θchar, ΔCp, λ, φ, L, φ₀, prog, opt, gas)
+function tR_calc_(Tchar, θchar, ΔCp, λ, φ, L, φ₀, prog, opt, gas)
 	solution = GasChromatographySimulator.solving_migration(Tchar, θchar, ΔCp, φ₀, L, L/λ, L/λ*φ, prog, opt, gas)
 	tR = solution.u[end]
 	return tR

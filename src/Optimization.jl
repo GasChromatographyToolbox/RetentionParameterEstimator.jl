@@ -133,11 +133,11 @@ end
 function opt_λφKcentric(x, p)
     tR = p[1]
     L = p[2]
-    φ₀
-    prog = p[3]
-    opt = p[4]
-    gas = p[5]
-    metric = p[6]
+    φ₀ = p[3]
+    prog = p[4]
+    opt = p[5]
+    gas = p[6]
+    metric = p[7]
     if length(size(tR)) == 1
         ns = 1
     else

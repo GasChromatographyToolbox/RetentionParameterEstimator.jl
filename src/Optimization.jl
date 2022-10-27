@@ -151,6 +151,27 @@ function opt_λφKcentric(x, p)
     return loss(tR, Tchar, θchar, ΔCp, φ₀, L, L/λ, L/λ*φ, prog, opt, gas; metric=metric)[1]
 end
 
+function opt_ddfKcentric(x, p)
+    tR = p[1]
+    L = p[2]
+    φ₀ = p[3]
+    prog = p[4]
+    opt = p[5]
+    gas = p[6]
+    metric = p[7]
+    if length(size(tR)) == 1
+        ns = 1
+    else
+        ns = size(tR)[2]
+    end
+    d = x[1]
+    df = x[2]
+    Tchar = x[3:ns+2] # Array length = number solutes
+    θchar = x[ns+3:2*ns+2] # Array length = number solutes
+    ΔCp = x[2*ns+3:3*ns+2] # Array length = number solutes
+    return loss(tR, Tchar, θchar, ΔCp, φ₀, L, d, df, prog, opt, gas; metric=metric)[1]
+end
+
 function opt_ABC(x, p)
 	tR = p[1]
 	L = p[2]
@@ -541,6 +562,33 @@ function optimize_λφKcentric(tR, L, φ₀, gas, prog, opt, λ_e, φ_e, Tchar_e
 	return opt_sol
 end
 
+function optimize_ddfKcentric(tR, L, φ₀, gas, prog, opt, d_e, df_e, Tchar_e, θchar_e, ΔCp_e, lb_d, lb_df, lb_Tchar, lb_θchar, lb_ΔCp, ub_d, ub_df, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, metric="quadratic")
+	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
+                    Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
+                    Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
+    #bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
+    #            BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
+    
+    p = [tR, L, φ₀, prog, opt, gas, metric]
+	x0 = [d_e; df_e; Tchar_e; θchar_e; ΔCp_e]
+	lb = [lb_d; lb_df; lb_Tchar; lb_θchar; lb_ΔCp]
+	ub = [ub_d; ub_df; ub_Tchar; ub_θchar; ub_ΔCp]
+	optf = OptimizationFunction(opt_ddfKcentric, Optimization.AutoForwardDiff())
+	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
+		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+	else
+		prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
+	end
+	#if method in optimisers
+    #    opt_sol = solve(prob, method, maxiters=maxiters)
+    #elseif method in bbos
+    #    opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
+    #else
+    opt_sol = solve(prob, method, maxiters=maxiters)
+    #end
+	return opt_sol
+end
+
 function optimize_λABC(tR, L, df, gas, prog, opt, λ_e, A_e, B_e, C_e, lb_λ, lb_A, lb_B, lb_C, ub_λ, ub_A, ub_B, ub_C, method; maxiters=10000, metric="quadratic")
 	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
                     Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
@@ -625,7 +673,7 @@ end
 
 # rename this function later
 function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, rp1_e, rp2_e, rp3_e, lb_rp1, lb_rp2, lb_rp3, ub_rp1, ub_rp2, ub_rp3, method; maxiters=10000, mode="LdKcentric", metric="quadratic", φ₀=1e-3)
-    # mode = "Kcentric", "Kcentric_single", "λKcentric", "φKcentric", "λφKcentric", "ABC", "ABC_single", "λABC", "dfABC", "λdfABC"
+    # mode = "Kcentric", "Kcentric_single", "λKcentric", "φKcentric", "λφKcentric", "ddfKcentric", "ABC", "ABC_single", "λABC", "dfABC", "λdfABC"
     # later add here modes for ABC-Parameters and ABC+df
     if column[:time_unit] == "min"
         a = 60.0
@@ -720,6 +768,24 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
             retcode[j] = sol.retcode
         end
         df = DataFrame(Name=solute_names, λ=λ, φ=φ, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
+    elseif mode == "ddfKcentric"
+        d_e = column[:d]
+        lb_d = d_e/10
+        ub_d = d_e*10
+        df_e = column[:df]
+        lb_df = df_e/100
+        ub_df = df_e*100
+        sol = optimize_λφKcentric(tR_meas.*a, column[:L], φ₀, column[:gas], prog, options, d_e, df_e, rp1_e, rp2_e, rp3_e, lb_d, lb_df, lb_rp1, lb_rp2, lb_rp3, ub_d, ub_df, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
+        d = sol[1].*ones(ns)
+        df = sol[2].*ones(ns)
+        rp1 = sol[3:ns+2] # Array length = number solutes
+        rp2 = sol[ns+3:2*ns+2] # Array length = number solutes
+        rp3 = sol[2*ns+3:3*ns+2] # Array length = number solutes
+        for j=1:ns
+            min[j] = sol.minimum
+            retcode[j] = sol.retcode
+        end
+        df = DataFrame(Name=solute_names, d=d, df=df, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
     elseif mode == "ABC_single"
         sol = optimize_ABC_single(tR_meas.*a, column[:L], column[:d], column[:df], column[:gas], prog, options, rp1_e, rp2_e, rp3_e, lb_rp1, lb_rp2, lb_rp3, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
         for j=1:ns

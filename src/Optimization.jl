@@ -309,11 +309,11 @@ function optimize_Kcentric_single(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, �
 		x0 = [Tchar_e[i], θchar_e[i], ΔCp_e[i]]
 		lb = [lb_Tchar[i], lb_θchar[i], lb_ΔCp[i]]
 		ub = [ub_Tchar[i], ub_θchar[i], ub_ΔCp[i]]
-		if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-			prob = OptimizationProblem(optf, x0, p)
-		else
+		#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
+		#	prob = OptimizationProblem(optf, x0, p)
+		#else
 			prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-		end
+		#end
         #if method in optimisers
         #    opt_sol[i] = solve(prob, method, maxiters=maxiters)
         #elseif method in bbos
@@ -345,11 +345,11 @@ function optimize_ABC_single(tR, L, d, df, gas, prog, opt, Tchar_e, θchar_e, Δ
 		x0 = [Tchar_e[i], θchar_e[i], ΔCp_e[i]]
 		lb = [lb_Tchar[i], lb_θchar[i], lb_ΔCp[i]]
 		ub = [ub_Tchar[i], ub_θchar[i], ub_ΔCp[i]]
-		if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
+		#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
+		#	prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
+		#else
 			prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-		else
-			prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-		end
+		#end
         #if method in optimisers
         #    opt_sol[i] = solve(prob, method, maxiters=maxiters)
         #elseif method in bbos
@@ -379,11 +379,11 @@ function optimize_Kcentric_all(tR, L, d, gas, prog, opt, A_e, B_e, C_e, lb_A, lb
 	lb = [lb_A; lb_B; lb_C]
 	ub = [ub_A; ub_B; ub_C]
 	optf = OptimizationFunction(opt_Kcentric, Optimization.AutoForwardDiff())
-	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-		prob = OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-	else
+	#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
+	#	prob = OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+	#else
 		prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-	end
+	#end
 	#if method in optimisers
     #    opt_sol = solve(prob, method, maxiters=maxiters)
     #elseif method in bbos
@@ -406,11 +406,11 @@ function optimize_ABC_all(tR, L, d, df, gas, prog, opt, A_e, B_e, C_e, lb_A, lb_
 	lb = [lb_A; lb_B; lb_C]
 	ub = [ub_A; ub_B; ub_C]
 	optf = OptimizationFunction(opt_KABC, Optimization.AutoForwardDiff())
-	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-		prob = OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-	else
+	#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
+	#	prob = OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+	#else
 		prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-	end
+	#end
 	#if method in optimisers
     #    opt_sol = solve(prob, method, maxiters=maxiters)
     #elseif method in bbos
@@ -493,11 +493,11 @@ function optimize_λKcentric(tR, L, gas, prog, opt, λ_e, Tchar_e, θchar_e, ΔC
 	lb = [lb_λ; lb_Tchar; lb_θchar; lb_ΔCp]
 	ub = [ub_λ; ub_Tchar; ub_θchar; ub_ΔCp]
 	optf = OptimizationFunction(opt_λKcentric, Optimization.AutoForwardDiff())
-	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-	else
+	#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
+	#	prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+	#else
 		prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-	end
+	#end
 	#if method in optimisers
     #    opt_sol = solve(prob, method, maxiters=maxiters)
     #elseif method in bbos
@@ -528,11 +528,11 @@ function optimize_λKcentric_single(tR, L, gas, prog, opt, λ_e, Tchar_e, θchar
 		x0 = [λ_e, Tchar_e[i], θchar_e[i], ΔCp_e[i]]
 		lb = [lb_λ, lb_Tchar[i], lb_θchar[i], lb_ΔCp[i]]
 		ub = [ub_λ, ub_Tchar[i], ub_θchar[i], ub_ΔCp[i]]
-		if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-			prob = OptimizationProblem(optf, x0, p)
-		else
+		#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
+		#	prob = OptimizationProblem(optf, x0, p)
+		#else
 			prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-		end
+		#end
         #if method in optimisers
         #    opt_sol[i] = solve(prob, method, maxiters=maxiters)
         #elseif method in bbos
@@ -556,11 +556,11 @@ function optimize_φKcentric(tR, L, d, φ₀, gas, prog, opt, φ_e, Tchar_e, θc
 	lb = [lb_φ; lb_Tchar; lb_θchar; lb_ΔCp]
 	ub = [ub_φ; ub_Tchar; ub_θchar; ub_ΔCp]
 	optf = OptimizationFunction(opt_φKcentric, Optimization.AutoForwardDiff())
-	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-	else
+	#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
+	#	prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+	#else
 		prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-	end
+	#end
 	#if method in optimisers
     #    opt_sol = solve(prob, method, maxiters=maxiters)
     #elseif method in bbos
@@ -591,11 +591,11 @@ function optimize_φKcentric_single(tR, L, d, φ₀, gas, prog, opt, φ_e, Tchar
 		x0 = [φ_e, Tchar_e[i], θchar_e[i], ΔCp_e[i]]
 		lb = [lb_φ, lb_Tchar[i], lb_θchar[i], lb_ΔCp[i]]
 		ub = [ub_φ, ub_Tchar[i], ub_θchar[i], ub_ΔCp[i]]
-		if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-			prob = OptimizationProblem(optf, x0, p)
-		else
+		#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
+		#	prob = OptimizationProblem(optf, x0, p)
+		#else
 			prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-		end
+		#end
         #if method in optimisers
         #    opt_sol[i] = solve(prob, method, maxiters=maxiters)
         #elseif method in bbos
@@ -619,11 +619,11 @@ function optimize_λφKcentric(tR, L, φ₀, gas, prog, opt, λ_e, φ_e, Tchar_e
 	lb = [lb_λ; lb_φ; lb_Tchar; lb_θchar; lb_ΔCp]
 	ub = [ub_λ; ub_φ; ub_Tchar; ub_θchar; ub_ΔCp]
 	optf = OptimizationFunction(opt_λφKcentric, Optimization.AutoForwardDiff())
-	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-	else
+	#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
+	#	prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+	#else
 		prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-	end
+	#end
 	#if method in optimisers
     #    opt_sol = solve(prob, method, maxiters=maxiters)
     #elseif method in bbos
@@ -654,11 +654,11 @@ function optimize_λφKcentric_single(tR, L, φ₀, gas, prog, opt, λ_e, φ_e, 
 		x0 = [λ_e, φ_e, Tchar_e[i], θchar_e[i], ΔCp_e[i]]
 		lb = [lb_λ, lb_φ, lb_Tchar[i], lb_θchar[i], lb_ΔCp[i]]
 		ub = [ub_λ, ub_φ, ub_Tchar[i], ub_θchar[i], ub_ΔCp[i]]
-		if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-			prob = OptimizationProblem(optf, x0, p)
-		else
+		#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
+		#	prob = OptimizationProblem(optf, x0, p)
+		#else
 			prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-		end
+		#end
         #if method in optimisers
         #    opt_sol[i] = solve(prob, method, maxiters=maxiters)
         #elseif method in bbos
@@ -682,11 +682,11 @@ function optimize_ddfKcentric(tR, L, φ₀, gas, prog, opt, d_e, df_e, Tchar_e, 
 	lb = [lb_d; lb_df; lb_Tchar; lb_θchar; lb_ΔCp]
 	ub = [ub_d; ub_df; ub_Tchar; ub_θchar; ub_ΔCp]
 	optf = OptimizationFunction(opt_ddfKcentric, Optimization.AutoForwardDiff())
-	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-	else
+	#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
+	#	prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+	#else
 		prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-	end
+	#end
 	#if method in optimisers
     #    opt_sol = solve(prob, method, maxiters=maxiters)
     #elseif method in bbos
@@ -717,11 +717,11 @@ function optimize_ddfKcentric_single(tR, L, φ₀, gas, prog, opt, d_e, df_e, Tc
 		x0 = [d_e, df_e, Tchar_e[i], θchar_e[i], ΔCp_e[i]]
 		lb = [lb_d, lb_df, lb_Tchar[i], lb_θchar[i], lb_ΔCp[i]]
 		ub = [ub_d, ub_df, ub_Tchar[i], ub_θchar[i], ub_ΔCp[i]]
-		if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-			prob = OptimizationProblem(optf, x0, p)
-		else
+		#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
+		#	prob = OptimizationProblem(optf, x0, p)
+		#else
 			prob = OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-		end
+		#end
         #if method in optimisers
         #    opt_sol[i] = solve(prob, method, maxiters=maxiters)
         #elseif method in bbos
@@ -841,6 +841,19 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
         prog[i] = Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:(end-1)])), column[:L]; pout=pout, time_unit=column[:time_unit])
     end
     
+    λ_e = column[:L]/column[:d]
+    lb_λ = λ_e/10
+    ub_λ = λ_e*10
+    φ_e = column[:df]/column[:d]
+    lb_φ = φ_e/10
+    ub_φ = φ_e*10
+    d_e = column[:d]
+    lb_d = d_e/10
+    ub_d = d_e*10
+    df_e = column[:df]
+    lb_df = df_e/10
+    ub_df = df_e*10
+
     rp1 = Array{Float64}(undef, ns)
 	rp2 = Array{Float64}(undef, ns)
 	rp3 = Array{Float64}(undef, ns)
@@ -867,9 +880,9 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
         end
         df = DataFrame(Name=solute_names, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
     elseif mode == "λKcentric"
-        λ_e = column[:L]/column[:d]
-        lb_λ = λ_e/100
-        ub_λ = λ_e*100
+        #λ_e = column[:L]/column[:d]
+        #lb_λ = λ_e/10
+        #ub_λ = λ_e*10
         sol = optimize_λKcentric(tR_meas.*a, column[:L], column[:gas], prog, options, λ_e, rp1_e, rp2_e, rp3_e, lb_λ, lb_rp1, lb_rp2, lb_rp3, ub_λ, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
         λ = sol[1].*ones(ns)
         rp1 = sol[2:ns+1] # Array length = number solutes
@@ -881,9 +894,9 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
         end
         df = DataFrame(Name=solute_names, λ=λ, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
     elseif mode == "λKcentric_single"
-        λ_e = column[:L]/column[:d]
-        lb_λ = λ_e/100
-        ub_λ = λ_e*100
+        #λ_e = column[:L]/column[:d]
+        #lb_λ = λ_e/10
+        #ub_λ = λ_e*10
         sol = optimize_λKcentric_single(tR_meas.*a, column[:L], column[:gas], prog, options, λ_e, rp1_e, rp2_e, rp3_e, lb_λ, lb_rp1, lb_rp2, lb_rp3, ub_λ, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
         λ = Array{Float64}(undef, ns)
         for j=1:ns
@@ -896,9 +909,9 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
         end
         df = DataFrame(Name=solute_names, λ=λ, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
     elseif mode == "φKcentric"
-        φ_e = column[:df]/column[:d]
-        lb_φ = φ_e/100
-        ub_φ = φ_e*100
+        #φ_e = column[:df]/column[:d]
+        #lb_φ = φ_e/10
+        #ub_φ = φ_e*10
         sol = optimize_φKcentric(tR_meas.*a, column[:L], column[:d], φ₀, column[:gas], prog, options, φ_e, rp1_e, rp2_e, rp3_e, lb_φ, lb_rp1, lb_rp2, lb_rp3, ub_φ, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
         φ = sol[1].*ones(ns)
         rp1 = sol[2:ns+1] # Array length = number solutes
@@ -910,9 +923,9 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
         end
         df = DataFrame(Name=solute_names, φ=φ, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
     elseif mode == "φKcentric_single"
-        φ_e = column[:L]/column[:d]
-        lb_φ = φ_e/100
-        ub_φ = φ_e*100
+        #φ_e = column[:df]/column[:d]
+        #lb_φ = φ_e/10
+        #ub_φ = φ_e*10
         sol = optimize_φKcentric_single(tR_meas.*a, column[:L], column[:d], φ₀, column[:gas], prog, options, φ_e, rp1_e, rp2_e, rp3_e, lb_φ, lb_rp1, lb_rp2, lb_rp3, ub_φ, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
         φ = Array{Float64}(undef, ns)
         for j=1:ns
@@ -925,12 +938,12 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
         end
         df = DataFrame(Name=solute_names, φ=φ, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
     elseif mode == "λφKcentric"
-        λ_e = column[:L]/column[:d]
-        lb_λ = λ_e/100
-        ub_λ = λ_e*100
-        φ_e = column[:df]/column[:d]
-        lb_φ = φ_e/100
-        ub_φ = φ_e*100
+        #λ_e = column[:L]/column[:d]
+        #lb_λ = λ_e/10
+        #ub_λ = λ_e*10
+        #φ_e = column[:df]/column[:d]
+        #lb_φ = φ_e/10
+        #ub_φ = φ_e*10
         sol = optimize_λφKcentric(tR_meas.*a, column[:L], φ₀, column[:gas], prog, options, λ_e, φ_e, rp1_e, rp2_e, rp3_e, lb_λ, lb_φ, lb_rp1, lb_rp2, lb_rp3, ub_λ, ub_φ, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
         λ = sol[1].*ones(ns)
         φ = sol[2].*ones(ns)
@@ -943,12 +956,12 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
         end
         df = DataFrame(Name=solute_names, λ=λ, φ=φ, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
     elseif mode == "λφKcentric_single"
-        λ_e = column[:L]/column[:d]
-        lb_λ = λ_e/100
-        ub_λ = λ_e*100
-        φ_e = column[:L]/column[:d]
-        lb_φ = φ_e/100
-        ub_φ = φ_e*100
+        #λ_e = column[:L]/column[:d]
+        #lb_λ = λ_e/10
+        #ub_λ = λ_e*10
+        #φ_e = column[:df]/column[:d]
+        #lb_φ = φ_e/10
+        #ub_φ = φ_e*10
         sol = optimize_λφKcentric_single(tR_meas.*a, column[:L], φ₀, column[:gas], prog, options, λ_e, φ_e, rp1_e, rp2_e, rp3_e, lb_λ, lb_φ, lb_rp1, lb_rp2, lb_rp3, ub_λ, ub_φ, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
         λ = Array{Float64}(undef, ns)
         φ = Array{Float64}(undef, ns)
@@ -963,12 +976,12 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
         end
         df = DataFrame(Name=solute_names, λ=λ, φ=φ, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
     elseif mode == "ddfKcentric"
-        d_e = column[:d]
-        lb_d = d_e/10
-        ub_d = d_e*10
-        df_e = column[:df]
-        lb_df = df_e/100
-        ub_df = df_e*100
+        #d_e = column[:d]
+        #lb_d = d_e/10
+        #ub_d = d_e*10
+        #df_e = column[:df]
+        #lb_df = df_e/10
+        #ub_df = df_e*10
         sol = optimize_λφKcentric(tR_meas.*a, column[:L], φ₀, column[:gas], prog, options, d_e, df_e, rp1_e, rp2_e, rp3_e, lb_d, lb_df, lb_rp1, lb_rp2, lb_rp3, ub_d, ub_df, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
         d = sol[1].*ones(ns)
         df = sol[2].*ones(ns)
@@ -981,12 +994,12 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
         end
         df = DataFrame(Name=solute_names, d=d, df=df, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
     elseif mode == "ddfKcentric_single"
-        d_e = column[:d]
-        lb_d = d_e/10
-        ub_d = d_e*10
-        df_e = column[:df]
-        lb_df = df_e/100
-        ub_df = df_e*100
+        #d_e = column[:d]
+        #lb_d = d_e/10
+        #ub_d = d_e*10
+        #df_e = column[:df]
+        #lb_df = df_e/10
+        #ub_df = df_e*10
         sol = optimize_ddfKcentric_single(tR_meas.*a, column[:L], φ₀, column[:gas], prog, options, d_e, df_e, rp1_e, rp2_e, rp3_e, lb_d, lb_df, lb_rp1, lb_rp2, lb_rp3, ub_d, ub_df, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
         d = Array{Float64}(undef, ns)
         df = Array{Float64}(undef, ns)
@@ -1021,9 +1034,9 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
         end
         df = DataFrame(Name=solute_names, A=rp1, B=rp2, C=rp3, min=min, retcode=retcode)
     elseif mode == "λABC"
-        λ_e = column[:L]/column[:d]
-        lb_λ = λ_e/100
-        ub_λ = λ_e*100
+        #λ_e = column[:L]/column[:d]
+        #lb_λ = λ_e/100
+        #ub_λ = λ_e*100
         sol = optimize_λABC(tR_meas.*a, column[:L], column[:df], column[:gas], prog, options, λ_e, rp1_e, rp2_e, rp3_e, lb_λ, lb_rp1, lb_rp2, lb_rp3, ub_λ, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
         λ = sol[1].*ones(ns)
         rp1 = sol[2:ns+1] # Array length = number solutes
@@ -1035,9 +1048,9 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
         end
         df = DataFrame(Name=solute_names, λ=λ, A=rp1, B=rp2, C=rp3, min=min, retcode=retcode)
     elseif mode == "dfABC"
-        df_e = column[:df]
-        lb_df = df_e/10
-        ub_df = df_e*100
+        #df_e = column[:df]
+        #lb_df = df_e/10
+        #ub_df = df_e*100
         sol = optimize_dfABC(tR_meas.*a, column[:L], column[:d], column[:gas], prog, options, df_e, rp1_e, rp2_e, rp3_e, lb_df, lb_rp1, lb_rp2, lb_rp3, ub_df, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
         df = sol[1].*ones(ns)
         rp1 = sol[2:ns+1] # Array length = number solutes
@@ -1049,12 +1062,12 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
         end
         df = DataFrame(Name=solute_names, df=df, A=rp1, B=rp2, C=rp3, min=min, retcode=retcode)
     elseif mode == "λdfABC"
-        λ_e = column[:L]/column[:d]
-        lb_λ = λ_e/100
-        ub_λ = λ_e*100
-        df_e = column[:df]
-        lb_df = df_e/10
-        ub_df = df_e*100
+        #λ_e = column[:L]/column[:d]
+        #lb_λ = λ_e/100
+        #ub_λ = λ_e*100
+        #df_e = column[:df]
+        #lb_df = df_e/10
+        #ub_df = df_e*100
         sol = optimize_λdfABC(tR_meas.*a, column[:L], column[:gas], prog, options, λ_e, df_e, rp1_e, rp2_e, rp3_e, lb_λ, lb_df, lb_rp1, lb_rp2, lb_rp3, ub_λ, ub_df, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
         λ = sol[1].*ones(ns)
         df = sol[2].*ones(ns)

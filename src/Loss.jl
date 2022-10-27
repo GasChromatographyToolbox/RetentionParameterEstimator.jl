@@ -74,6 +74,33 @@ function loss(tR, Tchar, θchar, ΔCp, L, d, prog, opt, gas; metric="quadratic")
 	return l, tRcalc
 end
 
+function loss(tR, Tchar, θchar, ΔCp, φ₀, L, d, df, prog, opt, gas; metric="quadratic")
+	if length(size(tR)) == 1
+		ns = 1 # number of solutes
+		np = size(tR)[1] # number of programs
+	elseif length(size(tR)) == 0
+		ns = 1
+		np = 1
+	else
+		ns = size(tR)[2]
+		np = size(tR)[1]
+	end
+	tRcalc = Array{Any}(undef, np, ns)
+	for j=1:ns
+		for i=1:np
+			tRcalc[i,j] = tR_calc(Tchar[j], θchar[j], ΔCp[j], φ₀, L, d, df, prog[i], opt, gas)
+		end
+	end
+	if metric == "abs"
+		l = sum(abs.(tR.-tRcalc))/(ns*np)
+	elseif metric == "quadratic"
+		l = sum((tR.-tRcalc).^2)/(ns*np)
+	else
+		l = sum((tR.-tRcalc).^2)/(ns*np)
+	end
+	return l, tRcalc
+end
+
 function loss(tR, A, B, C, L, d, df, prog, opt, gas; metric="quadratic")
 	# loss function as sum over all programs and solutes
 	if length(size(tR)) == 1

@@ -13,6 +13,12 @@ function tR_calc(Tchar, θchar, ΔCp, φ₀, L, d, df, prog, opt, gas)
 	return tR
 end# -> put this in GasChromatographySimulator
 
+function tR_calc(Tchar, θchar, ΔCp, λ, φ, L, φ₀, prog, opt, gas)
+	solution = GasChromatographySimulator.solving_migration(Tchar, θchar, ΔCp, φ₀, L, L/λ, L/λ*φ, prog, opt, gas)
+	tR = solution.u[end]
+	return tR
+end
+
 function tR_calc(A, B, C, L, d, df, prog, opt, gas)
 	k(x,t,A,B,C,d,df) = exp(A + B/prog.T_itp(x,t) + C*log(prog.T_itp(x,t)) - log(d/(4*df)))
 	rM(x,t,L,d) = GasChromatographySimulator.mobile_phase_residency(x,t, prog.T_itp, prog.Fpin_itp, prog.pout_itp, L, d, gas; ng=opt.ng, vis=opt.vis, control=opt.control)

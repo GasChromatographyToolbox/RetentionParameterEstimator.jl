@@ -690,8 +690,8 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
         df = DataFrame(Name=solute_names, λ=λ, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
     elseif mode == "φKcentric"
         φ_e = column[:df]/column[:d]
-        lb_φ = λ_e/100
-        ub_φ = λ_e*100
+        lb_φ = φ_e/100
+        ub_φ = φ_e*100
         sol = optimize_φKcentric(tR_meas.*a, column[:L], column[:d], φ₀, column[:gas], prog, options, φ_e, rp1_e, rp2_e, rp3_e, lb_φ, lb_rp1, lb_rp2, lb_rp3, ub_φ, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
         φ = sol[1].*ones(ns)
         rp1 = sol[2:ns+1] # Array length = number solutes
@@ -707,8 +707,8 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
         lb_λ = λ_e/100
         ub_λ = λ_e*100
         φ_e = column[:df]/column[:d]
-        lb_φ = λ_e/100
-        ub_φ = λ_e*100
+        lb_φ = φ_e/100
+        ub_φ = φ_e*100
         sol = optimize_λφKcentric(tR_meas.*a, column[:L], φ₀, column[:gas], prog, options, λ_e, φ_e, rp1_e, rp2_e, rp3_e, lb_λ, lb_φ, lb_rp1, lb_rp2, lb_rp3, ub_λ, ub_φ, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
         λ = sol[1].*ones(ns)
         φ = sol[2].*ones(ns)

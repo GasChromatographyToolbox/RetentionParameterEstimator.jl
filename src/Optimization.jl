@@ -109,6 +109,48 @@ function opt_LdratioKcentric(x, p)
     return loss(tR, Tchar, θchar, ΔCp, L, L/Ldratio, prog, opt, gas; metric=metric)[1]
 end
 
+function opt_φKcentric(x, p)
+    tR = p[1]
+    L = p[2]
+    d = p[3]
+    φ₀ = p[4]
+    prog = p[5]
+    opt = p[6]
+    gas = p[7]
+    metric = p[8]
+    if length(size(tR)) == 1
+        ns = 1
+    else
+        ns = size(tR)[2]
+    end
+    φ = x[1]
+    Tchar = x[2:ns+1] # Array length = number solutes
+    θchar = x[ns+1+1:2*ns+1] # Array length = number solutes
+    ΔCp = x[2*ns+1+1:3*ns+1] # Array length = number solutes
+    return loss(tR, Tchar, θchar, ΔCp, φ₀, L, d, d*φ, prog, opt, gas; metric=metric)[1]
+end
+
+function opt_LdratioφKcentric(x, p)
+    tR = p[1]
+    L = p[2]
+    φ₀
+    prog = p[3]
+    opt = p[4]
+    gas = p[5]
+    metric = p[6]
+    if length(size(tR)) == 1
+        ns = 1
+    else
+        ns = size(tR)[2]
+    end
+    L/Ldratio = x[1]
+    φ = x[2]
+    Tchar = x[3:ns+2] # Array length = number solutes
+    θchar = x[ns+3:2*ns+2] # Array length = number solutes
+    ΔCp = x[2*ns+3:3*ns+2] # Array length = number solutes
+    return loss(tR, Tchar, θchar, ΔCp, φ₀, L, L/Ldratio, L/Ldratio*φ, prog, opt, gas; metric=metric)[1]
+end
+
 function opt_ABC(x, p)
 	tR = p[1]
 	L = p[2]
@@ -445,6 +487,60 @@ function optimize_LdratioKcentric(tR, L, gas, prog, opt, Ldratio_e, Tchar_e, θc
 	return opt_sol
 end
 
+function optimize_φKcentric(tR, L, d, φ₀, gas, prog, opt, φ_e, Tchar_e, θchar_e, ΔCp_e, lb_φ, lb_Tchar, lb_θchar, lb_ΔCp, ub_φ, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, metric="quadratic")
+	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
+                    Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
+                    Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
+    #bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
+    #            BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
+    
+    p = [tR, L, d, φ₀, prog, opt, gas, metric]
+	x0 = [φ_e; Tchar_e; θchar_e; ΔCp_e]
+	lb = [lb_φ; lb_Tchar; lb_θchar; lb_ΔCp]
+	ub = [ub_φ; ub_Tchar; ub_θchar; ub_ΔCp]
+	optf = OptimizationFunction(opt_φKcentric, Optimization.AutoForwardDiff())
+	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
+		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+	else
+		prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
+	end
+	#if method in optimisers
+    #    opt_sol = solve(prob, method, maxiters=maxiters)
+    #elseif method in bbos
+    #    opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
+    #else
+    opt_sol = solve(prob, method, maxiters=maxiters)
+    #end
+	return opt_sol
+end
+
+function optimize_LdratioφKcentric(tR, L, φ₀, gas, prog, opt, Ldratio_e, φ_e, Tchar_e, θchar_e, ΔCp_e, lb_Ldratio, lb_φ, lb_Tchar, lb_θchar, lb_ΔCp, ub_Ldration, ub_φ, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, metric="quadratic")
+	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
+                    Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
+                    Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
+    #bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
+    #            BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
+    
+    p = [tR, L, φ₀, prog, opt, gas, metric]
+	x0 = [Ldratio_e; φ_e; Tchar_e; θchar_e; ΔCp_e]
+	lb = [lb_Ldratio; lb_φ; lb_Tchar; lb_θchar; lb_ΔCp]
+	ub = [ub_Ldratio; ub_φ; ub_Tchar; ub_θchar; ub_ΔCp]
+	optf = OptimizationFunction(opt_LdratioφKcentric, Optimization.AutoForwardDiff())
+	if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
+		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+	else
+		prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
+	end
+	#if method in optimisers
+    #    opt_sol = solve(prob, method, maxiters=maxiters)
+    #elseif method in bbos
+    #    opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
+    #else
+    opt_sol = solve(prob, method, maxiters=maxiters)
+    #end
+	return opt_sol
+end
+
 function optimize_LdratioABC(tR, L, df, gas, prog, opt, Ldratio_e, A_e, B_e, C_e, lb_Ldratio, lb_A, lb_B, lb_C, ub_Ldratio, ub_A, ub_B, ub_C, method; maxiters=10000, metric="quadratic")
 	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
                     Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
@@ -528,8 +624,8 @@ end
 
 
 # rename this function later
-function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, rp1_e, rp2_e, rp3_e, lb_rp1, lb_rp2, lb_rp3, ub_rp1, ub_rp2, ub_rp3, method; maxiters=10000, mode="LdKcentric", metric="quadratic")
-    # mode = "Kcentric", "Kcentric_single", "LdratioKcentric", "ABC", "ABC_single", "LdratioABC", "dfABC", "LdratiodfABC"
+function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, rp1_e, rp2_e, rp3_e, lb_rp1, lb_rp2, lb_rp3, ub_rp1, ub_rp2, ub_rp3, method; maxiters=10000, mode="LdKcentric", metric="quadratic"; φ₀=1e-3)
+    # mode = "Kcentric", "Kcentric_single", "LdratioKcentric", "φKcentric", "LdratioφKcentric", "ABC", "ABC_single", "LdratioABC", "dfABC", "LdratiodfABC"
     # later add here modes for ABC-Parameters and ABC+df
     if column[:time_unit] == "min"
         a = 60.0
@@ -592,6 +688,38 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
             retcode[j] = sol.retcode
         end
         df = DataFrame(Name=solute_names, Ldratio=Ldratio, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
+    elseif mode == "φKcentric"
+        φ_e = column[:df]/column[:d]
+        lb_φ = Ldratio_e/100
+        ub_φ = Ldratio_e*100
+        sol = optimize_φKcentric(tR_meas.*a, column[:L], column[:d], φ₀, column[:gas], prog, options, φ_e, rp1_e, rp2_e, rp3_e, lb_φ, lb_rp1, lb_rp2, lb_rp3, ub_φ, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
+        φ = sol[1].*ones(ns)
+        rp1 = sol[2:ns+1] # Array length = number solutes
+        rp2 = sol[ns+1+1:2*ns+1] # Array length = number solutes
+        rp3 = sol[2*ns+1+1:3*ns+1] # Array length = number solutes
+        for j=1:ns
+            min[j] = sol.minimum
+            retcode[j] = sol.retcode
+        end
+        df = DataFrame(Name=solute_names, φ=φ, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
+    elseif mode == "LdratioφKcentric"
+        Ldratio_e = column[:L]/column[:d]
+        lb_Ldratio = Ldratio_e/100
+        ub_Ldratio = Ldratio_e*100
+        φ_e = column[:df]/column[:d]
+        lb_φ = Ldratio_e/100
+        ub_φ = Ldratio_e*100
+        sol = optimize_LdratioφKcentric(tR_meas.*a, column[:L], φ₀, column[:gas], prog, options, Ldratio_e, φ_e, rp1_e, rp2_e, rp3_e, lb_Ldratio, lb_φ, lb_rp1, lb_rp2, lb_rp3, ub_Ldratio, ub_φ, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
+        Ldratio = sol[1].*ones(ns)
+        φ = sol[2].*ones(ns)
+        rp1 = sol[3:ns+2] # Array length = number solutes
+        rp2 = sol[ns+3:2*ns+2] # Array length = number solutes
+        rp3 = sol[2*ns+3:3*ns+2] # Array length = number solutes
+        for j=1:ns
+            min[j] = sol.minimum
+            retcode[j] = sol.retcode
+        end
+        df = DataFrame(Name=solute_names, Ldratio=Ldratio, φ=φ, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
     elseif mode == "ABC_single"
         sol = optimize_ABC_single(tR_meas.*a, column[:L], column[:d], column[:df], column[:gas], prog, options, rp1_e, rp2_e, rp3_e, lb_rp1, lb_rp2, lb_rp3, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
         for j=1:ns

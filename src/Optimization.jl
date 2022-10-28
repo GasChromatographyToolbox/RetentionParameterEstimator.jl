@@ -151,6 +151,27 @@ function opt_λφKcentric(x, p)
     return loss(tR, Tchar, θchar, ΔCp, φ₀, L, L/λ, L/λ*φ, prog, opt, gas; metric=metric)[1]
 end
 
+function opt_λφ(x, p)
+    tR = p[1]
+    L = p[2]
+    φ₀ = p[3]
+    Tchar = p[4]
+    θchar = p[5]
+    ΔCp = p[6]
+    prog = p[7]
+    opt = p[8]
+    gas = p[9]
+    metric = p[10]
+    if length(size(tR)) == 1
+        ns = 1
+    else
+        ns = size(tR)[2]
+    end
+    λ = x[1]
+    φ = x[2]
+    return loss(tR, Tchar, θchar, ΔCp, φ₀, L, L/λ, L/λ*φ, prog, opt, gas; metric=metric)[1]
+end
+
 function opt_ddfKcentric(x, p)
     tR = p[1]
     L = p[2]
@@ -643,6 +664,34 @@ function optimize_λφKcentric(tR, L, φ₀, gas, prog, opt, λ_e, φ_e, Tchar_e
 	return opt_sol
 end
 
+function optimize_λφ(tR, L, φ₀, Tchar, θchar, ΔCp, gas, prog, opt, λ_e, φ_e, lb_λ, lb_φ, ub_λ, ub_φ, method; maxiters=10000, metric="quadratic")
+	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
+                    Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
+                    Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
+    #bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
+    #            BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
+    
+    p = [tR, L, φ₀, Tchar, θchar, ΔCp, prog, opt, gas, metric]
+	x0 = [λ_e; φ_e]
+	lb = [lb_λ; lb_φ]
+	ub = [ub_λ; ub_φ]
+	optf = OptimizationFunction(opt_λφ, Optimization.AutoForwardDiff())
+	#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
+	if method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
+		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+	else
+		prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
+	end
+	#if method in optimisers
+    #    opt_sol = solve(prob, method, maxiters=maxiters)
+    #elseif method in bbos
+    #    opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
+    #else
+    opt_sol = solve(prob, method, maxiters=maxiters)
+    #end
+	return opt_sol
+end
+
 function optimize_λφKcentric_single(tR, L, φ₀, gas, prog, opt, λ_e, φ_e, Tchar_e, θchar_e, ΔCp_e, lb_λ, lb_φ, lb_Tchar, lb_θchar, lb_ΔCp, ub_λ, ub_φ, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, metric="quadratic")
 	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
                     Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
@@ -829,7 +878,7 @@ end
 
 # rename this function later
 function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, rp1_e, rp2_e, rp3_e, lb_rp1, lb_rp2, lb_rp3, ub_rp1, ub_rp2, ub_rp3, method; maxiters=10000, mode="LdKcentric", metric="quadratic", φ₀=1e-3)
-    # mode = "Kcentric", "Kcentric_single", "λKcentric", "λKcentric_single", "φKcentric", "φKcentric_single", "λφKcentric", "λφKcentric_single", "ddfKcentric", "ddfKcentric_single", "ABC", "ABC_single", "λABC", "dfABC", "λdfABC"
+    # mode = "Kcentric", "Kcentric_single", "λKcentric", "λKcentric_single", "φKcentric", "φKcentric_single", "λφKcentric", "λφKcentric_single", "λφ", "ddfKcentric", "ddfKcentric_single", "ABC", "ABC_single", "λABC", "dfABC", "λdfABC"
     # later add here modes for ABC-Parameters and ABC+df
     if column[:time_unit] == "min"
         a = 60.0
@@ -987,6 +1036,24 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
             retcode[j] = sol[j].retcode
         end
         df = DataFrame(Name=solute_names, λ=λ, φ=φ, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
+    elseif mode == "λφ"
+        #λ_e = column[:L]/column[:d]
+        #lb_λ = λ_e/10
+        #ub_λ = λ_e*10
+        #φ_e = column[:df]/column[:d]
+        #lb_φ = φ_e/10
+        #ub_φ = φ_e*10
+        sol = optimize_λφ(tR_meas.*a, column[:L], φ₀, rp1_e, rp2_e, rp3_e, column[:gas], prog, options, λ_e, φ_e, lb_λ, lb_φ, ub_λ, ub_φ, method; maxiters=maxiters, metric=metric)
+        λ = sol[1].*ones(ns)
+        φ = sol[2].*ones(ns)
+        #rp1 = sol[3:ns+2] # Array length = number solutes
+        #rp2 = sol[ns+3:2*ns+2] # Array length = number solutes
+        #rp3 = sol[2*ns+3:3*ns+2] # Array length = number solutes
+        for j=1:ns
+            min[j] = sol.minimum
+            retcode[j] = sol.retcode
+        end
+        df = DataFrame(Name=solute_names, λ=λ, φ=φ, Tchar=rp1_e, θchar=rp2_e, ΔCp=rp3_e, min=min, retcode=retcode)
     elseif mode == "ddfKcentric"
         #d_e = column[:d]
         #lb_d = d_e/10

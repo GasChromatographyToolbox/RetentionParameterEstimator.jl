@@ -207,7 +207,7 @@ function opt_ABC(x, p)
 	else
 		ns = size(tR)[2]
 	end
-	C = x[1:ns] # Array length = number solutes
+	A = x[1:ns] # Array length = number solutes
 	B = x[ns+1:2*ns] # Array length = number solutes
 	C = x[2*ns+1:3*ns] # Array length = number solutes
     return loss(tR, A, B, C, L, d, df, prog, opt, gas; metric=metric)[1]

@@ -196,7 +196,7 @@ end
 function opt_ABC(x, p)
 	tR = p[1]
 	L = p[2]
-	d = p[3]
+	λ = p[3]
     β = p[4]
 	prog = p[5]
 	opt = p[6]
@@ -210,7 +210,7 @@ function opt_ABC(x, p)
 	A = x[1:ns] # Array length = number solutes
 	B = x[ns+1:2*ns] # Array length = number solutes
 	C = x[2*ns+1:3*ns] # Array length = number solutes
-    return loss(tR, A, B, C, L, d, β, prog, opt, gas; metric=metric)[1]
+    return loss(tR, A, B, C, L, λ, β, prog, opt, gas; metric=metric)[1]
 end
 
 function opt_λABC(x, p)
@@ -230,13 +230,13 @@ function opt_λABC(x, p)
     A = x[2:ns+1] # Array length = number solutes
     B = x[ns+1+1:2*ns+1] # Array length = number solutes
     C = x[2*ns+1+1:3*ns+1] # Array length = number solutes
-    return loss(tR, A, B, C, L, L/λ, β, prog, opt, gas; metric=metric)[1]
+    return loss(tR, A, B, C, L, λ, β, prog, opt, gas; metric=metric)[1]
 end
 
 function opt_βABC(x, p)
     tR = p[1]
     L = p[2]
-    d = p[3]
+    λ = p[3]
     prog = p[4]
     opt = p[5]
     gas = p[6]
@@ -250,7 +250,7 @@ function opt_βABC(x, p)
     A = x[2:ns+1] # Array length = number solutes
     B = x[ns+1+1:2*ns+1] # Array length = number solutes
     C = x[2*ns+1+1:3*ns+1] # Array length = number solutes
-    return loss(tR, A, B, C, L, d, β, prog, opt, gas; metric=metric)[1]
+    return loss(tR, A, B, C, L, λ, β, prog, opt, gas; metric=metric)[1]
 end
 
 function opt_λβABC(x, p)
@@ -270,7 +270,7 @@ function opt_λβABC(x, p)
     A = x[3:ns+2] # Array length = number solutes
     B = x[ns+2+1:2*ns+2] # Array length = number solutes
     C = x[2*ns+2+1:3*ns+2] # Array length = number solutes
-    return loss(tR, A, B, C, L, L/λ, β, prog, opt, gas; metric=metric)[1]
+    return loss(tR, A, B, C, L, λ, β, prog, opt, gas; metric=metric)[1]
 end
 
 # optimize every solute separatly, tR is a 2D-array with RT of different programs in the first dimension and different solutes in the second dimension  
@@ -347,7 +347,7 @@ function optimize_Kcentric_single(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, �
 	return opt_sol
 end
 
-function optimize_ABC_single(tR, L, d, β, gas, prog, opt, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, metric="quadratic")
+function optimize_ABC_single(tR, L, λ, β, gas, prog, opt, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, metric="quadratic")
 	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
                     Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
                     Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
@@ -363,7 +363,7 @@ function optimize_ABC_single(tR, L, d, β, gas, prog, opt, Tchar_e, θchar_e, Δ
     end 
     opt_sol = Array{Any}(undef, n2)
 	for i=1:n2
-		p = [tR[:,i], L, d, β, prog, opt, gas, metric]
+		p = [tR[:,i], L, λ, β, prog, opt, gas, metric]
 		x0 = [Tchar_e[i], θchar_e[i], ΔCp_e[i]]
 		lb = [lb_Tchar[i], lb_θchar[i], lb_ΔCp[i]]
 		ub = [ub_Tchar[i], ub_θchar[i], ub_ΔCp[i]]
@@ -418,14 +418,14 @@ function optimize_Kcentric_all(tR, L, d, gas, prog, opt, A_e, B_e, C_e, lb_A, lb
 	return opt_sol
 end
 
-function optimize_ABC_all(tR, L, d, β, gas, prog, opt, A_e, B_e, C_e, lb_A, lb_B, lb_C, ub_A, ub_B, ub_C, method; maxiters=10000, metric="quadratic")
+function optimize_ABC_all(tR, L, λ, β, gas, prog, opt, A_e, B_e, C_e, lb_A, lb_B, lb_C, ub_A, ub_B, ub_C, method; maxiters=10000, metric="quadratic")
 	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
                     Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
                     Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
     #bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
     #            BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
     
-    p = [tR, L, d, β, prog, opt, gas, metric]
+    p = [tR, L, λ, β, prog, opt, gas, metric]
 	x0 = [A_e; B_e; C_e]
 	lb = [lb_A; lb_B; lb_C]
 	ub = [ub_A; ub_B; ub_C]
@@ -821,14 +821,14 @@ function optimize_λABC(tR, L, β, gas, prog, opt, λ_e, A_e, B_e, C_e, lb_λ, l
 	return opt_sol
 end
 
-function optimize_βABC(tR, L, d, gas, prog, opt, β_e, A_e, B_e, C_e, lb_β, lb_A, lb_B, lb_C, ub_β, ub_A, ub_B, ub_C, method; maxiters=10000, metric="quadratic")
+function optimize_βABC(tR, L, λ, gas, prog, opt, β_e, A_e, B_e, C_e, lb_β, lb_A, lb_B, lb_C, ub_β, ub_A, ub_B, ub_C, method; maxiters=10000, metric="quadratic")
 	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
                     Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
                     Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
     #bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
     #            BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
     
-    p = [tR, L, d, prog, opt, gas, metric]
+    p = [tR, L, λ, prog, opt, gas, metric]
 	x0 = [β_e; A_e; B_e; C_e]
 	lb = [lb_β; lb_A; lb_B; lb_C]
 	ub = [ub_β; ub_A; ub_B; ub_C]
@@ -1096,7 +1096,7 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
         end
         df = DataFrame(Name=solute_names, d=d, df=df, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
     elseif mode == "ABC_single"
-        sol = optimize_ABC_single(tR_meas.*a, column[:L], column[:d], β_e, column[:gas], prog, options, rp1_e, rp2_e, rp3_e, lb_rp1, lb_rp2, lb_rp3, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
+        sol = optimize_ABC_single(tR_meas.*a, column[:L], λ_e, β_e, column[:gas], prog, options, rp1_e, rp2_e, rp3_e, lb_rp1, lb_rp2, lb_rp3, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
         for j=1:ns
             rp1[j] = sol[j][1]
             rp2[j] = sol[j][2]
@@ -1106,7 +1106,7 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
         end
         df = DataFrame(Name=solute_names, A=rp1, B=rp2, C=rp3, min=min, retcode=retcode)
     elseif mode == "ABC"
-        sol = optimize_ABC(tR_meas.*a, column[:L], column[:d], β_e, column[:gas], prog, options, rp1_e, rp2_e, rp3_e, lb_rp1, lb_rp2, lb_rp3, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
+        sol = optimize_ABC(tR_meas.*a, column[:L], λ_e, β_e, column[:gas], prog, options, rp1_e, rp2_e, rp3_e, lb_rp1, lb_rp2, lb_rp3, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
         rp1 = sol[1:ns] # Array length = number solutes
         rp2 = sol[ns+1:2*ns] # Array length = number solutes
         rp3 = sol[2*ns+1:3*ns]
@@ -1133,7 +1133,7 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
         #df_e = column[:df]
         #lb_df = df_e/10
         #ub_df = df_e*100
-        sol = optimize_βABC(tR_meas.*a, column[:L], column[:d], column[:gas], prog, options, β_e, rp1_e, rp2_e, rp3_e, lb_β, lb_rp1, lb_rp2, lb_rp3, ub_β, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
+        sol = optimize_βABC(tR_meas.*a, column[:L], λ_e, column[:gas], prog, options, β_e, rp1_e, rp2_e, rp3_e, lb_β, lb_rp1, lb_rp2, lb_rp3, ub_β, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
         β = sol[1].*ones(ns)
         rp1 = sol[2:ns+1] # Array length = number solutes
         rp2 = sol[ns+2:2*ns+1] # Array length = number solutes

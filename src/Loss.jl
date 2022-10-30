@@ -19,13 +19,13 @@ function tR_calc_(Tchar, θchar, ΔCp, λ, φ, L, φ₀, prog, opt, gas)
 	return tR
 end
 
-function tR_calc(A, B, C, L, d, df, prog, opt, gas)
-	k(x,t,A,B,C,d,df) = exp(A + B/prog.T_itp(x,t) + C*log(prog.T_itp(x,t)) - log(d/(4*df)))
+function tR_calc(A, B, C, L, d, β, prog, opt, gas)
+	k(x,t,A,B,C,β) = exp(A + B/prog.T_itp(x,t) + C*log(prog.T_itp(x,t)) - log(β))
 	rM(x,t,L,d) = GasChromatographySimulator.mobile_phase_residency(x,t, prog.T_itp, prog.Fpin_itp, prog.pout_itp, L, d, gas; ng=opt.ng, vis=opt.vis, control=opt.control)
-	r(t,p,x) = (1+k(x,t,p[1],p[2],p[3], p[5], p[6]))*rM(x,t,p[4],p[5])
+	r(t,p,x) = (1+k(x,t,p[1],p[2],p[3], p[6]))*rM(x,t,p[4],p[5])
 	t₀ = 0.0
 	xspan = (0.0, L)
-	p = [A, B, C, L, d, df]
+	p = [A, B, C, L, d, β]
 	prob = ODEProblem(r, t₀, xspan, p)
 	solution = solve(prob, alg=opt.alg, abstol=opt.abstol, reltol=opt.reltol)
 	tR = solution.u[end]

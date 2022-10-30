@@ -23,7 +23,7 @@ end
 function tR_calc(A, B, C, L, λ, β, prog, opt, gas)
 	k(x,t,A,B,C,β) = exp(A + B/prog.T_itp(x,t) + C*log(prog.T_itp(x,t)) - log(β))
 	#rM(x,t,L,d) = GasChromatographySimulator.mobile_phase_residency(x,t, prog.T_itp, prog.Fpin_itp, prog.pout_itp, L, d, gas; ng=opt.ng, vis=opt.vis, control=opt.control)
-	rM(x,t,L,λ) = 64 * sqrt(prog.Fpin_itp(t)^2 - x/L*(prog.Fpin_itp(t)^2-prog.pout_itp(t)^2)) / (prog.Fpin_itp(t)^2-prog.pout_itp(t)^2) * λ^2/L * GasChromatoggraphySimulator.viscosity(x, t, T_itp, gas, vis=vis) * prog.T_itp(x, t)
+	rM(x,t,L,λ) = 64 * sqrt(prog.Fpin_itp(t)^2 - x/L*(prog.Fpin_itp(t)^2-prog.pout_itp(t)^2)) / (prog.Fpin_itp(t)^2-prog.pout_itp(t)^2) * λ^2/L * GasChromatoggraphySimulator.viscosity(x, t, T_itp, gas, vis=opt.vis) * prog.T_itp(x, t)
 	r(t,p,x) = (1+k(x,t,p[1],p[2],p[3], p[6]))*rM(x,t,p[4],p[5])
 	t₀ = 0.0
 	xspan = (0.0, L)

@@ -1133,7 +1133,7 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
         #df_e = column[:df]
         #lb_df = df_e/10
         #ub_df = df_e*100
-        sol = optimize_dfABC(tR_meas.*a, column[:L], column[:d], column[:gas], prog, options, β_e, rp1_e, rp2_e, rp3_e, lb_β, lb_rp1, lb_rp2, lb_rp3, ub_β, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
+        sol = optimize_βABC(tR_meas.*a, column[:L], column[:d], column[:gas], prog, options, β_e, rp1_e, rp2_e, rp3_e, lb_β, lb_rp1, lb_rp2, lb_rp3, ub_β, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
         β = sol[1].*ones(ns)
         rp1 = sol[2:ns+1] # Array length = number solutes
         rp2 = sol[ns+2:2*ns+1] # Array length = number solutes
@@ -1150,7 +1150,7 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
         #df_e = column[:df]
         #lb_df = df_e/10
         #ub_df = df_e*100
-        sol = optimize_λdfABC(tR_meas.*a, column[:L], column[:gas], prog, options, λ_e, β_e, rp1_e, rp2_e, rp3_e, lb_λ, lb_β, lb_rp1, lb_rp2, lb_rp3, ub_λ, ub_β, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
+        sol = optimize_λβABC(tR_meas.*a, column[:L], column[:gas], prog, options, λ_e, β_e, rp1_e, rp2_e, rp3_e, lb_λ, lb_β, lb_rp1, lb_rp2, lb_rp3, ub_λ, ub_β, ub_rp1, ub_rp2, ub_rp3, method; maxiters=maxiters, metric=metric)
         λ = sol[1].*ones(ns)
         β = sol[2].*ones(ns)
         rp1 = sol[3:ns+2] # Array length = number solutes

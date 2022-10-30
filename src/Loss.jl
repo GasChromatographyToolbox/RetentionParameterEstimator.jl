@@ -11,7 +11,8 @@ function tR_calc(Tchar, θchar, ΔCp, φ₀, L, d, df, prog, opt, gas)
 	solution = GasChromatographySimulator.solving_migration(Tchar, θchar, ΔCp, φ₀, L, d, df, prog, opt, gas)
 	tR = solution.u[end]
 	return tR
-end# -> put this in GasChromatographySimulator
+end
+# make a version, where all functions are defined here and instead d -> λ and instead df -> φ
 
 function tR_calc_(Tchar, θchar, ΔCp, λ, φ, L, φ₀, prog, opt, gas)
 	solution = GasChromatographySimulator.solving_migration(Tchar, θchar, ΔCp, φ₀, L, L/λ, L/λ*φ, prog, opt, gas)
@@ -19,13 +20,14 @@ function tR_calc_(Tchar, θchar, ΔCp, λ, φ, L, φ₀, prog, opt, gas)
 	return tR
 end
 
-function tR_calc(A, B, C, L, d, β, prog, opt, gas)
+function tR_calc(A, B, C, L, λ, β, prog, opt, gas)
 	k(x,t,A,B,C,β) = exp(A + B/prog.T_itp(x,t) + C*log(prog.T_itp(x,t)) - log(β))
-	rM(x,t,L,d) = GasChromatographySimulator.mobile_phase_residency(x,t, prog.T_itp, prog.Fpin_itp, prog.pout_itp, L, d, gas; ng=opt.ng, vis=opt.vis, control=opt.control)
+	#rM(x,t,L,d) = GasChromatographySimulator.mobile_phase_residency(x,t, prog.T_itp, prog.Fpin_itp, prog.pout_itp, L, d, gas; ng=opt.ng, vis=opt.vis, control=opt.control)
+	rM(x,t,L,λ) = 64 * sqrt(prog.pin_itp(t)^2 - x/L*(prog.pin_itp(t)^2-prog.pout_itp(t)^2)) / (prog.pin_itp(t)^2-prog.pout_itp(t)^2) * λ^2/L * GasChromatoggraphySimulator.viscosity(x, t, T_itp, gas, vis=vis) * prog.T_itp(x, t)
 	r(t,p,x) = (1+k(x,t,p[1],p[2],p[3], p[6]))*rM(x,t,p[4],p[5])
 	t₀ = 0.0
 	xspan = (0.0, L)
-	p = [A, B, C, L, d, β]
+	p = [A, B, C, L, λ, β]
 	prob = ODEProblem(r, t₀, xspan, p)
 	solution = solve(prob, alg=opt.alg, abstol=opt.abstol, reltol=opt.reltol)
 	tR = solution.u[end]

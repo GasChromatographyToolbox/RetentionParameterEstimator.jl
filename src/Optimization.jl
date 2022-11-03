@@ -71,7 +71,7 @@ Function used for optimization of the loss-function in regards to the three K-ce
 # Output
 * `sum((tR.-tRcalc).^2)` ... sum of the squared residuals over m GC-programs and n solutes.
 """
-function opt_Kcentric(x_Kcentric, p)
+function opt_Kcentric(x, p)
 	tR = p[1]
 	L = p[2]
 	d = p[3]
@@ -84,13 +84,13 @@ function opt_Kcentric(x_Kcentric, p)
 	else
 		ns = size(tR)[2]
 	end
-	Tchar = x_Kcentric[1:ns] # Array length = number solutes
-	θchar = x_Kcentric[ns+1:2*ns] # Array length = number solutes
-	ΔCp = x_Kcentric[2*ns+1:3*ns] # Array length = number solutes
+	Tchar = x[1:ns] # Array length = number solutes
+	θchar = x[ns+1:2*ns] # Array length = number solutes
+	ΔCp = x[2*ns+1:3*ns] # Array length = number solutes
     return loss(tR, Tchar, θchar, ΔCp, L, d, prog, opt, gas; metric=metric)[1]
 end
 
-function opt_λKcentric(x, p)
+function opt_dKcentric(x, p)
     tR = p[1]
     L = p[2]
     prog = p[3]
@@ -102,101 +102,36 @@ function opt_λKcentric(x, p)
     else
         ns = size(tR)[2]
     end
-    λ = x[1]
+    d = x[1]
     Tchar = x[2:ns+1] # Array length = number solutes
     θchar = x[ns+1+1:2*ns+1] # Array length = number solutes
     ΔCp = x[2*ns+1+1:3*ns+1] # Array length = number solutes
-    return loss(tR, Tchar, θchar, ΔCp, L, L/λ, prog, opt, gas; metric=metric)[1]
+    return loss(tR, Tchar, θchar, ΔCp, L, d, prog, opt, gas; metric=metric)
 end
 
-function opt_φKcentric(x, p)
+function opt_d(x, p)
     tR = p[1]
     L = p[2]
-    d = p[3]
-    φ₀ = p[4]
-    prog = p[5]
-    opt = p[6]
-    gas = p[7]
-    metric = p[8]
-    if length(size(tR)) == 1
-        ns = 1
-    else
-        ns = size(tR)[2]
-    end
-    φ = x[1]
-    Tchar = x[2:ns+1] # Array length = number solutes
-    θchar = x[ns+1+1:2*ns+1] # Array length = number solutes
-    ΔCp = x[2*ns+1+1:3*ns+1] # Array length = number solutes
-    return loss(tR, Tchar, θchar, ΔCp, φ₀, L, d, d*φ, prog, opt, gas; metric=metric)[1]
-end
-
-function opt_λφKcentric(x, p)
-    tR = p[1]
-    L = p[2]
-    φ₀ = p[3]
-    prog = p[4]
-    opt = p[5]
-    gas = p[6]
-    metric = p[7]
-    if length(size(tR)) == 1
-        ns = 1
-    else
-        ns = size(tR)[2]
-    end
-    λ = x[1]
-    φ = x[2]
-    Tchar = x[3:ns+2] # Array length = number solutes
-    θchar = x[ns+3:2*ns+2] # Array length = number solutes
-    ΔCp = x[2*ns+3:3*ns+2] # Array length = number solutes
-    return loss(tR, Tchar, θchar, ΔCp, φ₀, L, L/λ, L/λ*φ, prog, opt, gas; metric=metric)[1]
-end
-
-function opt_λφ(x, p)
-    tR = p[1]
-    L = p[2]
-    φ₀ = p[3]
-    Tchar = p[4]
-    θchar = p[5]
-    ΔCp = p[6]
-    prog = p[7]
-    opt = p[8]
-    gas = p[9]
-    metric = p[10]
-    if length(size(tR)) == 1
-        ns = 1
-    else
-        ns = size(tR)[2]
-    end
-    λ = x[1]
-    φ = x[2]
-    return loss(tR, Tchar, θchar, ΔCp, φ₀, L, L/λ, L/λ*φ, prog, opt, gas; metric=metric)[1]
-end
-
-function opt_ddfKcentric(x, p)
-    tR = p[1]
-    L = p[2]
-    φ₀ = p[3]
-    prog = p[4]
-    opt = p[5]
-    gas = p[6]
-    metric = p[7]
+    Tchar = p[3]
+    θchar = p[4]
+    ΔCp = p[5]
+    prog = p[6]
+    opt = p[7]
+    gas = p[8]
+    metric = p[9]
     if length(size(tR)) == 1
         ns = 1
     else
         ns = size(tR)[2]
     end
     d = x[1]
-    df = x[2]
-    Tchar = x[3:ns+2] # Array length = number solutes
-    θchar = x[ns+3:2*ns+2] # Array length = number solutes
-    ΔCp = x[2*ns+3:3*ns+2] # Array length = number solutes
-    return loss(tR, Tchar, θchar, ΔCp, φ₀, L, d, df, prog, opt, gas; metric=metric)[1]
+    return loss(tR, Tchar, θchar, ΔCp, L, d, prog, opt, gas; metric=metric)
 end
 
 function opt_ABC(x, p)
 	tR = p[1]
 	L = p[2]
-	λ = p[3]
+	d = p[3]
     β = p[4]
 	prog = p[5]
 	opt = p[6]
@@ -210,10 +145,10 @@ function opt_ABC(x, p)
 	A = x[1:ns] # Array length = number solutes
 	B = x[ns+1:2*ns] # Array length = number solutes
 	C = x[2*ns+1:3*ns] # Array length = number solutes
-    return loss(tR, A, B, C, L, λ, β, prog, opt, gas; metric=metric)[1]
+    return loss(tR, A, B, C, L, d, β, prog, opt, gas; metric=metric)[1]
 end
 
-function opt_λABC(x, p)
+function opt_dABC(x, p)
     tR = p[1]
     L = p[2]
     β = p[3]
@@ -226,17 +161,17 @@ function opt_λABC(x, p)
     else
         ns = size(tR)[2]
     end
-    λ = x[1]
+    d = x[1]
     A = x[2:ns+1] # Array length = number solutes
     B = x[ns+1+1:2*ns+1] # Array length = number solutes
     C = x[2*ns+1+1:3*ns+1] # Array length = number solutes
-    return loss(tR, A, B, C, L, λ, β, prog, opt, gas; metric=metric)[1]
+    return loss(tR, A, B, C, L, d, β, prog, opt, gas; metric=metric)[1]
 end
 
 function opt_βABC(x, p)
     tR = p[1]
     L = p[2]
-    λ = p[3]
+    d = p[3]
     prog = p[4]
     opt = p[5]
     gas = p[6]
@@ -250,10 +185,30 @@ function opt_βABC(x, p)
     A = x[2:ns+1] # Array length = number solutes
     B = x[ns+1+1:2*ns+1] # Array length = number solutes
     C = x[2*ns+1+1:3*ns+1] # Array length = number solutes
-    return loss(tR, A, B, C, L, λ, β, prog, opt, gas; metric=metric)[1]
+    return loss(tR, A, B, C, L, d, β, prog, opt, gas; metric=metric)[1]
 end
 
-function opt_λβABC(x, p)
+function opt_β(x, p)
+    tR = p[1]
+    L = p[2]
+    d = p[3]
+    A = p[4]
+    B = p[5]
+    C = p[6]
+    prog = p[7]
+    opt = p[8]
+    gas = p[9]
+    metric = p[10]
+    if length(size(tR)) == 1
+        ns = 1
+    else
+        ns = size(tR)[2]
+    end
+    β = x[1]
+    return loss(tR, A, B, C, L, d, β, prog, opt, gas; metric=metric)[1]
+end
+
+function opt_dβABC(x, p)
     tR = p[1]
     L = p[2]
     prog = p[3]
@@ -265,12 +220,32 @@ function opt_λβABC(x, p)
     else
         ns = size(tR)[2]
     end
-    λ = x[1]
+    d = x[1]
     β = x[2]
     A = x[3:ns+2] # Array length = number solutes
     B = x[ns+2+1:2*ns+2] # Array length = number solutes
     C = x[2*ns+2+1:3*ns+2] # Array length = number solutes
-    return loss(tR, A, B, C, L, λ, β, prog, opt, gas; metric=metric)[1]
+    return loss(tR, A, B, C, L, d, β, prog, opt, gas; metric=metric)[1]
+end
+
+function opt_dβ(x, p)
+    tR = p[1]
+    L = p[2]
+    A = p[3]
+    B = p[4]
+    C = p[5]
+    prog = p[6]
+    opt = p[7]
+    gas = p[8]
+    metric = p[9]
+    if length(size(tR)) == 1
+        ns = 1
+    else
+        ns = size(tR)[2]
+    end
+    d = x[1]
+    β = x[2]
+    return loss(tR, A, B, C, L, d, β, prog, opt, gas; metric=metric)[1]
 end
 
 # optimize every solute separatly, tR is a 2D-array with RT of different programs in the first dimension and different solutes in the second dimension  
@@ -310,43 +285,64 @@ end
 #	return opt_sol
 #end
 
-function optimize_Kcentric_single(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, metric="quadratic")
-	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
-                    Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
-                    Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
-    #bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
-    #            BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
+#function optimize_Kcentric_single(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, metric="quadratic")
+#	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
+#                    Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
+#                    Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
+#    #bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
+#    #            BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
+#    
+#    optf = OptimizationFunction(opt_Kcentric, Optimization.AutoForwardDiff())
+#	
+#    if typeof(size(tR)) == Tuple{Int64, Int64}
+#        n2 = size(tR)[2]
+#    else
+#        n2 = 1
+#    end 
+#    opt_sol = Array{Any}(undef, n2)
+#	for i=1:n2
+#		p = [tR[:,i], L, d, prog, opt, gas, metric]
+#		x0 = [Tchar_e[i], θchar_e[i], ΔCp_e[i]]
+#		lb = [lb_Tchar[i], lb_θchar[i], lb_ΔCp[i]]
+#		ub = [ub_Tchar[i], ub_θchar[i], ub_ΔCp[i]]
+#		#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
+#		if method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
+#            prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+#        else
+#            prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
+#        end
+#        #if method in optimisers
+#        #    opt_sol[i] = solve(prob, method, maxiters=maxiters)
+#        #elseif method in bbos
+#        #    opt_sol[i] = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
+#        #else#
+#		opt_sol[i] = solve(prob, method, maxiters=maxiters) #-> :u (Array of the optimized parameters), :minimum (minima of the optimization function) , :retcode (Boolean, successful?)
+#        #end
+#    end
+#	return opt_sol
+#end
+
+function optimize_Kcentric_single(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, ΔCp_e, method; maxiters=10000, metric="quadratic")
     
     optf = OptimizationFunction(opt_Kcentric, Optimization.AutoForwardDiff())
 	
     if typeof(size(tR)) == Tuple{Int64, Int64}
-        n2 = size(tR)[2]
+        ns = size(tR)[2]
     else
-        n2 = 1
+        ns = 1
     end 
-    opt_sol = Array{Any}(undef, n2)
-	for i=1:n2
+    opt_sol = Array{SciMLBase.OptimizationSolution}(undef, ns)
+	for i=1:ns
 		p = [tR[:,i], L, d, prog, opt, gas, metric]
 		x0 = [Tchar_e[i], θchar_e[i], ΔCp_e[i]]
-		lb = [lb_Tchar[i], lb_θchar[i], lb_ΔCp[i]]
-		ub = [ub_Tchar[i], ub_θchar[i], ub_ΔCp[i]]
-		#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-		if method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
-            prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-        else
-            prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-        end
-        #if method in optimisers
-        #    opt_sol[i] = solve(prob, method, maxiters=maxiters)
-        #elseif method in bbos
-        #    opt_sol[i] = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
-        #else
-		opt_sol[i] = solve(prob, method, maxiters=maxiters) #-> :u (Array of the optimized parameters), :minimum (minima of the optimization function) , :retcode (Boolean, successful?)
-        #end
+		
+		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+		opt_sol[i] = solve(prob, method, maxiters=maxiters)
     end
 	return opt_sol
 end
 
+#=
 function optimize_ABC_single(tR, L, λ, β, gas, prog, opt, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, metric="quadratic")
 	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
                     Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
@@ -383,6 +379,7 @@ function optimize_ABC_single(tR, L, λ, β, gas, prog, opt, Tchar_e, θchar_e, �
     end
 	return opt_sol
 end
+=#
 
 # optimization of only one solute
 #function optimize_Kcentric_single(tR, L, d, gas, prog, opt, Tchar_e::Float64, θchar_e::Float64, ΔCp_e::Float64, lb_Tchar::Float64, lb_θchar::Float64, lb_ΔCp::Float64, ub_Tchar::Float64, ub_θchar::Float64, ub_ΔCp::Float64, method; maxiters=10000)
@@ -390,6 +387,7 @@ end
 #end
 
 # optimize all solutes together
+#=
 function optimize_Kcentric_all(tR, L, d, gas, prog, opt, A_e, B_e, C_e, lb_A, lb_B, lb_C, ub_A, ub_B, ub_C, method; maxiters=10000, metric="quadratic")
 	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
                     Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
@@ -417,7 +415,18 @@ function optimize_Kcentric_all(tR, L, d, gas, prog, opt, A_e, B_e, C_e, lb_A, lb
     #end
 	return opt_sol
 end
+=#
 
+function optimize_Kcentric(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, ΔCp_e, method; maxiters=10000, metric="quadratic", g_tol=1e-4)    
+    p = [tR, L, d, prog, opt, gas, metric]
+	x0 = [Tchar_e; θchar_e; ΔCp_e]
+	optf = OptimizationFunction(opt_Kcentric, Optimization.AutoForwardDiff())
+	prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters, g_tol=g_tol)
+    opt_sol = solve(prob, method, maxiters=maxiters)
+	return opt_sol
+end
+
+#=
 function optimize_ABC_all(tR, L, λ, β, gas, prog, opt, A_e, B_e, C_e, lb_A, lb_B, lb_C, ub_A, ub_B, ub_C, method; maxiters=10000, metric="quadratic")
 	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
                     Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
@@ -445,355 +454,51 @@ function optimize_ABC_all(tR, L, λ, β, gas, prog, opt, A_e, B_e, C_e, lb_A, lb
     #end
 	return opt_sol
 end
-
-# with given initial value
-# DELETE
-#function optimize(tR_meas, solute_names, column, options, TPs, PPs, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, mode="single")
-#    if column[:time_unit] == "min"
-#        a = 60.0
-#    else
-#        a = 1.0
-#    end
-#
-#    if length(size(tR_meas)) == 1
-#        ns = 1
-#    else
-#        ns = size(tR_meas)[2]
-#    end
-#
-#	prog = Array{GasChromatographySimulator.Program}(undef, length(TPs.measurement))
-#    for i=1:length(TPs.measurement)
-#        if column[:pout] == "atmospheric"
-#            pout = PPs[i, end]
-#        else
-#            pout = "vacuum"
-#        end
-#        prog[i] = Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:(end-1)])), column[:L]; pout=pout, time_unit=column[:time_unit])
-#    end
-#    #method_short_names = Array{String}(undef, ns)
-#    Tchar = Array{Float64}(undef, ns)
-#	θchar = Array{Float64}(undef, ns)
-#	ΔCp = Array{Float64}(undef, ns)
-#    min = Array{Float64}(undef, ns)
-#    retcode = Array{Any}(undef, ns)
-#    if mode == "single"
-#	    sol = optimize_Kcentric_single(tR_meas.*a, column[:L], column[:d], column[:gas], prog, options, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters)
-#        for j=1:ns
-#            #method_short_names[j] = method_short_name
-#            Tchar[j] = sol[j][1]
-#            θchar[j] = sol[j][2]
-#            ΔCp[j] = sol[j][3]
-#            min[j] = sol[j].minimum
-#            retcode[j] = sol[j].retcode
-#        end
-#    else
-#        sol = optimize_Kcentric_all(tR_meas.*a, column[:L], column[:d], column[:gas], prog, options, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=maxiters)
-#        Tchar = sol[1:ns] # Array length = number solutes
-#        θchar = sol[ns+1:2*ns] # Array length = number solutes
-#        ΔCp = sol[2*ns+1:3*ns] # Array length = number solutes
-#        for j=1:ns
-#            min[j] = sol.minimum
-#            retcode[j] = sol.retcode
-#            #method_short_names[j] = method_short_name
-#        end
-#    end
-#	df = DataFrame(Name=solute_names, Tchar=Tchar, θchar=θchar, ΔCp=ΔCp, min=min, retcode=retcode)
-#	return df, sol
-#end
-
+=#
 
 
 #------------------
 
 # bundel estimates and lower/upper bounds together
-function optimize_λKcentric(tR, L, gas, prog, opt, λ_e, Tchar_e, θchar_e, ΔCp_e, lb_λ, lb_Tchar, lb_θchar, lb_ΔCp, ub_λ, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, metric="quadratic")
-	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
-                    Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
-                    Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
-    #bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
-    #            BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
-    
+function optimize_dKcentric(tR, L, gas, prog, opt, d_e, Tchar_e, θchar_e, ΔCp_e, method; maxiters=10000, metric="quadratic")    
     p = [tR, L, prog, opt, gas, metric]
-	x0 = [λ_e; Tchar_e; θchar_e; ΔCp_e]
-	lb = [lb_λ; lb_Tchar; lb_θchar; lb_ΔCp]
-	ub = [ub_λ; ub_Tchar; ub_θchar; ub_ΔCp]
-	optf = OptimizationFunction(opt_λKcentric, Optimization.AutoForwardDiff())
-	#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-    if method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
-		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-	else
-		prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-	end
-	#if method in optimisers
-    #    opt_sol = solve(prob, method, maxiters=maxiters)
-    #elseif method in bbos
-    #    opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
-    #else
+	x0 = [d_e; Tchar_e; θchar_e; ΔCp_e]
+	optf = OptimizationFunction(opt_dKcentric, Optimization.AutoForwardDiff())
+	prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
     opt_sol = solve(prob, method, maxiters=maxiters)
-    #end
 	return opt_sol
 end
 
-function optimize_λKcentric_single(tR, L, gas, prog, opt, λ_e, Tchar_e, θchar_e, ΔCp_e, lb_λ, lb_Tchar, lb_θchar, lb_ΔCp, ub_λ, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, metric="quadratic")
-	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
-                    Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
-                    Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
-    #bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
-    #            BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
+function optimize_dKcentric_single(tR, L, gas, prog, opt, d_e, Tchar_e, θchar_e, ΔCp_e, method; maxiters=10000, metric="quadratic")
     
-    optf = OptimizationFunction(opt_λKcentric, Optimization.AutoForwardDiff())
+    optf = OptimizationFunction(opt_dKcentric, Optimization.AutoForwardDiff())
 	
     if typeof(size(tR)) == Tuple{Int64, Int64}
-        n2 = size(tR)[2]
+        ns = size(tR)[2]
     else
-        n2 = 1
+        ns = 1
     end 
-    opt_sol = Array{Any}(undef, n2)
-	for i=1:n2
+    opt_sol = Array{SciMLBase.OptimizationSolution}(undef, ns)
+	for i=1:ns
 		p = [tR[:,i], L, prog, opt, gas, metric]
-		x0 = [λ_e, Tchar_e[i], θchar_e[i], ΔCp_e[i]]
-		lb = [lb_λ, lb_Tchar[i], lb_θchar[i], lb_ΔCp[i]]
-		ub = [ub_λ, ub_Tchar[i], ub_θchar[i], ub_ΔCp[i]]
-		#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-		if method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
-            prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-        else
-            prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-        end
-        #if method in optimisers
-        #    opt_sol[i] = solve(prob, method, maxiters=maxiters)
-        #elseif method in bbos
-        #    opt_sol[i] = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
-        #else
-		opt_sol[i] = solve(prob, method, maxiters=maxiters) #-> :u (Array of the optimized parameters), :minimum (minima of the optimization function) , :retcode (Boolean, successful?)
-        #end
+		x0 = [d_e, Tchar_e[i], θchar_e[i], ΔCp_e[i]]
+		
+		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+		opt_sol[i] = solve(prob, method, maxiters=maxiters)
     end
 	return opt_sol
 end
 
-function optimize_φKcentric(tR, L, d, φ₀, gas, prog, opt, φ_e, Tchar_e, θchar_e, ΔCp_e, lb_φ, lb_Tchar, lb_θchar, lb_ΔCp, ub_φ, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, metric="quadratic")
-	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
-                    Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
-                    Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
-    #bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
-    #            BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
-    
-    p = [tR, L, d, φ₀, prog, opt, gas, metric]
-	x0 = [φ_e; Tchar_e; θchar_e; ΔCp_e]
-	lb = [lb_φ; lb_Tchar; lb_θchar; lb_ΔCp]
-	ub = [ub_φ; ub_Tchar; ub_θchar; ub_ΔCp]
-	optf = OptimizationFunction(opt_φKcentric, Optimization.AutoForwardDiff())
-	#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-	if method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
-		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-	else
-		prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-	end
-	#if method in optimisers
-    #    opt_sol = solve(prob, method, maxiters=maxiters)
-    #elseif method in bbos
-    #    opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
-    #else
+function optimize_d(tR, L, Tchar, θchar, ΔCp, gas, prog, opt, d_e, method; maxiters=10000, metric="quadratic")    
+    p = [tR, L, Tchar, θchar, ΔCp, prog, opt, gas, metric]
+	x0 = [d_e]
+	optf = OptimizationFunction(opt_d, Optimization.AutoForwardDiff())
+	prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
     opt_sol = solve(prob, method, maxiters=maxiters)
-    #end
 	return opt_sol
 end
 
-function optimize_φKcentric_single(tR, L, d, φ₀, gas, prog, opt, φ_e, Tchar_e, θchar_e, ΔCp_e, lb_φ, lb_Tchar, lb_θchar, lb_ΔCp, ub_φ, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, metric="quadratic")
-	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
-                    Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
-                    Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
-    #bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
-    #            BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
-    
-    optf = OptimizationFunction(opt_φKcentric, Optimization.AutoForwardDiff())
-	
-    if typeof(size(tR)) == Tuple{Int64, Int64}
-        n2 = size(tR)[2]
-    else
-        n2 = 1
-    end 
-    opt_sol = Array{Any}(undef, n2)
-	for i=1:n2
-		p = [tR[:,i], L, d, φ₀, prog, opt, gas, metric]
-		x0 = [φ_e, Tchar_e[i], θchar_e[i], ΔCp_e[i]]
-		lb = [lb_φ, lb_Tchar[i], lb_θchar[i], lb_ΔCp[i]]
-		ub = [ub_φ, ub_Tchar[i], ub_θchar[i], ub_ΔCp[i]]
-		#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-		if method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
-            prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-        else
-            prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-        end
-        #if method in optimisers
-        #    opt_sol[i] = solve(prob, method, maxiters=maxiters)
-        #elseif method in bbos
-        #    opt_sol[i] = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
-        #else
-		opt_sol[i] = solve(prob, method, maxiters=maxiters) #-> :u (Array of the optimized parameters), :minimum (minima of the optimization function) , :retcode (Boolean, successful?)
-        #end
-    end
-	return opt_sol
-end
-
-function optimize_λφKcentric(tR, L, φ₀, gas, prog, opt, λ_e, φ_e, Tchar_e, θchar_e, ΔCp_e, lb_λ, lb_φ, lb_Tchar, lb_θchar, lb_ΔCp, ub_λ, ub_φ, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, metric="quadratic")
-	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
-                    Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
-                    Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
-    #bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
-    #            BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
-    
-    p = [tR, L, φ₀, prog, opt, gas, metric]
-	x0 = [λ_e; φ_e; Tchar_e; θchar_e; ΔCp_e]
-	lb = [lb_λ; lb_φ; lb_Tchar; lb_θchar; lb_ΔCp]
-	ub = [ub_λ; ub_φ; ub_Tchar; ub_θchar; ub_ΔCp]
-	optf = OptimizationFunction(opt_λφKcentric, Optimization.AutoForwardDiff())
-	#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-	if method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
-		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-	else
-		prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-	end
-	#if method in optimisers
-    #    opt_sol = solve(prob, method, maxiters=maxiters)
-    #elseif method in bbos
-    #    opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
-    #else
-    opt_sol = solve(prob, method, maxiters=maxiters)
-    #end
-	return opt_sol
-end
-
-function optimize_λφ(tR, L, φ₀, Tchar, θchar, ΔCp, gas, prog, opt, λ_e, φ_e, lb_λ, lb_φ, ub_λ, ub_φ, method; maxiters=10000, metric="quadratic")
-	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
-                    Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
-                    Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
-    #bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
-    #            BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
-    
-    p = [tR, L, φ₀, Tchar, θchar, ΔCp, prog, opt, gas, metric]
-	x0 = [λ_e; φ_e]
-	lb = [lb_λ; lb_φ]
-	ub = [ub_λ; ub_φ]
-	optf = OptimizationFunction(opt_λφ, Optimization.AutoForwardDiff())
-	#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-	if method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
-		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-	else
-		prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-	end
-	#if method in optimisers
-    #    opt_sol = solve(prob, method, maxiters=maxiters)
-    #elseif method in bbos
-    #    opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
-    #else
-    opt_sol = solve(prob, method, maxiters=maxiters)
-    #end
-	return opt_sol
-end
-
-function optimize_λφKcentric_single(tR, L, φ₀, gas, prog, opt, λ_e, φ_e, Tchar_e, θchar_e, ΔCp_e, lb_λ, lb_φ, lb_Tchar, lb_θchar, lb_ΔCp, ub_λ, ub_φ, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, metric="quadratic")
-	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
-                    Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
-                    Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
-    #bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
-    #            BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
-    
-    optf = OptimizationFunction(opt_λφKcentric, Optimization.AutoForwardDiff())
-	
-    if typeof(size(tR)) == Tuple{Int64, Int64}
-        n2 = size(tR)[2]
-    else
-        n2 = 1
-    end 
-    opt_sol = Array{Any}(undef, n2)
-	for i=1:n2
-		p = [tR[:,i], L, φ₀, prog, opt, gas, metric]
-		x0 = [λ_e, φ_e, Tchar_e[i], θchar_e[i], ΔCp_e[i]]
-		lb = [lb_λ, lb_φ, lb_Tchar[i], lb_θchar[i], lb_ΔCp[i]]
-		ub = [ub_λ, ub_φ, ub_Tchar[i], ub_θchar[i], ub_ΔCp[i]]
-		#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-		if method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
-            prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-        else
-            prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-        end
-        #if method in optimisers
-        #    opt_sol[i] = solve(prob, method, maxiters=maxiters)
-        #elseif method in bbos
-        #    opt_sol[i] = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
-        #else
-		opt_sol[i] = solve(prob, method, maxiters=maxiters) #-> :u (Array of the optimized parameters), :minimum (minima of the optimization function) , :retcode (Boolean, successful?)
-        #end
-    end
-	return opt_sol
-end
-
-function optimize_ddfKcentric(tR, L, φ₀, gas, prog, opt, d_e, df_e, Tchar_e, θchar_e, ΔCp_e, lb_d, lb_df, lb_Tchar, lb_θchar, lb_ΔCp, ub_d, ub_df, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, metric="quadratic")
-	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
-                    Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
-                    Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
-    #bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
-    #            BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
-    
-    p = [tR, L, φ₀, prog, opt, gas, metric]
-	x0 = [d_e; df_e; Tchar_e; θchar_e; ΔCp_e]
-	lb = [lb_d; lb_df; lb_Tchar; lb_θchar; lb_ΔCp]
-	ub = [ub_d; ub_df; ub_Tchar; ub_θchar; ub_ΔCp]
-	optf = OptimizationFunction(opt_ddfKcentric, Optimization.AutoForwardDiff())
-	#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-	if method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
-		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-	else
-		prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-	end
-	#if method in optimisers
-    #    opt_sol = solve(prob, method, maxiters=maxiters)
-    #elseif method in bbos
-    #    opt_sol = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
-    #else
-    opt_sol = solve(prob, method, maxiters=maxiters)
-    #end
-	return opt_sol
-end
-
-function optimize_ddfKcentric_single(tR, L, φ₀, gas, prog, opt, d_e, df_e, Tchar_e, θchar_e, ΔCp_e, lb_d, lb_df, lb_Tchar, lb_θchar, lb_ΔCp, ub_d, ub_df, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, metric="quadratic")
-	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
-                    Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
-                    Optimisers.AMSGrad(), Optimisers.NAdam(), Optimisers.AdamW()]
-    #bbos = [BBO_adaptive_de_rand_1_bin_radiuslimited(), BBO_separable_nes(), BBO_xnes(), BBO_dxnes(), BBO_adaptive_de_rand_1_bin(), BBO_de_rand_1_bin(),
-    #            BBO_de_rand_1_bin_radiuslimited(), BBO_de_rand_2_bin(), BBO_de_rand_2_bin_radiuslimited()]
-    
-    optf = OptimizationFunction(opt_ddfKcentric, Optimization.AutoForwardDiff())
-	
-    if typeof(size(tR)) == Tuple{Int64, Int64}
-        n2 = size(tR)[2]
-    else
-        n2 = 1
-    end 
-    opt_sol = Array{Any}(undef, n2)
-	for i=1:n2
-		p = [tR[:,i], L, φ₀, prog, opt, gas, metric]
-		x0 = [d_e, df_e, Tchar_e[i], θchar_e[i], ΔCp_e[i]]
-		lb = [lb_d, lb_df, lb_Tchar[i], lb_θchar[i], lb_ΔCp[i]]
-		ub = [ub_d, ub_df, ub_Tchar[i], ub_θchar[i], ub_ΔCp[i]]
-		#if method == NelderMead() || method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton()) || method in optimisers
-		if method == NewtonTrustRegion() || Symbol(method) == Symbol(Newton())
-            prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-        else
-            prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub)
-        end
-        #if method in optimisers
-        #    opt_sol[i] = solve(prob, method, maxiters=maxiters)
-        #elseif method in bbos
-        #    opt_sol[i] = solve(prob, method, maxiters=maxiters, TraceMode=:silent)
-        #else
-		opt_sol[i] = solve(prob, method, maxiters=maxiters) #-> :u (Array of the optimized parameters), :minimum (minima of the optimization function) , :retcode (Boolean, successful?)
-        #end
-    end
-	return opt_sol
-end
-
+#=
 function optimize_λABC(tR, L, β, gas, prog, opt, λ_e, A_e, B_e, C_e, lb_λ, lb_A, lb_B, lb_C, ub_λ, ub_A, ub_B, ub_C, method; maxiters=10000, metric="quadratic")
 	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
                     Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
@@ -820,7 +525,9 @@ function optimize_λABC(tR, L, β, gas, prog, opt, λ_e, A_e, B_e, C_e, lb_λ, l
     #end
 	return opt_sol
 end
+=#
 
+#=
 function optimize_βABC(tR, L, λ, gas, prog, opt, β_e, A_e, B_e, C_e, lb_β, lb_A, lb_B, lb_C, ub_β, ub_A, ub_B, ub_C, method; maxiters=10000, metric="quadratic")
 	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
                     Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
@@ -847,7 +554,9 @@ function optimize_βABC(tR, L, λ, gas, prog, opt, β_e, A_e, B_e, C_e, lb_β, l
     #end
 	return opt_sol
 end
+=#
 
+#=
 function optimize_λβABC(tR, L, gas, prog, opt, λ_e, β_e, A_e, B_e, C_e, lb_λ, lb_β, lb_A, lb_B, lb_C, ub_λ, ub_β, ub_A, ub_B, ub_C, method; maxiters=10000, metric="quadratic")
 	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
                     Optimisers.RAdam(), Optimisers.OAdam(), Optimisers.AdaMax(), Optimisers.ADAGrad(), Optimisers.ADADelta(),
@@ -874,9 +583,99 @@ function optimize_λβABC(tR, L, gas, prog, opt, λ_e, β_e, A_e, B_e, C_e, lb_�
     #end
 	return opt_sol
 end
+=#
 
 
 # rename this function later
+function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, rp1_e, rp2_e, rp3_e, method; maxiters=10000, mode="dKcentric", metric="quadratic", φ₀=1e-3)
+    # mode = "Kcentric", "Kcentric_single", "dKcentric", "dKcentric_single", "d"
+    # later add here modes for ABC-Parameters and ABC+df
+    if column[:time_unit] == "min"
+        a = 60.0
+    else
+        a = 1.0
+    end
+
+    if length(size(tR_meas)) == 1
+        ns = 1
+    else
+        ns = size(tR_meas)[2]
+    end
+
+	prog = Array{GasChromatographySimulator.Program}(undef, length(TPs.measurement))
+    for i=1:length(TPs.measurement)
+        if column[:pout] == "atmospheric"
+            pout = PPs[i, end]
+        else
+            pout = "vacuum"
+        end
+        prog[i] = Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:(end-1)])), column[:L]; pout=pout, time_unit=column[:time_unit])
+    end
+    
+    d_e = column[:d]
+
+    rp1 = Array{Float64}(undef, ns)
+	rp2 = Array{Float64}(undef, ns)
+	rp3 = Array{Float64}(undef, ns)
+    min = Array{Float64}(undef, ns)
+    retcode = Array{Any}(undef, ns)
+    if mode == "Kcentric_single"
+	    sol = optimize_Kcentric_single(tR_meas.*a, column[:L], column[:d], column[:gas], prog, options, rp1_e, rp2_e, rp3_e, method; maxiters=maxiters, metric=metric)
+        for j=1:ns
+            rp1[j] = sol[j][1]
+            rp2[j] = sol[j][2]
+            rp3[j] = sol[j][3]
+            min[j] = sol[j].minimum
+            retcode[j] = sol[j].retcode
+        end
+        df = DataFrame(Name=solute_names, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
+    elseif mode == "Kcentric"
+        sol = optimize_Kcentric(tR_meas.*a, column[:L], column[:d], column[:gas], prog, options, rp1_e, rp2_e, rp3_e, method; maxiters=maxiters, metric=metric)
+        rp1 = sol[1:ns] # Array length = number solutes
+        rp2 = sol[ns+1:2*ns] # Array length = number solutes
+        rp3 = sol[2*ns+1:3*ns] # Array length = number solutes
+        for j=1:ns
+            min[j] = sol.minimum
+            retcode[j] = sol.retcode
+        end
+        df = DataFrame(Name=solute_names, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
+    elseif mode == "dKcentric"
+        sol = optimize_dKcentric(tR_meas.*a, column[:L], column[:gas], prog, options, d_e, rp1_e, rp2_e, rp3_e, method; maxiters=maxiters, metric=metric)
+        d = sol[1].*ones(ns)
+        rp1 = sol[2:ns+1] # Array length = number solutes
+        rp2 = sol[ns+1+1:2*ns+1] # Array length = number solutes
+        rp3 = sol[2*ns+1+1:3*ns+1] # Array length = number solutes
+        for j=1:ns
+            min[j] = sol.minimum
+            retcode[j] = sol.retcode
+        end
+        df = DataFrame(Name=solute_names, d=d, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
+    elseif mode == "dKcentric_single"
+        sol = optimize_dKcentric_single(tR_meas.*a, column[:L], column[:gas], prog, options, d_e, rp1_e, rp2_e, rp3_e, method; maxiters=maxiters, metric=metric)
+        d = Array{Float64}(undef, ns)
+        for j=1:ns
+            d[j] = sol[j][1]
+            rp1[j] = sol[j][2]
+            rp2[j] = sol[j][3]
+            rp3[j] = sol[j][4]
+            min[j] = sol[j].minimum
+            retcode[j] = sol[j].retcode
+        end
+        df = DataFrame(Name=solute_names, d=d, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
+    elseif mode == "d"
+        sol = optimize_d(tR_meas.*a, column[:L], rp1_e, rp2_e, rp3_e, column[:gas], prog, options, d_e, method; maxiters=maxiters, metric=metric)
+        φ = sol[1].*ones(ns)
+        for j=1:ns
+            min[j] = sol.minimum
+            retcode[j] = sol.retcode
+        end
+        df = DataFrame(Name=solute_names, d=d, min=min, retcode=retcode)
+    end
+	
+	return df, sol
+end
+
+#=
 function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, rp1_e, rp2_e, rp3_e, lb_rp1, lb_rp2, lb_rp3, ub_rp1, ub_rp2, ub_rp3, method; maxiters=10000, mode="LdKcentric", metric="quadratic", φ₀=1e-3)
     # mode = "Kcentric", "Kcentric_single", "λKcentric", "λKcentric_single", "φKcentric", "φKcentric_single", "λφKcentric", "λφKcentric_single", "λφ", "ddfKcentric", "ddfKcentric_single", "ABC", "ABC_single", "λABC", "dfABC", "λdfABC"
     # later add here modes for ABC-Parameters and ABC+df
@@ -1165,3 +964,4 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
 	
 	return df, sol
 end
+=#

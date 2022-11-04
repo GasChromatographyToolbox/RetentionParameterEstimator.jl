@@ -121,7 +121,7 @@ function estimate_start_parameter_single_ramp(tRs::DataFrame, TPs::DataFrame, PP
     return Tchar_est, θchar_est, ΔCp_est, Telu_max
 end
 
-function estimate_start_parameter_mean_elu_temp(tRs::DataFrame, TPs::DataFrame, PPs::DataFrame, L, df; pout="vacuum", time_unit="min")
+function estimate_start_parameter_mean_elu_temp(tRs::DataFrame, TPs::DataFrame, PPs::DataFrame, L, d, df; pout="vacuum", time_unit="min")
 	if time_unit == "min"
 		a = 60.0
 	else
@@ -155,7 +155,7 @@ function estimate_start_parameter(tR_meas::DataFrame, TPs::DataFrame, PPs::DataF
     if size(TPs)[2] == 6
         Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter_single_ramp(tR_meas, TPs::DataFrame, PPs::DataFrame, L, d, df, gas; pout=pout, time_unit=time_unit, control=control)
     else 
-        Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter_mean_elu_temp(tR_meas, TPs::DataFrame, PPs::DataFrame, L, df; pout=pout, time_unit=time_unit)
+        Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter_mean_elu_temp(tR_meas, TPs::DataFrame, PPs::DataFrame, L, d, df; pout=pout, time_unit=time_unit)
     end
     return Tchar_est, θchar_est, ΔCp_est, Telu_max
 end

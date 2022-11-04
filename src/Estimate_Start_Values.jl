@@ -33,7 +33,7 @@ function elution_temperature(tRs, prog)
     return Telus
 end
 
-"""
+#="""
     estimate_start_parameter(tR_meas, TPs, PPs, L, d, gas; pout="vacuum", time_unit="min", control="Pressure")
 
 Estimation of start values for the K-centric parameters `Tchar`, `θchar` and `ΔCp` from measured retention times `tR_meas` for several GC programs 
@@ -82,42 +82,80 @@ function estimate_start_parameter(tR_meas, TPs, PPs, L, d, gas; pout="vacuum", t
         ΔCp_est[i] = 100.0
     end
     return Tchar_est, θchar_est, ΔCp_est, Telu_max
-end
+end=#
 
-function estimate_start_parameter(tR_meas, TPs::DataFrame, PPs::DataFrame, L, d, gas; pout="vacuum", time_unit="min", control="Pressure")
-    if time_unit == "min"
-        t_conv = 60.0
-    else
-        t_conv = 1.0
-    end
-    prog = Array{GasChromatographySimulator.Program}(undef, length(TPs.measurement))
-    tMref = Array{Float64}(undef, length(TPs.measurement))
-    RT = Array{Float64}(undef, length(TPs.measurement)) 
-    if typeof(size(tR_meas)) == Tuple{Int64, Int64}
-        n2 = size(tR_meas)[2]
-    else
-        n2 = 1
-    end 
-    Telu_meas = Array{Float64}(undef, size(tR_meas)[1], n2)
-    for i=1:length(TPs.measurement)
-        prog[i] = Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:end])), L; pout=pout, time_unit=time_unit)
-        tMref[i] = reference_holdup_time(prog[i], L, d, gas; control=control)/t_conv
+function estimate_start_parameter_single_ramp(tRs::DataFrame, TPs::DataFrame, PPs::DataFrame, L, d, df, gas; pout="vacuum", time_unit="min", control="Pressure")
+    if column[:time_unit] == "min"
+		a = 60.0
+	else
+		a = 1.0
+	end
+    tR_meas = Array(tRs[:,2:end]).*a
+    if pout == "atmospheric"
+		pout = PPs.pamb
+	else
+		pout = "vacuum"
+	end
+    nt, ns = size(tR_meas)
+    tMref = Array{Float64}(undef, nt)
+    RT = Array{Float64}(undef, nt) 
+    Telu_meas = Array{Float64}(undef, nt, ns)
+    for i=1:nt
+        prog = Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:end])), L; pout=pout, time_unit=time_unit)
+        tMref[i] = reference_holdup_time(prog, L, d, gas; control=control)/a
         RT[i] = TPs[i, 4] # single-ramp temperature programs are assumed
-        Telu_meas[i,:] = elution_temperature(tR_meas[i,:].*60.0, prog[i])
+        Telu_meas[i,:] = elution_temperature(tR_meas[i,:], prog)
     end 
     rT = RT.*tMref./θref
-    Telu_max = Array{Float64}(undef, n2)
-    Tchar_est = Array{Float64}(undef, n2)
-    θchar_est = Array{Float64}(undef, n2)
-    ΔCp_est = Array{Float64}(undef, n2)
-    for i=1:n2
+    Telu_max = Array{Float64}(undef, ns)
+    Tchar_est = Array{Float64}(undef, ns)
+    θchar_est = Array{Float64}(undef, ns)
+    ΔCp_est = Array{Float64}(undef, ns)
+    for i=1:ns
         interp = interpolate((rT, ), Telu_meas[:,i], Gridded(Linear()))
-        #spl = Spline1D(rT, Telu_meas[:,i])
-        #Tchar_est[i] = spl(rT_nom)
         Telu_max[i] = maximum(Telu_meas[:,i])
         Tchar_est[i] = interp(rT_nom)
-        θchar_est[i] = 22.0*(Tchar_est[i]/Tst)^0.7 # factor of φ?
+        θchar_est[i] = 22.0*(Tchar_est[i]/Tst)^0.7*(1000*df/d)^0.09
         ΔCp_est[i] = 100.0
+    end
+    return Tchar_est, θchar_est, ΔCp_est, Telu_max
+end
+
+function estimate_start_parameter_mean_elu_temp(tRs::DataFrame, TPs::DataFrame, PPs::DataFrame, L, df; pout="vacuum", time_unit="min")
+	if column[:time_unit] == "min"
+		a = 60.0
+	else
+		a = 1.0
+	end
+    tR_meas = Array(tRs[:,2:end]).*a
+    if pout == "atmospheric"
+		pout = PPs.pamb
+	else
+		pout = "vacuum"
+	end
+    nt, ns = size(tR_meas)
+	Telu_max = Array{Float64}(undef, ns)
+	Tchar_elu = Array{Float64}(undef, ns)
+	θchar_elu = Array{Float64}(undef, ns)
+	for j=1:ns
+		Telu = Array{Float64}(undef, nt)
+		for i=1:nt
+            prog = RetentionParameterEstimator.Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:end])), L; pout=pout, time_unit=time_unit)
+			Telu[i] = RetentionParameterEstimator.elution_temperature(tR_meas[i,j], prog)
+		end
+		Telu_max[j] = maximum(Telu)
+		Tchar_elu[j] = mean(Telu)
+		θchar_elu[j] = 22.0*(Tchar_elu[j]/273.15)^0.7*(1000*df/d)^0.09
+	end
+	ΔCp_elu = 100.0.*ones(ns)
+	return Tchar_elu, θchar_elu, ΔCp_elu, Telu_max
+end
+
+function estimate_start_parameter(tR_meas::DataFrame, TPs::DataFrame, PPs::DataFrame, L, d, df, gas; pout="vacuum", time_unit="min", control="Pressure")
+    if size(TPs)[2] == 6
+        Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter_single_ramp(tR_meas, TPs::DataFrame, PPs::DataFrame, L, d, df, gas; pout=pout, time_unit=time_unit, control=control)
+    else 
+        Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter_mean_elu_temp(tR_meas, TPs::DataFrame, PPs::DataFrame, L, df; pout=pout, time_unit=time_unit)
     end
     return Tchar_est, θchar_est, ΔCp_est, Telu_max
 end

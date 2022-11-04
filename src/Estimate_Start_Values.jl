@@ -85,7 +85,7 @@ function estimate_start_parameter(tR_meas, TPs, PPs, L, d, gas; pout="vacuum", t
 end=#
 
 function estimate_start_parameter_single_ramp(tRs::DataFrame, TPs::DataFrame, PPs::DataFrame, L, d, df, gas; pout="vacuum", time_unit="min", control="Pressure")
-    if column[:time_unit] == "min"
+    if time_unit == "min"
 		a = 60.0
 	else
 		a = 1.0
@@ -122,7 +122,7 @@ function estimate_start_parameter_single_ramp(tRs::DataFrame, TPs::DataFrame, PP
 end
 
 function estimate_start_parameter_mean_elu_temp(tRs::DataFrame, TPs::DataFrame, PPs::DataFrame, L, df; pout="vacuum", time_unit="min")
-	if column[:time_unit] == "min"
+	if time_unit == "min"
 		a = 60.0
 	else
 		a = 1.0

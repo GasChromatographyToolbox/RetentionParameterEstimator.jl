@@ -654,7 +654,7 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
     if mode == "Kcentric_single"
         sol = Array{SciMLBase.OptimizationSolution}(undef, ns)
         for j=1:ns
-            sol[j] = optimize_Kcentric(tR_meas.*a, column[:L], column[:d], column[:gas], prog, options, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:], method; maxiters=maxiters, metric=metric)
+            sol[j] = optimize_Kcentric(tR_meas[:,j].*a, column[:L], column[:d], column[:gas], prog, options, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:], method; maxiters=maxiters, metric=metric)
             rp1[j] = sol[j][1]
             rp2[j] = sol[j][2]
             rp3[j] = sol[j][3]
@@ -687,7 +687,7 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
         sol = Array{SciMLBase.OptimizationSolution}(undef, ns)
         d = Array{Float64}(undef, ns)
         for j=1:ns
-            sol[j] = optimize_dKcentric(tR_meas.*a, column[:L], column[:gas], prog, options, d_e, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:], method; maxiters=maxiters, metric=metric)
+            sol[j] = optimize_dKcentric(tR_meas[:,j].*a, column[:L], column[:gas], prog, options, d_e, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:], method; maxiters=maxiters, metric=metric)
             d[j] = sol[j][1]
             rp1[j] = sol[j][2]
             rp2[j] = sol[j][3]

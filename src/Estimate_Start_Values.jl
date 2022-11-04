@@ -141,7 +141,7 @@ function estimate_start_parameter_mean_elu_temp(tRs::DataFrame, TPs::DataFrame, 
 		Telu = Array{Float64}(undef, nt)
 		for i=1:nt
             prog = RetentionParameterEstimator.Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:end])), L; pout=pout, time_unit=time_unit)
-			Telu[i] = RetentionParameterEstimator.elution_temperature(tR_meas[i,j], prog)
+			Telu[i] = RetentionParameterEstimator.elution_temperature(tR_meas[i,j], prog)[1]
 		end
 		Telu_max[j] = maximum(Telu)
 		Tchar_elu[j] = mean(Telu)

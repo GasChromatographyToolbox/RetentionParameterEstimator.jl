@@ -424,7 +424,7 @@ Optimization regarding the estimization of the retention parameters `Tchar`, `θ
 algorithms, which do not need lower/upper bounds. It should be a matrix (`Tchar_e`, `θchar_e` and `ΔCp_e`), with the first column (`[1,:]`)
 beeing the initial guess, the second column (`[2,:]`) the lower bound and the third column (`[3,:]`) the upper bound.
 """
-function optimize_Kcentric(tR, L, d, gas, prog, opt, Tchar_e::Array{Number,1}, θchar_e::Array{Number,1}, ΔCp_e::Array{Number,1}, method; maxiters=10000, metric="quadratic", g_tol=1e-4)    
+function optimize_Kcentric(tR, L, d, gas, prog, opt, Tchar_e<:Array{Number,1}, θchar_e<:Array{Number,1}, ΔCp_e<:Array{Number,1}, method; maxiters=10000, metric="quadratic", g_tol=1e-4)    
     p = [tR, L, d, prog, opt, gas, metric]
 	x0 = [Tchar_e; θchar_e; ΔCp_e]
 	optf = OptimizationFunction(opt_Kcentric, Optimization.AutoForwardDiff())
@@ -433,7 +433,7 @@ function optimize_Kcentric(tR, L, d, gas, prog, opt, Tchar_e::Array{Number,1}, �
 	return opt_sol
 end
 
-function optimize_Kcentric(tR, L, d, gas, prog, opt, Tchar_e::Array{Number,2}, θchar_e::Array{Number,2}, ΔCp_e::Array{Number,2}, method; maxiters=10000, metric="quadratic", g_tol=1e-4)    
+function optimize_Kcentric(tR, L, d, gas, prog, opt, Tchar_e<:Array{Number,2}, θchar_e<:Array{Number,2}, ΔCp_e<:Array{Number,2}, method; maxiters=10000, metric="quadratic", g_tol=1e-4)    
     p = [tR, L, d, prog, opt, gas, metric]
 	x0 = [Tchar_e[1,:]; θchar_e[1,:]; ΔCp_e[1,:]]
     lb = [Tchar_e[2,:]; θchar_e[2,:]; ΔCp_e[2,:]]
@@ -484,7 +484,7 @@ Optimization regarding the estimization of the column diameter `d` and the reten
 algorithms, which do not need lower/upper bounds. It should be a vector of length 3 (`d_e`) or a matrix (`Tchar_e`, `θchar_e` and `ΔCp_e`), with the first element/column 
 beeing the initial guess, the second element/column the lower bound and the third element/column the upper bound.
 """
-function optimize_dKcentric(tR, L, gas, prog, opt, d_e::Number, Tchar_e::Array{Number,1}, θchar_e::Array{Number,1}, ΔCp_e::Array{Number,1}, method; maxiters=10000, metric="quadratic")    
+function optimize_dKcentric(tR, L, gas, prog, opt, d_e<:Number, Tchar_e<:Array{Number,1}, θchar_e<:Array{Number,1}, ΔCp_e<:Array{Number,1}, method; maxiters=10000, metric="quadratic")    
     p = [tR, L, prog, opt, gas, metric]
 	x0 = [d_e; Tchar_e; θchar_e; ΔCp_e]
 	optf = OptimizationFunction(opt_dKcentric, Optimization.AutoForwardDiff())
@@ -493,7 +493,7 @@ function optimize_dKcentric(tR, L, gas, prog, opt, d_e::Number, Tchar_e::Array{N
 	return opt_sol
 end
 
-function optimize_dKcentric(tR, L, gas, prog, opt, d_e::Array{Number,1}, Tchar_e::Array{Number,2}, θchar_e::Array{Number,2}, ΔCp_e::Array{Number,2}, method; maxiters=10000, metric="quadratic")    
+function optimize_dKcentric(tR, L, gas, prog, opt, d_e<:Array{Number,1}, Tchar_e<:Array{Number,2}, θchar_e<:Array{Number,2}, ΔCp_e<:Array{Number,2}, method; maxiters=10000, metric="quadratic")    
     p = [tR, L, prog, opt, gas, metric]
 	x0 = [d_e[1]; Tchar_e[1,:]; θchar_e[1,:]; ΔCp_e[1,:]]
     lb = [d_e[2]; Tchar_e[2,:]; θchar_e[2,:]; ΔCp_e[2,:]]
@@ -510,7 +510,7 @@ end
 Optimization regarding the estimization of the column diameter `d`. The initial guess `d_e`, is a number for optimization algorithms, which do not need lower/upper bounds. It should be a vector of length 3, with the first element 
 beeing the initial guess, the second element the lower bound and the third element the upper bound for `d`.
 """
-function optimize_d(tR, L, Tchar, θchar, ΔCp, gas, prog, opt, d_e::Number, method; maxiters=10000, metric="squared")    
+function optimize_d(tR, L, Tchar, θchar, ΔCp, gas, prog, opt, d_e<:Number, method; maxiters=10000, metric="squared")    
     p = [tR, L, Tchar, θchar, ΔCp, prog, opt, gas, metric]
 	x0 = [d_e]
 	optf = OptimizationFunction(opt_d, Optimization.AutoForwardDiff())
@@ -519,7 +519,7 @@ function optimize_d(tR, L, Tchar, θchar, ΔCp, gas, prog, opt, d_e::Number, met
 	return opt_sol
 end
 
-function optimize_d(tR, L, Tchar, θchar, ΔCp, gas, prog, opt, d_e::Array{Number,1}, method; maxiters=10000, metric="squared")    
+function optimize_d(tR, L, Tchar, θchar, ΔCp, gas, prog, opt, d_e<:Array{Number,1}, method; maxiters=10000, metric="squared")    
     p = [tR, L, Tchar, θchar, ΔCp, prog, opt, gas, metric]
 	x0 = [d_e[1]]
     lb = [d_e[2]]

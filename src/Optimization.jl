@@ -322,7 +322,7 @@ end
 #	return opt_sol
 #end
 
-function optimize_Kcentric_single(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, ΔCp_e, method; maxiters=10000, metric="quadratic")
+#=function optimize_Kcentric_single(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, ΔCp_e, method; maxiters=10000, metric="quadratic")
     
     optf = OptimizationFunction(opt_Kcentric, Optimization.AutoForwardDiff())
 	
@@ -340,7 +340,7 @@ function optimize_Kcentric_single(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, �
 		opt_sol[i] = solve(prob, method, maxiters=maxiters)
     end
 	return opt_sol
-end
+end=#
 
 #=
 function optimize_ABC_single(tR, L, λ, β, gas, prog, opt, Tchar_e, θchar_e, ΔCp_e, lb_Tchar, lb_θchar, lb_ΔCp, ub_Tchar, ub_θchar, ub_ΔCp, method; maxiters=10000, metric="quadratic")
@@ -417,11 +417,29 @@ function optimize_Kcentric_all(tR, L, d, gas, prog, opt, A_e, B_e, C_e, lb_A, lb
 end
 =#
 
-function optimize_Kcentric(tR, L, d, gas, prog, opt, Tchar_e, θchar_e, ΔCp_e, method; maxiters=10000, metric="quadratic", g_tol=1e-4)    
+"""
+    optimize_Kcentric(tR, L, gas, prog, opt, d_e, Tchar_e, θchar_e, ΔCp_e, method; maxiters=10000, metric="quadratic") 
+
+Optimization regarding the estimization of the retention parameters `Tchar`, `θchar` and `ΔCp`. The initial guess is a vector (`Tchar_e`, `θchar_e` and `ΔCp_e`) for optimization
+algorithms, which do not need lower/upper bounds. It should be a matrix (`Tchar_e`, `θchar_e` and `ΔCp_e`), with the first column (`[1,:]`)
+beeing the initial guess, the second column (`[2,:]`) the lower bound and the third column (`[3,:]`) the upper bound.
+"""
+function optimize_Kcentric(tR, L, d, gas, prog, opt, Tchar_e::Array{Number,1}, θchar_e::Array{Number,1}, ΔCp_e::Array{Number,1}, method; maxiters=10000, metric="quadratic", g_tol=1e-4)    
     p = [tR, L, d, prog, opt, gas, metric]
 	x0 = [Tchar_e; θchar_e; ΔCp_e]
 	optf = OptimizationFunction(opt_Kcentric, Optimization.AutoForwardDiff())
 	prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters, g_tol=g_tol)
+    opt_sol = solve(prob, method, maxiters=maxiters)
+	return opt_sol
+end
+
+function optimize_Kcentric(tR, L, d, gas, prog, opt, Tchar_e::Array{Number,2}, θchar_e::Array{Number,2}, ΔCp_e::Array{Number,2}, method; maxiters=10000, metric="quadratic", g_tol=1e-4)    
+    p = [tR, L, d, prog, opt, gas, metric]
+	x0 = [Tchar_e[1,:]; θchar_e[1,:]; ΔCp_e[1,:]]
+    lb = [Tchar_e[2,:]; θchar_e[2,:]; ΔCp_e[2,:]]
+    ub = [Tchar_e[3,:]; θchar_e[3,:]; ΔCp_e[3,:]]
+	optf = OptimizationFunction(opt_Kcentric, Optimization.AutoForwardDiff())
+	prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub, f_calls_limit=maxiters, g_tol=g_tol)
     opt_sol = solve(prob, method, maxiters=maxiters)
 	return opt_sol
 end
@@ -459,8 +477,14 @@ end
 
 #------------------
 
-# bundel estimates and lower/upper bounds together
-function optimize_dKcentric(tR, L, gas, prog, opt, d_e, Tchar_e, θchar_e, ΔCp_e, method; maxiters=10000, metric="quadratic")    
+"""
+    optimize_dKcentric(tR, L, gas, prog, opt, d_e, Tchar_e, θchar_e, ΔCp_e, method; maxiters=10000, metric="quadratic") 
+
+Optimization regarding the estimization of the column diameter `d` and the retention parameters `Tchar`, `θchar` and `ΔCp`. The initial guess is a number (`d_e`) or a vector (`Tchar_e`, `θchar_e` and `ΔCp_e`) for optimization
+algorithms, which do not need lower/upper bounds. It should be a vector of length 3 (`d_e`) or a matrix (`Tchar_e`, `θchar_e` and `ΔCp_e`), with the first element/column 
+beeing the initial guess, the second element/column the lower bound and the third element/column the upper bound.
+"""
+function optimize_dKcentric(tR, L, gas, prog, opt, d_e::Number, Tchar_e::Array{Number,1}, θchar_e::Array{Number,1}, ΔCp_e::Array{Number,1}, method; maxiters=10000, metric="quadratic")    
     p = [tR, L, prog, opt, gas, metric]
 	x0 = [d_e; Tchar_e; θchar_e; ΔCp_e]
 	optf = OptimizationFunction(opt_dKcentric, Optimization.AutoForwardDiff())
@@ -469,31 +493,39 @@ function optimize_dKcentric(tR, L, gas, prog, opt, d_e, Tchar_e, θchar_e, ΔCp_
 	return opt_sol
 end
 
-function optimize_dKcentric_single(tR, L, gas, prog, opt, d_e, Tchar_e, θchar_e, ΔCp_e, method; maxiters=10000, metric="quadratic")
-    
-    optf = OptimizationFunction(opt_dKcentric, Optimization.AutoForwardDiff())
-	
-    if typeof(size(tR)) == Tuple{Int64, Int64}
-        ns = size(tR)[2]
-    else
-        ns = 1
-    end 
-    opt_sol = Array{SciMLBase.OptimizationSolution}(undef, ns)
-	for i=1:ns
-		p = [tR[:,i], L, prog, opt, gas, metric]
-		x0 = [d_e, Tchar_e[i], θchar_e[i], ΔCp_e[i]]
-		
-		prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-		opt_sol[i] = solve(prob, method, maxiters=maxiters)
-    end
+function optimize_dKcentric(tR, L, gas, prog, opt, d_e::Array{Number,1}, Tchar_e::Array{Number,2}, θchar_e::Array{Number,2}, ΔCp_e::Array{Number,2}, method; maxiters=10000, metric="quadratic")    
+    p = [tR, L, prog, opt, gas, metric]
+	x0 = [d_e[1]; Tchar_e[1,:]; θchar_e[1,:]; ΔCp_e[1,:]]
+    lb = [d_e[2]; Tchar_e[2,:]; θchar_e[2,:]; ΔCp_e[2,:]]
+    ub = [d_e[3]; Tchar_e[3,:]; θchar_e[3,:]; ΔCp_e[3,:]]
+	optf = OptimizationFunction(opt_dKcentric, Optimization.AutoForwardDiff())
+	prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub, f_calls_limit=maxiters)
+    opt_sol = solve(prob, method, maxiters=maxiters)
 	return opt_sol
 end
 
-function optimize_d(tR, L, Tchar, θchar, ΔCp, gas, prog, opt, d_e, method; maxiters=10000, metric="quadratic")    
+"""
+    optimize_d(tR, L, Tchar, θchar, ΔCp, gas, prog, opt, d_e, method; maxiters=10000, metric="squared")
+
+Optimization regarding the estimization of the column diameter `d`. The initial guess `d_e`, is a number for optimization algorithms, which do not need lower/upper bounds. It should be a vector of length 3, with the first element 
+beeing the initial guess, the second element the lower bound and the third element the upper bound for `d`.
+"""
+function optimize_d(tR, L, Tchar, θchar, ΔCp, gas, prog, opt, d_e::Number, method; maxiters=10000, metric="squared")    
     p = [tR, L, Tchar, θchar, ΔCp, prog, opt, gas, metric]
 	x0 = [d_e]
 	optf = OptimizationFunction(opt_d, Optimization.AutoForwardDiff())
 	prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+    opt_sol = solve(prob, method, maxiters=maxiters)
+	return opt_sol
+end
+
+function optimize_d(tR, L, Tchar, θchar, ΔCp, gas, prog, opt, d_e::Array{Number,1}, method; maxiters=10000, metric="squared")    
+    p = [tR, L, Tchar, θchar, ΔCp, prog, opt, gas, metric]
+	x0 = [d_e[1]]
+    lb = [d_e[2]]
+    ub = [d_e[3]]
+	optf = OptimizationFunction(opt_d, Optimization.AutoForwardDiff())
+	prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub, f_calls_limit=maxiters)
     opt_sol = solve(prob, method, maxiters=maxiters)
 	return opt_sol
 end
@@ -620,8 +652,9 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
     min = Array{Float64}(undef, ns)
     retcode = Array{Any}(undef, ns)
     if mode == "Kcentric_single"
-	    sol = optimize_Kcentric_single(tR_meas.*a, column[:L], column[:d], column[:gas], prog, options, rp1_e, rp2_e, rp3_e, method; maxiters=maxiters, metric=metric)
+        sol = Array{SciMLBase.OptimizationSolution}(undef, ns)
         for j=1:ns
+            sol[j] = optimize_Kcentric(tR_meas.*a, column[:L], column[:d], column[:gas], prog, options, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:], method; maxiters=maxiters, metric=metric)
             rp1[j] = sol[j][1]
             rp2[j] = sol[j][2]
             rp3[j] = sol[j][3]
@@ -651,9 +684,10 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
         end
         df = DataFrame(Name=solute_names, d=d, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
     elseif mode == "dKcentric_single"
-        sol = optimize_dKcentric_single(tR_meas.*a, column[:L], column[:gas], prog, options, d_e, rp1_e, rp2_e, rp3_e, method; maxiters=maxiters, metric=metric)
+        sol = Array{SciMLBase.OptimizationSolution}(undef, ns)
         d = Array{Float64}(undef, ns)
         for j=1:ns
+            sol[j] = optimize_dKcentric(tR_meas.*a, column[:L], column[:gas], prog, options, d_e, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:], method; maxiters=maxiters, metric=metric)
             d[j] = sol[j][1]
             rp1[j] = sol[j][2]
             rp2[j] = sol[j][3]

@@ -128,6 +128,25 @@ function opt_d(x, p)
     return loss(tR, Tchar, θchar, ΔCp, L, d, prog, opt, gas; metric=metric)
 end
 
+function opt_LKcentric(x, p)
+    tR = p[1]
+    d = p[2]
+    prog = p[3]
+    opt = p[4]
+    gas = p[5]
+    metric = p[6]
+    if length(size(tR)) == 1
+        ns = 1
+    else
+        ns = size(tR)[2]
+    end
+    L = x[1]
+    Tchar = x[2:ns+1] # Array length = number solutes
+    θchar = x[ns+1+1:2*ns+1] # Array length = number solutes
+    ΔCp = x[2*ns+1+1:3*ns+1] # Array length = number solutes
+    return loss(tR, Tchar, θchar, ΔCp, L, d, prog, opt, gas; metric=metric)
+end
+
 function opt_ABC(x, p)
 	tR = p[1]
 	L = p[2]
@@ -530,6 +549,33 @@ function optimize_d(tR, L, Tchar, θchar, ΔCp, gas, prog, opt, d_e::Vector{T}, 
 	return opt_sol
 end
 
+"""
+    optimize_LKcentric(tR, d, gas, prog, opt, L_e, Tchar_e, θchar_e, ΔCp_e, method; maxiters=10000, metric="quadratic") 
+
+Optimization regarding the estimization of the column diameter `d` and the retention parameters `Tchar`, `θchar` and `ΔCp`. The initial guess is a number (`d_e`) or a vector (`Tchar_e`, `θchar_e` and `ΔCp_e`) for optimization
+algorithms, which do not need lower/upper bounds. It should be a vector of length 3 (`d_e`) or a matrix (`Tchar_e`, `θchar_e` and `ΔCp_e`), with the first element/column 
+beeing the initial guess, the second element/column the lower bound and the third element/column the upper bound.
+"""
+function optimize_LKcentric(tR, d, gas, prog, opt, L_e::Number, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}, method; maxiters=10000, metric="quadratic") where T<:Number
+    p = [tR, d, prog, opt, gas, metric]
+	x0 = [L_e; Tchar_e; θchar_e; ΔCp_e]
+	optf = OptimizationFunction(opt_LKcentric, Optimization.AutoForwardDiff())
+	prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+    opt_sol = solve(prob, method, maxiters=maxiters)
+	return opt_sol
+end
+
+function optimize_LKcentric(tR, d, gas, prog, opt, L_e::Vector{T}, Tchar_e::Matrix{T}, θchar_e::Matrix{T}, ΔCp_e::Matrix{T}, method; maxiters=10000, metric="quadratic") where T<:Number    
+    p = [tR, d, prog, opt, gas, metric]
+	x0 = [L_e[1]; Tchar_e[1,:]; θchar_e[1,:]; ΔCp_e[1,:]]
+    lb = [L_e[2]; Tchar_e[2,:]; θchar_e[2,:]; ΔCp_e[2,:]]
+    ub = [L_e[3]; Tchar_e[3,:]; θchar_e[3,:]; ΔCp_e[3,:]]
+	optf = OptimizationFunction(opt_LKcentric, Optimization.AutoForwardDiff())
+	prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub, f_calls_limit=maxiters)
+    opt_sol = solve(prob, method, maxiters=maxiters)
+	return opt_sol
+end
+
 #=
 function optimize_λABC(tR, L, β, gas, prog, opt, λ_e, A_e, B_e, C_e, lb_λ, lb_A, lb_B, lb_C, ub_λ, ub_A, ub_B, ub_C, method; maxiters=10000, metric="quadratic")
 	optimisers = [ Optimisers.Descent(), Optimisers.Momentum(), Optimisers.Nesterov(), Optimisers.RMSProp(), Optimisers.Adam(),
@@ -704,6 +750,30 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
             retcode[j] = sol.retcode
         end
         df = DataFrame(Name=solute_names, d=d, min=min, retcode=retcode)
+    elseif mode == "LKcentric"
+        sol = optimize_dKcentric(tR_meas.*a, column[:d], column[:gas], prog, options, L_e, rp1_e, rp2_e, rp3_e, method; maxiters=maxiters, metric=metric)
+        L = sol[1].*ones(ns)
+        rp1 = sol[2:ns+1] # Array length = number solutes
+        rp2 = sol[ns+1+1:2*ns+1] # Array length = number solutes
+        rp3 = sol[2*ns+1+1:3*ns+1] # Array length = number solutes
+        for j=1:ns
+            min[j] = sol.minimum
+            retcode[j] = sol.retcode
+        end
+        df = DataFrame(Name=solute_names, L=L, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
+    elseif mode == "LKcentric_single"
+        sol = Array{SciMLBase.OptimizationSolution}(undef, ns)
+        L = Array{Float64}(undef, ns)
+        for j=1:ns
+            sol[j] = optimize_dKcentric(tR_meas[:,j].*a, column[:d], column[:gas], prog, options, L_e, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:], method; maxiters=maxiters, metric=metric)
+            L[j] = sol[j][1]
+            rp1[j] = sol[j][2]
+            rp2[j] = sol[j][3]
+            rp3[j] = sol[j][4]
+            min[j] = sol[j].minimum
+            retcode[j] = sol[j].retcode
+        end
+        df = DataFrame(Name=solute_names, L=L, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
     end
 	
 	return df, sol

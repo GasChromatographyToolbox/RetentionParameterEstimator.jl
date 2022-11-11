@@ -698,7 +698,7 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
         df = DataFrame(Name=solute_names, d=d, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min, retcode=retcode)
     elseif mode == "d"
         sol = optimize_d(tR_meas.*a, column[:L], rp1_e, rp2_e, rp3_e, column[:gas], prog, options, d_e, method; maxiters=maxiters, metric=metric)
-        φ = sol[1].*ones(ns)
+        d = sol[1].*ones(ns)
         for j=1:ns
             min[j] = sol.minimum
             retcode[j] = sol.retcode

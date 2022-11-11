@@ -691,6 +691,7 @@ function estimate_parameters(tR_meas, solute_names, column, options, TPs, PPs, r
     end
     
     d_e = column[:d]
+    L_e = column[:L]
 
     rp1 = Array{Float64}(undef, ns)
 	rp2 = Array{Float64}(undef, ns)

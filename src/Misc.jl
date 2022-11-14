@@ -24,20 +24,6 @@ function compare!(df, db)
 	return df
 end
 
-function plotbox(df1)
-	p_box1 = boxplot(ylabel="relative difference in %", legend=false)
-	#for i=1:length(unique(df1.methode))
-	#	df1f = filter([:methode] => x -> x .== unique(df1.methode)[i], df1)
-		boxplot!(p_box1, ["Tchar"], df1.relΔTchar.*100.0)
-		dotplot!(p_box1, ["Tchar"], df1.relΔTchar.*100.0, marker=(:black, stroke(0)))
-		boxplot!(p_box1, ["θchar"], df1.relΔθchar.*100.0)
-		dotplot!(p_box1, ["θchar"], df1.relΔθchar.*100.0, marker=(:black, stroke(0)))
-		boxplot!(p_box1, ["ΔCp"], df1.relΔΔCp.*100.0)
-		dotplot!(p_box1, ["ΔCp"], df1.relΔΔCp.*100.0, marker=(:black, stroke(0)))
-	#end
-	return p_box1
-end	
-
 function simulate_measurements(compare, meas, result::DataFrame; opt=std_opt)
 	
 	L = compare[1].L

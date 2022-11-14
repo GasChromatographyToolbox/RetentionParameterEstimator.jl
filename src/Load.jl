@@ -1,23 +1,54 @@
 # functions for loading the measured retention data and the necessary informations (column definition, programs, ...)
 
-function load_chromatograms_(file)# old version
-    n = open(f->countlines(f), file)
-    col_df = DataFrame(CSV.File(file, header=1, limit=1, stringtype=String))
-    column = Dict(   :L => col_df.L[1],
-                        :d => col_df.d[1],
-                        :df => col_df.df[1],
-                        :gas => col_df.gas[1],
-                        :pout => col_df.pout[1],
-                        :sp => col_df.sp[1],
-                        :time_unit => col_df.time_unit[1]
-                    )
-    n_meas = Int((n - 2 - 3)/3) 
-    TP = DataFrame(CSV.File(file, header=3, limit=n_meas, stringtype=String))
-    PP = DataFrame(CSV.File(file, header=3+n_meas+1, limit=n_meas, stringtype=String))
-    tRs = DataFrame(CSV.File(file, header=n-n_meas, stringtype=String))
-    solute_names = names(tRs)[2:end] # filter non-solute names out (columnx)
-    filter!(x -> !occursin.("Column", x), solute_names)
-    return column, TP, PP, tRs, solute_names
+# this function is a modified version from GasChromatographySimulator
+# if it works, put this function into GasChromatographySimulator
+"""
+    Program(TP, FpinP, L; pout="vacuum", time_unit="min")
+
+Construct the structure `Program` with conventional formulation (see [`conventional_program`](@ref)) of programs for the case
+without a thermal gradient. 
+
+# Arguments
+* `TP`: conventional formulation of a temperature program. 
+* `FpinP`: conventional formulation of a Flow (in m³/s) resp. inlet pressure (in Pa(a)) program.
+* `L`: Length of the capillary measured in m (meter).
+* `pout`: Outlet pressure, "vacuum" (default), "atmosphere" or the outlet pressure in Pa(a).
+* `time_unit`: unit of time in the programs, "min"` (default) times are measured in minutes, "s" times are measured in seconds.
+
+The argument `L` is used to construct the temperature interpolation `T_itp(x,t)`.
+
+# Examples
+```julia
+julia> Program((40.0, 1.0, 5.0, 280.0, 2.0, 20.0, 320.0, 2.0),
+                (400000.0, 10.0, 5000.0, 500000.0, 20.0),
+                10.0)
+```
+"""
+function Program(TP, FpinP, L; pout="vacuum", time_unit="min")
+    ts1, Ts = GasChromatographySimulator.conventional_program(TP; time_unit=time_unit)
+    ts2, Fps = GasChromatographySimulator.conventional_program(FpinP; time_unit=time_unit)
+    # remove additional 0.0 which are not at the first position
+    ts1_ = ts1[[1; findall(0.0.!=ts1)]]
+	Ts_ = Ts[[1; findall(0.0.!=ts1)]]
+	ts2_ = ts2[[1; findall(0.0.!=ts2)]]
+	Fps_ = Fps[[1; findall(0.0.!=ts2)]]
+    time_steps = GasChromatographySimulator.common_time_steps(ts1_, ts2_)
+    temp_steps = GasChromatographySimulator.new_value_steps(Ts_, ts1_, time_steps)
+    Fpin_steps = GasChromatographySimulator.new_value_steps(Fps_, ts2_, time_steps)
+    if pout == "vacuum"
+        pout_steps = zeros(length(time_steps))
+    elseif isa(pout, Number)
+        pout_steps = pout.*ones(length(time_steps)) 
+    else
+        pout_steps = pn.*ones(length(time_steps))
+    end
+    a_gf = [zeros(length(time_steps)) zeros(length(time_steps)) L.*ones(length(time_steps)) zeros(length(time_steps))]
+    gf(x) = GasChromatographySimulator.gradient(x, a_gf)
+    T_itp = GasChromatographySimulator.temperature_interpolation(time_steps, temp_steps, gf, L)
+    Fpin_itp = GasChromatographySimulator.steps_interpolation(time_steps, Fpin_steps)
+    pout_itp = GasChromatographySimulator.steps_interpolation(time_steps, pout_steps)
+    prog = GasChromatographySimulator.Program(time_steps, temp_steps, Fpin_steps, pout_steps, gf, a_gf, T_itp, Fpin_itp, pout_itp)
+    return prog
 end
 
 function extract_temperature_and_pressure_programs(TPprog)
@@ -44,34 +75,39 @@ function extract_temperature_and_pressure_programs(TPprog)
     return TPs, PPs
 end
 
-function load_chromatograms__(file) # new version
+function load_chromatograms(file; filter_missing=true) # new version
     n = open(f->countlines(f), file)
     col_df = DataFrame(CSV.File(file, header=1, limit=1, stringtype=String))
-    column = Dict(   :L => col_df.L[1],
-                        :d => col_df.d[1],
-                        :df => col_df.df[1],
-                        :gas => col_df.gas[1],
-                        :pout => col_df.pout[1],
-                        :sp => col_df.sp[1],
-                        :time_unit => col_df.time_unit[1]
-                    )
+	col = GasChromatographySimulator.Column(col_df.L[1], col_df.d[1], col_df.df[1], col_df.sp[1], col_df.gas[1])
+    pout = col_df.pout[1]
+	time_unit = col_df.time_unit[1]
+
     n_meas = Int((n - 2 - 2)/2) 
     TPprog = DataFrame(CSV.File(file, header=3, limit=n_meas, stringtype=String))
     #PP = DataFrame(CSV.File(file, header=3+n_meas+1, limit=n_meas, stringtype=String)) # convert pressures from Pa(g) to Pa(a), add p_atm to this data set
-    tRs = DataFrame(CSV.File(file, header=n-n_meas, stringtype=String))
-    solute_names = names(tRs)[2:end] # filter non-solute names out (columnx)
-    filter!(x -> !occursin.("Column", x), solute_names)
+    tRs_ = DataFrame(CSV.File(file, header=n-n_meas, stringtype=String))
+    solute_names_ = names(tRs_)[2:end] # filter non-solute names out (columnx)
+    filter!(x -> !occursin.("Column", x), solute_names_)
     TPs, PPs = extract_temperature_and_pressure_programs(TPprog)
-    return column, TPs, PPs, tRs[!,1:(length(solute_names)+1)], solute_names
-end
 
-function load_chromatograms(file; version="with ambient pressure")
-    if version == "with ambient pressure" # standard version, pressure program listed together with temperature program
-        column, TPs, PPs, tRs, solute_names = load_chromatograms__(file)
-    elseif version == "with pressure program" # old version, where pressure program was listed separatly
-        column, TPs, PPs, tRs, solute_names = load_chromatograms_(file)
-    else
-        column, TPs, PPs, tRs, solute_names = load_chromatograms__(file)
+	prog = Array{GasChromatographySimulator.Program}(undef, length(TPs.measurement))
+    for i=1:length(TPs.measurement)
+        if pout == "atmospheric"
+            pout = PPs[i, end]
+        else
+            pout = "vacuum"
+        end
+        prog[i] = Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:(end-1)])), col.L; pout=pout, time_unit=time_unit)
     end
-    return column, TPs, PPs, tRs, solute_names
+
+	# filter out substances with retention times missing
+	if filter_missing == true
+		solute_names = solute_names_[findall((collect(any(ismissing, c) for c in eachcol(tRs_))).==false)[2:end].-1]
+		tRs = tRs_[!,findall((collect(any(ismissing, c) for c in eachcol(tRs_))).==false)]
+	else
+		solute_names = solute_names_
+		tRs = tRs_
+	end
+	
+    return col, prog, tRs[!,1:(length(solute_names)+1)], solute_names, pout, time_unit, TPs, PPs
 end

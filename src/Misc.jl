@@ -8,12 +8,21 @@ function compare!(df, db)
 	relΔΔCp = Array{Float64}(undef, length(df.Name))
 	for i=1:length(df.Name)
 		ii = findfirst(df.Name[i].==db.Name)
-		ΔTchar[i] = df.Tchar[i] - (db.Tchar[ii] + 273.15)
-		Δθchar[i] = df.θchar[i] - db.thetachar[ii]
-		ΔΔCp[i] = df.ΔCp[i] - db.DeltaCp[ii]
-		relΔTchar[i] = ΔTchar[i]/(db.Tchar[ii] + 273.15)
-		relΔθchar[i] = Δθchar[i]/db.thetachar[ii]
-		relΔΔCp[i] = ΔΔCp[i]/db.DeltaCp[ii]
+        if isnothing(ii)
+            ΔTchar[i] = NaN
+            Δθchar[i] = NaN
+            ΔΔCp[i] = NaN
+            relΔTchar[i] = NaN
+            relΔθchar[i] = NaN
+            relΔΔCp[i] = NaN
+        else
+		    ΔTchar[i] = df.Tchar[i] - (db.Tchar[ii] + 273.15)
+		    Δθchar[i] = df.θchar[i] - db.thetachar[ii]
+		    ΔΔCp[i] = df.ΔCp[i] - db.DeltaCp[ii]
+		    relΔTchar[i] = ΔTchar[i]/(db.Tchar[ii] + 273.15)
+		    relΔθchar[i] = Δθchar[i]/db.thetachar[ii]
+		    relΔΔCp[i] = ΔΔCp[i]/db.DeltaCp[ii]
+        end
 	end
 	df[!, :ΔTchar] = ΔTchar
 	df[!, :Δθchar] = Δθchar

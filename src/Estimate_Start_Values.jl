@@ -46,7 +46,8 @@ function estimate_start_parameter_single_ramp(tRs::DataFrame, col, prog; time_un
     Telu_meas = Array{Float64}(undef, nt, ns)
     for i=1:nt
         tMref[i] = reference_holdup_time(col, prog[i]; control=control)/a
-        RT[i] = (prog[i].temp_steps[(end-1)] - prog[i].temp_steps[2])/(prog[i].time_steps[(end-1)] - prog[i].time_steps[2]) # single-ramp temperature programs with 4 time_steps are assumed
+        # single-ramp temperature programs with ramp between time_steps 2 and 3 are assumed
+        RT[i] = (prog[i].temp_steps[3] - prog[i].temp_steps[2])/prog[i].time_steps[3]*a 
         Telu_meas[i,:] = elution_temperature(tR_meas[i,:], prog[i])
     end 
     rT = RT.*tMref./θref
@@ -55,9 +56,9 @@ function estimate_start_parameter_single_ramp(tRs::DataFrame, col, prog; time_un
     θchar_est = Array{Float64}(undef, ns)
     ΔCp_est = Array{Float64}(undef, ns)
     for i=1:ns
-        interp = interpolate((rT, ), Interpolations.deduplicate_knots!(Telu_meas[:,i]), Gridded(Linear()))
+        interp = interpolate((rT .- rT_norm, ), Interpolations.deduplicate_knots!(Telu_meas[:,i]), Gridded(Linear()))
         Telu_max[i] = maximum(Telu_meas[:,i])
-        Tchar_est[i] = interp(rT_nom)
+        Tchar_est[i] = interp(0.0)
         θchar_est[i] = 22.0*(Tchar_est[i]/Tst)^0.7*(1000*col.df/col.d)^0.09
         ΔCp_est[i] = 100.0
     end

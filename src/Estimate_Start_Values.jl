@@ -45,7 +45,7 @@ function estimate_start_parameter_single_ramp(tRs::DataFrame, col, prog; time_un
     RT = Array{Float64}(undef, nt) 
     Telu_meas = Array{Float64}(undef, nt, ns)
     for i=1:nt
-        tMref[i] = reference_holdup_time(col, prog; control=control)/a
+        tMref[i] = reference_holdup_time(col, prog[i]; control=control)/a
         RT[i] = (prog[i].temp_steps[(end-1)] - prog[i].temp_steps[2])/(prog[i].time_steps[(end-1)] - prog[i].time_steps[2]) # single-ramp temperature programs with 4 time_steps are assumed
         Telu_meas[i,:] = elution_temperature(tR_meas[i,:], prog[i])
     end 

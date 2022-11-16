@@ -40,11 +40,6 @@ function estimate_start_parameter_single_ramp(tRs::DataFrame, col, prog; time_un
 		a = 1.0
 	end
     tR_meas = Array(tRs[:,2:end]).*a
-    if pout == "atmospheric"
-		pout = PPs.pamb
-	else
-		pout = "vacuum"
-	end
     nt, ns = size(tR_meas)
     tMref = Array{Float64}(undef, nt)
     RT = Array{Float64}(undef, nt) 

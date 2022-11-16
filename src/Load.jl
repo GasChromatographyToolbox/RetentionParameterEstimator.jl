@@ -93,11 +93,11 @@ function load_chromatograms(file; filter_missing=true) # new version
 	prog = Array{GasChromatographySimulator.Program}(undef, length(TPs.measurement))
     for i=1:length(TPs.measurement)
         if pout == "atmospheric"
-            pout = PPs[i, end]
+            pout_ = PPs[i, end]
         else
-            pout = "vacuum"
+            pout_ = "vacuum"
         end
-        prog[i] = Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:(end-1)])), col.L; pout=pout, time_unit=time_unit)
+        prog[i] = Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:(end-1)])), col.L; pout=pout_, time_unit=time_unit)
     end
 
 	# filter out substances with retention times missing

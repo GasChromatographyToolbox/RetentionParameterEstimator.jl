@@ -56,7 +56,7 @@ function estimate_start_parameter_single_ramp(tRs::DataFrame, col, prog; time_un
     θchar_est = Array{Float64}(undef, ns)
     ΔCp_est = Array{Float64}(undef, ns)
     for i=1:ns
-        interp = interpolate((rT .- rT_norm, ), Interpolations.deduplicate_knots!(Telu_meas[:,i]), Gridded(Linear()))
+        interp = interpolate((rT .- rT_nom, ), Interpolations.deduplicate_knots!(Telu_meas[:,i]), Gridded(Linear()))
         Telu_max[i] = maximum(Telu_meas[:,i])
         Tchar_est[i] = interp(0.0)
         θchar_est[i] = 22.0*(Tchar_est[i]/Tst)^0.7*(1000*col.df/col.d)^0.09

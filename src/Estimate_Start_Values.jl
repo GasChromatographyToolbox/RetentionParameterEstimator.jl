@@ -90,9 +90,9 @@ function estimate_start_parameter_mean_elu_temp(tRs::DataFrame, col, prog; time_
 end
 
 function estimate_start_parameter(tR_meas::DataFrame, col, prog; time_unit="min", control="Pressure")
-    if length(prog) == 4
+    try
         Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter_single_ramp(tR_meas, col, prog; time_unit=time_unit, control=control)
-    else 
+    catch 
         Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter_mean_elu_temp(tR_meas, col, prog; time_unit=time_unit)
     end
     return Tchar_est, θchar_est, ΔCp_est, Telu_max

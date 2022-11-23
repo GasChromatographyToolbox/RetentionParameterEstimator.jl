@@ -23,6 +23,15 @@ function tR_calc(Tchar, θchar, ΔCp, L, d, prog, gas; opt=std_opt)
 	return tR
 end
 
+
+function tR_calc(Tchar, θchar, ΔCp, φ₀, L, d, df, prog, gas; opt=std_opt)
+	# df has no influence on the result (is hidden in Tchar, θchar, ΔCp)
+	solution = solving_migration(Tchar, θchar, ΔCp, φ₀, L, d, df, prog, opt, gas)
+	tR = solution.u[end]
+	return tR
+end
+
+
 """
     loss(tR, Tchar, θchar, ΔCp, L, d, prog, gas; opt=std_opt, metric="squared")
 
@@ -70,8 +79,34 @@ function loss(tR, Tchar, θchar, ΔCp, L, d, prog, gas; opt=std_opt, metric="squ
 	return l
 end
 
+function loss(tR, Tchar, θchar, ΔCp, φ₀, L, d, df, prog, gas; opt=std_opt, metric="squared")
+	if length(size(tR)) == 1
+		ns = 1 # number of solutes
+		np = size(tR)[1] # number of programs
+	elseif length(size(tR)) == 0
+		ns = 1
+		np = 1
+	else
+		ns = size(tR)[2]
+		np = size(tR)[1]
+	end
+	tRcalc = Array{Any}(undef, np, ns)
+	for j=1:ns
+		for i=1:np
+			tRcalc[i,j] = tR_calc(Tchar[j], θchar[j], ΔCp[j], φ₀, L, d, df, prog[i], gas; opt=opt)
+		end
+	end
+	if metric == "abs"
+		l = sum(abs.(tR.-tRcalc))/(ns*np)
+	elseif metric == "squared"
+		l = sum((tR.-tRcalc).^2)/(ns*np)
+	else
+		l = sum((tR.-tRcalc).^2)/(ns*np)
+	end
+	return l
+end
 
-function tR_calc(A, B, C, L, d, β, prog, gas; opt=std_opt)
+function tR_calc_(A, B, C, L, d, β, prog, gas; opt=std_opt)
 	k(x,t,A_,B_,C_,β_) = exp(A_ + B_/prog.T_itp(x,t) + C_*log(prog.T_itp(x,t)) - log(β_))
 	#rM(x,t,L,d) = GasChromatographySimulator.mobile_phase_residency(x,t, prog.T_itp, prog.Fpin_itp, prog.pout_itp, L, d, gas; ng=opt.ng, vis=opt.vis, control=opt.control)
 	rM(x,t,L_,d_) = 64 * sqrt(prog.Fpin_itp(t)^2 - x/L*(prog.Fpin_itp(t)^2-prog.pout_itp(t)^2)) / (prog.Fpin_itp(t)^2-prog.pout_itp(t)^2) * L_/d_^2 * GasChromatographySimulator.viscosity(x, t, prog.T_itp, gas, vis=opt.vis) * prog.T_itp(x, t)
@@ -85,7 +120,7 @@ function tR_calc(A, B, C, L, d, β, prog, gas; opt=std_opt)
 	return tR
 end
 
-function loss(tR, A, B, C, L, d, β, prog, gas; opt=std_opt, metric="squared")
+function loss_(tR, A, B, C, L, d, β, prog, gas; opt=std_opt, metric="squared")
 	# loss function as sum over all programs and solutes
 	if length(size(tR)) == 1
 		ns = 1 # number of solutes

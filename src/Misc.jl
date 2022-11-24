@@ -79,7 +79,7 @@ function simulate_measurements(compare, meas, result::DataFrame; opt=std_opt)
 		catch
 			pl[i] = DataFrame(Name=solute_names, tR=NaN.*ones(length(solute_names)), τR=NaN.*ones(length(solute_names)))
 		end
-		CAS = GasChromatographySimulator.CAS_identification(string.(result.Name)).CAS
+		#CAS = GasChromatographySimulator.CAS_identification(string.(result.Name)).CAS
 		ΔtR = Array{Float64}(undef, length(solute_names))
 		relΔtR = Array{Float64}(undef, length(solute_names))
 		for k=1:length(solute_names)

@@ -9,7 +9,7 @@ For this calculation only the ODE for the migration of a solute in a GC column i
 """
 function tR_calc(Tchar, θchar, ΔCp, L, d, prog, gas; opt=std_opt)
 	# df has no influence on the result (is hidden in Tchar, θchar, ΔCp)
-	k(x,t,Tchar_,θchar_,ΔCp_) = exp((ΔCp_/R + Tchar_/θchar_)*(Tchar_/prog.T_itp(x,t)-1) + ΔCp_/R*log(prog.T_itp(x,t)/Tchar_))
+	k(x,t,Tchar_,θchar_,ΔCp_) = exp((ΔCp_/R + Tchar_/θchar_)*(Tchar_/prog.T_itp(x,t)-1) + ΔCp_/R*real(log(Complex(prog.T_itp(x,t)/Tchar_))))
 	rM(x,t,L_,d_) = GasChromatographySimulator.mobile_phase_residency(x,t, prog.T_itp, prog.Fpin_itp, prog.pout_itp, L_, d_, gas; ng=opt.ng, vis=opt.vis, control=opt.control)
 	
 	r(t,p,x) = (1+k(x,t,p[1],p[2],p[3]))*rM(x,t,p[4],p[5])

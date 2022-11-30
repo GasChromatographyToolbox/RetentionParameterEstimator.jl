@@ -115,3 +115,40 @@ function load_chromatograms(file; filter_missing=true) # new version
 	
     return col, prog, tRs[!,1:(length(solute_names)+1)], solute_names, pout, time_unit, TPs, PPs
 end
+
+function load_chromatograms(file::Dict{Any, Any}; filter_missing=true) # if file is the output of FilePicker()
+    n = length(CSV.File(file["data"]))+1
+    col_df = DataFrame(CSV.File(file["data"], header=1, limit=1, stringtype=String))
+	col = GasChromatographySimulator.Column(col_df.L[1], col_df.d[1], col_df.df[1], col_df.sp[1], col_df.gas[1])
+    pout = col_df.pout[1]
+	time_unit = col_df.time_unit[1]
+
+    n_meas = Int((n - 2 - 2)/2) 
+    TPprog = DataFrame(CSV.File(file["data"], header=3, limit=n_meas, stringtype=String))
+    #PP = DataFrame(CSV.File(file, header=3+n_meas+1, limit=n_meas, stringtype=String)) # convert pressures from Pa(g) to Pa(a), add p_atm to this data set
+    tRs_ = DataFrame(CSV.File(file["data"], header=n-n_meas, stringtype=String))
+    solute_names_ = names(tRs_)[2:end] # filter non-solute names out (columnx)
+    filter!(x -> !occursin.("Column", x), solute_names_)
+    TPs, PPs = extract_temperature_and_pressure_programs(TPprog)
+
+	prog = Array{GasChromatographySimulator.Program}(undef, length(TPs.measurement))
+    for i=1:length(TPs.measurement)
+        if pout == "atmospheric"
+            pout_ = PPs[i, end]
+        else
+            pout_ = "vacuum"
+        end
+        prog[i] = Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:(end-1)])), col.L; pout=pout_, time_unit=time_unit)
+    end
+
+	# filter out substances with retention times missing
+	if filter_missing == true
+		solute_names = solute_names_[findall((collect(any(ismissing, c) for c in eachcol(tRs_))).==false)[2:end].-1]
+		tRs = tRs_[!,findall((collect(any(ismissing, c) for c in eachcol(tRs_))).==false)]
+	else
+		solute_names = solute_names_
+		tRs = tRs_
+	end
+	
+    return col, prog, tRs[!,1:(length(solute_names)+1)], solute_names, pout, time_unit, TPs, PPs
+end

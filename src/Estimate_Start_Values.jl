@@ -28,7 +28,11 @@ Calculate the elution temperatures from retention times `tRs` and GC programs `p
 function elution_temperature(tRs, prog)
     Telus = Array{Float64}(undef, length(tRs))
     for i=1:length(tRs)
-        Telus[i] = prog.T_itp(0.0, tRs[i])
+        if ismissing(tRs[i])
+            Telus[i] = NaN
+        else
+            Telus[i] = prog.T_itp(0.0, tRs[i])
+        end
     end
     return Telus
 end

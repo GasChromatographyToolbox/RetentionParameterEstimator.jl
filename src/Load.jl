@@ -79,6 +79,16 @@ function extract_temperature_and_pressure_programs(TPprog)
     return TPs, PPs
 end
 
+function extract_measured_program(TPprog, path, L)
+    # load the measured programs
+    prog = Array{GasChromatographySimulator.Program}(undef, length(TPprog.filename))
+    for i=1:length(TPprog.filename)
+        meas_prog = DataFrame(CSV.File(joinpath(path, TPprog.filename[i])))
+        prog[i] = GasChromatographySimulator.Program(meas_prog.timesteps, meas_prog.tempsteps, meas_prog.pinsteps, meas_prog.poutsteps, L)
+    end
+    return prog
+end
+
 function load_chromatograms(file; filter_missing=true) # new version
     n = open(f->countlines(f), file)
     col_df = DataFrame(CSV.File(file, header=1, limit=1, stringtype=String))
@@ -92,16 +102,21 @@ function load_chromatograms(file; filter_missing=true) # new version
     tRs_ = DataFrame(CSV.File(file, header=n-n_meas, stringtype=String))
     solute_names_ = names(tRs_)[2:end] # filter non-solute names out (columnx)
     filter!(x -> !occursin.("Column", x), solute_names_)
-    TPs, PPs = extract_temperature_and_pressure_programs(TPprog)
+    if names(TPprog)[2] == "filename"
+        path = dirname(file)
+        prog = extract_measured_program(TPprog, path, col.L)
+    else 
+        TPs, PPs = extract_temperature_and_pressure_programs(TPprog)
 
-	prog = Array{GasChromatographySimulator.Program}(undef, length(TPs.measurement))
-    for i=1:length(TPs.measurement)
-        if pout == "atmospheric"
-            pout_ = PPs[i, end]
-        else
-            pout_ = "vacuum"
+        prog = Array{GasChromatographySimulator.Program}(undef, length(TPs.measurement))
+        for i=1:length(TPs.measurement)
+            if pout == "atmospheric"
+                pout_ = PPs[i, end]
+            else
+                pout_ = "vacuum"
+            end
+            prog[i] = Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:(end-1)])), col.L; pout=pout_, time_unit=time_unit)
         end
-        prog[i] = Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:(end-1)])), col.L; pout=pout_, time_unit=time_unit)
     end
 
 	# filter out substances with retention times missing
@@ -113,7 +128,7 @@ function load_chromatograms(file; filter_missing=true) # new version
 		tRs = tRs_
 	end
 	
-    return col, prog, tRs[!,1:(length(solute_names)+1)], solute_names, pout, time_unit, TPs, PPs
+    return col, prog, tRs[!,1:(length(solute_names)+1)], solute_names, pout, time_unit#, TPs, PPs
 end
 
 function load_chromatograms(file::Dict{Any, Any}; filter_missing=true) # if file is the output of FilePicker()
@@ -129,16 +144,20 @@ function load_chromatograms(file::Dict{Any, Any}; filter_missing=true) # if file
     tRs_ = DataFrame(CSV.File(file["data"], header=n-n_meas, stringtype=String))
     solute_names_ = names(tRs_)[2:end] # filter non-solute names out (columnx)
     filter!(x -> !occursin.("Column", x), solute_names_)
-    TPs, PPs = extract_temperature_and_pressure_programs(TPprog)
+    if names(TPprog)[2] == "filename"
+        prog = extract_measured_program(TPprog)
+    else 
+        TPs, PPs = extract_temperature_and_pressure_programs(TPprog)
 
-	prog = Array{GasChromatographySimulator.Program}(undef, length(TPs.measurement))
-    for i=1:length(TPs.measurement)
-        if pout == "atmospheric"
-            pout_ = PPs[i, end]
-        else
-            pout_ = "vacuum"
+        prog = Array{GasChromatographySimulator.Program}(undef, length(TPs.measurement))
+        for i=1:length(TPs.measurement)
+            if pout == "atmospheric"
+                pout_ = PPs[i, end]
+            else
+                pout_ = "vacuum"
+            end
+            prog[i] = Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:(end-1)])), col.L; pout=pout_, time_unit=time_unit)
         end
-        prog[i] = Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:(end-1)])), col.L; pout=pout_, time_unit=time_unit)
     end
 
 	# filter out substances with retention times missing
@@ -150,5 +169,5 @@ function load_chromatograms(file::Dict{Any, Any}; filter_missing=true) # if file
 		tRs = tRs_
 	end
 	
-    return col, prog, tRs[!,1:(length(solute_names)+1)], solute_names, pout, time_unit, TPs, PPs
+    return col, prog, tRs[!,1:(length(solute_names)+1)], solute_names, pout, time_unit#, TPs, PPs
 end

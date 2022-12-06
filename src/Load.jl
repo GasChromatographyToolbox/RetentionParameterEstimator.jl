@@ -131,7 +131,7 @@ function load_chromatograms(file; filter_missing=true) # new version
     return col, prog, tRs[!,1:(length(solute_names)+1)], solute_names, pout, time_unit#, TPs, PPs
 end
 
-function load_chromatograms(file::Dict{Any, Any}; filter_missing=true) # if file is the output of FilePicker()
+function load_chromatograms(file::Dict{Any, Any}; filter_missing=true, path=joinpath(dirname(pwd()), "data", "exp_pro")) # if file is the output of FilePicker()
     n = length(CSV.File(file["data"]))+1
     col_df = DataFrame(CSV.File(file["data"], header=1, limit=1, stringtype=String))
 	col = GasChromatographySimulator.Column(col_df.L[1], col_df.d[1], col_df.df[1], col_df.sp[1], col_df.gas[1])
@@ -145,7 +145,7 @@ function load_chromatograms(file::Dict{Any, Any}; filter_missing=true) # if file
     solute_names_ = names(tRs_)[2:end] # filter non-solute names out (columnx)
     filter!(x -> !occursin.("Column", x), solute_names_)
     if names(TPprog)[2] == "filename"
-        path = dirname(file)
+        #path = dirname(file)
         prog = extract_measured_program(TPprog, path, col.L)
     else 
         TPs, PPs = extract_temperature_and_pressure_programs(TPprog)

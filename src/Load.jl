@@ -145,7 +145,8 @@ function load_chromatograms(file::Dict{Any, Any}; filter_missing=true) # if file
     solute_names_ = names(tRs_)[2:end] # filter non-solute names out (columnx)
     filter!(x -> !occursin.("Column", x), solute_names_)
     if names(TPprog)[2] == "filename"
-        prog = extract_measured_program(TPprog)
+        path = dirname(file)
+        prog = extract_measured_program(TPprog, path, col.L)
     else 
         TPs, PPs = extract_temperature_and_pressure_programs(TPprog)
 

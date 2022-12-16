@@ -92,7 +92,7 @@ function estimate_start_parameter_mean_elu_temp(tRs::DataFrame, col, prog; time_
 		θchar_est[j] = 22.0*(Tchar_est[j]/273.15)^0.7*(1000*col.df/col.d)^0.09
         ΔCp_est[j] = -180.0 + 0.63*Tchar_est[j] # parameters from linear fit of all (Tchar, ΔCp) pairs in the database (RetentionData, 16.12.2022)
 	end
-	return Tchar_est, θchar_est, ΔCp_est, Telu_max
+	return Tchar_elu, θchar_elu, ΔCp_elu, Telu_max
 end
 
 function estimate_start_parameter(tR_meas::DataFrame, col, prog; time_unit="min", control="Pressure")

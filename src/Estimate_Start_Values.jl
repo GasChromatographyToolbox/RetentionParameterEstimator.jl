@@ -90,7 +90,7 @@ function estimate_start_parameter_mean_elu_temp(tRs::DataFrame, col, prog; time_
 		Telu_max[j] = maximum(Telu)
 		Tchar_est[j] = mean(Telu)
 		θchar_est[j] = 22.0*(Tchar_est[j]/273.15)^0.7*(1000*col.df/col.d)^0.09
-        ΔCp_est[i] = -180.0 + 0.63*Tchar_est[i]
+        ΔCp_est[j] = -180.0 + 0.63*Tchar_est[j]
 	end
 	return Tchar_est, θchar_est, ΔCp_est, Telu_max
 end

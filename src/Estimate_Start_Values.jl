@@ -64,7 +64,7 @@ function estimate_start_parameter_single_ramp(tRs::DataFrame, col, prog; time_un
         Telu_max[i] = maximum(Telu_meas[:,i])
         Tchar_est[i] = interp(0.0)
         θchar_est[i] = 22.0*(Tchar_est[i]/Tst)^0.7*(1000*col.df/col.d)^0.09
-        ΔCp_est[i] = 100.0
+        ΔCp_est[i] = -180.0 + 0.63*Tchar_est[i]
     end
     return Tchar_est, θchar_est, ΔCp_est, Telu_max
 end
@@ -79,19 +79,20 @@ function estimate_start_parameter_mean_elu_temp(tRs::DataFrame, col, prog; time_
     
     nt, ns = size(tR_meas)
 	Telu_max = Array{Float64}(undef, ns)
-	Tchar_elu = Array{Float64}(undef, ns)
-	θchar_elu = Array{Float64}(undef, ns)
+	Tchar_est = Array{Float64}(undef, ns)
+	θchar_est = Array{Float64}(undef, ns)
+    ΔCp_est = Array{Float64}(undef, ns)
 	for j=1:ns
 		Telu = Array{Float64}(undef, nt)
 		for i=1:nt
 			Telu[i] = elution_temperature(tR_meas[i,j], prog[i])[1]
 		end
 		Telu_max[j] = maximum(Telu)
-		Tchar_elu[j] = mean(Telu)
-		θchar_elu[j] = 22.0*(Tchar_elu[j]/273.15)^0.7*(1000*col.df/col.d)^0.09
+		Tchar_est[j] = mean(Telu)
+		θchar_est[j] = 22.0*(Tchar_est[j]/273.15)^0.7*(1000*col.df/col.d)^0.09
+        ΔCp_est[i] = -180.0 + 0.63*Tchar_est[i]
 	end
-	ΔCp_elu = 100.0.*ones(ns)
-	return Tchar_elu, θchar_elu, ΔCp_elu, Telu_max
+	return Tchar_est, θchar_est, ΔCp_est, Telu_max
 end
 
 function estimate_start_parameter(tR_meas::DataFrame, col, prog; time_unit="min", control="Pressure")

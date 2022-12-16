@@ -75,7 +75,7 @@ function optimize_Kcentric(tR, col, prog, Tchar_e::Vector{T}, θchar_e::Vector{T
 	x0 = [Tchar_e; θchar_e; ΔCp_e]
 	optf = OptimizationFunction(opt_Kcentric, Optimization.AutoForwardDiff())
 	prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-    opt_sol = solve(prob, method, maxiters=maxiters)#, maxtime=maxtime)
+    opt_sol = solve(prob, method, maxiters=maxiters, maxtime=maxtime)
 	return opt_sol
 end
 
@@ -86,7 +86,7 @@ function optimize_Kcentric(tR, col, prog, Tchar_e::Matrix{T}, θchar_e::Matrix{T
     ub = [Tchar_e[3,:]; θchar_e[3,:]; ΔCp_e[3,:]]
 	optf = OptimizationFunction(opt_Kcentric, Optimization.AutoForwardDiff())
 	prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub, f_calls_limit=maxiters)
-    opt_sol = solve(prob, method, maxiters=maxiters)#, maxtime=maxtime)
+    opt_sol = solve(prob, method, maxiters=maxiters, maxtime=maxtime)
 	return opt_sol
 end
 
@@ -95,7 +95,7 @@ function optimize_Kcentric_(tR, col, prog, Tchar_e::Vector{T}, θchar_e::Vector{
 	x0 = [Tchar_e; θchar_e; ΔCp_e]
 	optf = OptimizationFunction(opt_Kcentric_, Optimization.AutoForwardDiff())
 	prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-    opt_sol = solve(prob, method, maxiters=maxiters)#, maxtime=maxtime)
+    opt_sol = solve(prob, method, maxiters=maxiters, maxtime=maxtime)
 	return opt_sol
 end
 
@@ -153,7 +153,7 @@ function optimize_dKcentric(tR, col, prog, d_e::Number, Tchar_e::Vector{T}, θch
 	x0 = [d_e; Tchar_e; θchar_e; ΔCp_e]
 	optf = OptimizationFunction(opt_dKcentric, Optimization.AutoForwardDiff())
 	prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-    opt_sol = solve(prob, method, maxiters=maxiters)#, maxtime=maxtime)
+    opt_sol = solve(prob, method, maxiters=maxiters, maxtime=maxtime)
 	return opt_sol
 end
 
@@ -164,7 +164,7 @@ function optimize_dKcentric(tR, col, prog, d_e::Vector{T}, Tchar_e::Matrix{T}, �
     ub = [d_e[3]; Tchar_e[3,:]; θchar_e[3,:]; ΔCp_e[3,:]]
 	optf = OptimizationFunction(opt_dKcentric, Optimization.AutoForwardDiff())
 	prob = Optimization.OptimizationProblem(optf, x0, p, lb=lb, ub=ub, f_calls_limit=maxiters)
-    opt_sol = solve(prob, method, maxiters=maxiters)#, maxtime=maxtime)
+    opt_sol = solve(prob, method, maxiters=maxiters, maxtime=maxtime)
 	return opt_sol
 end
 
@@ -173,7 +173,7 @@ function optimize_dKcentric_(tR, col, prog, d_e::Number, Tchar_e::Vector{T}, θc
 	x0 = [d_e; Tchar_e; θchar_e; ΔCp_e]
 	optf = OptimizationFunction(opt_dKcentric_, Optimization.AutoForwardDiff())
 	prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
-    opt_sol = solve(prob, method, maxiters=maxiters)#, maxtime=maxtime)
+    opt_sol = solve(prob, method, maxiters=maxiters, maxtime=maxtime)
 	return opt_sol
 end
 

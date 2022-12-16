@@ -79,8 +79,8 @@ function estimate_start_parameter_mean_elu_temp(tRs::DataFrame, col, prog; time_
     
     nt, ns = size(tR_meas)
 	Telu_max = Array{Float64}(undef, ns)
-	Tchar_elu = Array{Float64}(undef, ns)
-	θchar_elu = Array{Float64}(undef, ns)
+	Tchar_est = Array{Float64}(undef, ns)
+	θchar_est = Array{Float64}(undef, ns)
     ΔCp_est = Array{Float64}(undef, ns)
 	for j=1:ns
 		Telu = Array{Float64}(undef, nt)
@@ -88,8 +88,8 @@ function estimate_start_parameter_mean_elu_temp(tRs::DataFrame, col, prog; time_
 			Telu[i] = elution_temperature(tR_meas[i,j], prog[i])[1]
 		end
 		Telu_max[j] = maximum(Telu)
-		Tchar_elu[j] = mean(Telu)
-		θchar_elu[j] = 22.0*(Tchar_elu[j]/273.15)^0.7*(1000*col.df/col.d)^0.09
+		Tchar_est[j] = mean(Telu)
+		θchar_est[j] = 22.0*(Tchar_est[j]/273.15)^0.7*(1000*col.df/col.d)^0.09
         ΔCp_est[j] = -180.0 + 0.63*Tchar_est[j] # parameters from linear fit of all (Tchar, ΔCp) pairs in the database (RetentionData, 16.12.2022)
 	end
 	return Tchar_elu, θchar_elu, ΔCp_elu, Telu_max

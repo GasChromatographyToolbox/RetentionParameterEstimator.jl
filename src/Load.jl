@@ -83,7 +83,7 @@ function extract_measured_program(TPprog, path, L)
     # load the measured programs
     prog = Array{GasChromatographySimulator.Program}(undef, length(TPprog.filename))
     for i=1:length(TPprog.filename)
-        meas_prog = DataFrame(CSV.File(joinpath(path, TPprog.filename[i])))
+        meas_prog = DataFrame(CSV.File(joinpath(path, TPprog.filename[i]), silencewarnings=true))
         prog[i] = GasChromatographySimulator.Program(meas_prog.timesteps, meas_prog.tempsteps, meas_prog.pinsteps, meas_prog.poutsteps, L)
     end
     return prog
@@ -91,15 +91,15 @@ end
 
 function load_chromatograms(file; filter_missing=true) # new version
     n = open(f->countlines(f), file)
-    col_df = DataFrame(CSV.File(file, header=1, limit=1, stringtype=String))
+    col_df = DataFrame(CSV.File(file, header=1, limit=1, stringtype=String, silencewarnings=true))
 	col = GasChromatographySimulator.Column(col_df.L[1], col_df.d[1], col_df.df[1], col_df.sp[1], col_df.gas[1])
     pout = col_df.pout[1]
 	time_unit = col_df.time_unit[1]
 
     n_meas = Int((n - 2 - 2)/2) 
-    TPprog = DataFrame(CSV.File(file, header=3, limit=n_meas, stringtype=String))
+    TPprog = DataFrame(CSV.File(file, header=3, limit=n_meas, stringtype=String, silencewarnings=true))
     #PP = DataFrame(CSV.File(file, header=3+n_meas+1, limit=n_meas, stringtype=String)) # convert pressures from Pa(g) to Pa(a), add p_atm to this data set
-    tRs_ = DataFrame(CSV.File(file, header=n-n_meas, stringtype=String))
+    tRs_ = DataFrame(CSV.File(file, header=n-n_meas, stringtype=String, silencewarnings=true))
     solute_names_ = names(tRs_)[2:end] # filter non-solute names out (columnx)
     filter!(x -> !occursin.("Column", x), solute_names_)
     if names(TPprog)[2] == "filename"
@@ -132,16 +132,16 @@ function load_chromatograms(file; filter_missing=true) # new version
 end
 
 function load_chromatograms(file::Dict{Any, Any}; filter_missing=true, path=joinpath(dirname(pwd()), "data", "exp_pro")) # if file is the output of FilePicker()
-    n = length(CSV.File(file["data"]))+1
-    col_df = DataFrame(CSV.File(file["data"], header=1, limit=1, stringtype=String))
+    n = length(CSV.File(file["data"]; silencewarnings=true))+1
+    col_df = DataFrame(CSV.File(file["data"], header=1, limit=1, stringtype=String, silencewarnings=true))
 	col = GasChromatographySimulator.Column(col_df.L[1], col_df.d[1], col_df.df[1], col_df.sp[1], col_df.gas[1])
     pout = col_df.pout[1]
 	time_unit = col_df.time_unit[1]
 
     n_meas = Int((n - 2 - 2)/2) 
-    TPprog = DataFrame(CSV.File(file["data"], header=3, limit=n_meas, stringtype=String))
+    TPprog = DataFrame(CSV.File(file["data"], header=3, limit=n_meas, stringtype=String, silencewarnings=true))
     #PP = DataFrame(CSV.File(file, header=3+n_meas+1, limit=n_meas, stringtype=String)) # convert pressures from Pa(g) to Pa(a), add p_atm to this data set
-    tRs_ = DataFrame(CSV.File(file["data"], header=n-n_meas, stringtype=String))
+    tRs_ = DataFrame(CSV.File(file["data"], header=n-n_meas, stringtype=String, silencewarnings=true))
     solute_names_ = names(tRs_)[2:end] # filter non-solute names out (columnx)
     filter!(x -> !occursin.("Column", x), solute_names_)
     if names(TPprog)[2] == "filename"

@@ -1,16 +1,16 @@
 ```@docs
-RetentionData
+RetentionParameterEstimator
 ```
 
 ## Module Index
 
 ```@index
-Modules = [RetentionData]
+Modules = [RetentionParameterEstimator]
 Order   = [:constant, :type, :function, :macro]
 ```
 ## Detailed API
 
 ```@autodocs
-Modules = [RetentionData]
+Modules = [RetentionParameterEstimator]
 Order   = [:constant, :type, :function, :macro]
 ```

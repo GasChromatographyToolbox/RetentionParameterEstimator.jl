@@ -1,0 +1,13 @@
+Name,CAS,Phase,Tchar,thetachar,DeltaCp,phi0,Source,Cat_1,Cat_2,Cat_3
+Hexan-1-ol,111-27-3,Rxi5SilMS,102.46,32.254,82.152,0.002,Brehmer2022_nominal,alcohol,,
+Cyclohexanone,108-94-1,Rxi5SilMS,112.27,35.819,66.920,0.002,Brehmer2022_nominal,ketone,,
+2-Octanone,111-13-7,Rxi5SilMS,127.72,34.162,79.684,0.002,Brehmer2022_nominal,ketone,,
+Aniline,62-53-3,Rxi5SilMS,128.34,36.379,74.411,0.002,Brehmer2022_nominal,aromatic,amine,
+4-Fluoroaniline,371-40-4,Rxi5SilMS,132.18,35.996,83.012,0.002,Brehmer2022_nominal,aromatic,amine,
+"1,3-Dichlorobenzene",541-73-1,Rxi5SilMS,136.27,37.551,62.696,0.002,Brehmer2022_nominal,aromatic,,
+Octan-1-ol,111-87-5,Rxi5SilMS,142.18,34.765,95.033,0.002,Brehmer2022_nominal,alcohol,Grob,
+4-Methylphenol,106-44-5,Rxi5SilMS,143.09,35.419,102.64,0.002,Brehmer2022_nominal,aromatic,,
+n-Butylbenzene,104-51-8,Rxi5SilMS,143.68,36.797,74.139,0.002,Brehmer2022_nominal,aromatic,,
+Nonan-2-one,821-55-6,Rxi5SilMS,146.44,35.264,89.715,0.002,Brehmer2022_nominal,ketone,,
+"2,6-Dimethylphenol",576-26-1,Rxi5SilMS,152.43,37.480,84.666,0.002,Brehmer2022_nominal,aromatic,Grob,
+1-Phenyl-2-propanol,698-87-3,Rxi5SilMS,158.08,38.074,80.242,0.002,Brehmer2022_nominal,aromatic,alcohol,

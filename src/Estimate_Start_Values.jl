@@ -3,7 +3,7 @@
 """
     reference_holdup_time(prog, L, d, gas; control="Pressure")
 
-Calculate the reference holdup time for the GC program `prog` for a column with length `L` and diameter `d` and `gas` as mobile phase.
+Calculate the reference holdup time for the GC program `prog` for a column with length `L` and diameter `d` and `gas` as mobile phase. The reference holdup time is the holdup time at the reference temperature 150°C.
 """
 function reference_holdup_time(col, prog; control="Pressure")
     Tref = 150.0
@@ -37,6 +37,26 @@ function elution_temperature(tRs, prog)
     return Telus
 end
 
+"""
+    estimate_start_parameter_single_ramp(tRs::DataFrame, col, prog; time_unit="min", control="Pressure")
+
+Estimation of initial parameters for `Tchar`, `θchar` and `ΔCp` based on the elution temperatures calculated from the retention times `tR` and GC programs `prog` for column `col`.
+For this function it is assumed, that single ramp heating programs are used. The elution temperatures of all measurements are calculated and than interpolated over the heating rates. For a dimensionless heating rate of 0.6 the elution temperature and the characteristic temperature of a substance are nearly equal.
+Based on this estimated `Tchar` estimates for the initial values of `θchar` and `ΔCp` are calculated as
+    ``
+    \\theta_{char,init} = 22 \\left(\\frac{T_{char,init}}{T_{st}}\\right)^{0.7} \\left(1000\\frac{d_f}{d}\\right)^{0.09} °C
+    ``
+and
+    ``
+    \\Delta C_p = (-180 + 0.63 T_{char,init}) \\mathrm{J mol^{-1} K^{-1}}
+    ``
+
+# Output
+* `Tchar_est` ... estimate for initial guess of the characteristic temperature
+* `θchar_est` ... estimate for initial guess of θchar
+* `ΔCp_est` ... estimate for initial guess of ΔCp
+* `Telu_max` ... the maximum of the calculated elution temperatures of the solutes
+"""    
 function estimate_start_parameter_single_ramp(tRs::DataFrame, col, prog; time_unit="min", control="Pressure")
     if time_unit == "min"
 		a = 60.0
@@ -69,6 +89,26 @@ function estimate_start_parameter_single_ramp(tRs::DataFrame, col, prog; time_un
     return Tchar_est, θchar_est, ΔCp_est, Telu_max
 end
 
+"""
+    estimate_start_parameter_mean_elu_temp(tRs::DataFrame, col, prog; time_unit="min", control="Pressure")
+
+Estimation of initial parameters for `Tchar`, `θchar` and `ΔCp` based on the elution temperatures calculated from the retention times `tR` and GC programs `prog` for column `col`.
+This function is used, if the temperature program is not a single ramp heating program. The elution temperatures of all measurements are calculated and the mean value of the elution temperatures is used as the initial characteristic temperature of a substance.
+Based on this estimated `Tchar` estimates for the initial values of `θchar` and `ΔCp` are calculated as
+    ``
+    \\theta_{char,init} = 22 \\left(\\frac{T_{char,init}}{T_{st}}\\right)^{0.7} \\left(1000\\frac{d_f}{d}\\right)^{0.09} °C
+    ``
+and
+    ``
+    \\Delta C_p = (-180 + 0.63 T_{char,init}) \\mathrm{J mol^{-1} K^{-1}}
+    ``
+
+# Output
+* `Tchar_est` ... estimate for initial guess of the characteristic temperature
+* `θchar_est` ... estimate for initial guess of θchar
+* `ΔCp_est` ... estimate for initial guess of ΔCp
+* `Telu_max` ... the maximum of the calculated elution temperatures of the solutes
+""" 
 function estimate_start_parameter_mean_elu_temp(tRs::DataFrame, col, prog; time_unit="min")
 	if time_unit == "min"
 		a = 60.0
@@ -95,6 +135,26 @@ function estimate_start_parameter_mean_elu_temp(tRs::DataFrame, col, prog; time_
 	return Tchar_est, θchar_est, ΔCp_est, Telu_max
 end
 
+"""
+    estimate_start_parameter(tRs::DataFrame, col, prog; time_unit="min", control="Pressure")
+
+Estimation of initial parameters for `Tchar`, `θchar` and `ΔCp` based on the elution temperatures calculated from the retention times `tR` and GC programs `prog` for column `col`.
+The initial value of `Tchar` is estimated from the elution temperatures of the measurements.
+Based on this estimated `Tchar` estimates for the initial values of `θchar` and `ΔCp` are calculated as
+    ``
+    \\theta_{char,init} = 22 \\left(\\frac{T_{char,init}}{T_{st}}\\right)^{0.7} \\left(1000\\frac{d_f}{d}\\right)^{0.09} °C
+    ``
+and
+    ``
+    \\Delta C_p = (-180 + 0.63 T_{char,init}) \\mathrm{J mol^{-1} K^{-1}}
+    ``
+
+# Output
+* `Tchar_est` ... estimate for initial guess of the characteristic temperature
+* `θchar_est` ... estimate for initial guess of θchar
+* `ΔCp_est` ... estimate for initial guess of ΔCp
+* `Telu_max` ... the maximum of the calculated elution temperatures of the solutes
+""" 
 function estimate_start_parameter(tR_meas::DataFrame, col, prog; time_unit="min", control="Pressure")
     Tchar_est, θchar_est, ΔCp_est, Telu_max = try
         estimate_start_parameter_single_ramp(tR_meas, col, prog; time_unit=time_unit, control=control)

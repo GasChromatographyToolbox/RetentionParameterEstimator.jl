@@ -1,10 +1,10 @@
 # Functions used to simulate chromatograms to use as test values for the optimization
 
-"""
-conventional_GC(L, d, df, sp, gas, TP, PP, solutes, db_path, db_file)
-
-Description.
-"""
+#"""
+#conventional_GC(L, d, df, sp, gas, TP, PP, solutes, db_path, db_file)
+#
+#Description.
+#"""
 function conventional_GC(L, d, df, sp, gas, TP, PP, solutes, db_path, db_file; pout="vacuum", time_unit="min")
 opt = GasChromatographySimulator.Options(ng=true, odesys=false)
 col = GasChromatographySimulator.Column(L, d, df, sp, gas)
@@ -14,11 +14,11 @@ par = GasChromatographySimulator.Parameters(col, prog, sub, opt)
 return par
 end
 
-"""
-    sim_test_chrom(L, d, df, sp, gas, TPs, PPs, solutes, db_path, db_file)
-
-Description.
-"""
+#"""
+#    sim_test_chrom(L, d, df, sp, gas, TPs, PPs, solutes, db_path, db_file)
+#
+#Description.
+#"""
 function sim_test_chrom(L, d, df, sp, gas, TPs, PPs, solutes, db_path, db_file; pout="vacuum", time_unit="min")
     par_meas = Array{GasChromatographySimulator.Parameters}(undef, length(TPs))
     for i=1:length(TPs)

@@ -89,6 +89,24 @@ function extract_measured_program(TPprog, path, L)
     return prog
 end
 
+"""
+    load_chromatograms(file; filter_missing=true)
+
+Loading of the chromatographic data (column information, GC program information, retention time information, see also "Structure of input data") from a file.
+
+# Arguments
+* `file` ... path to the file.
+* `filter_missing` ... option to ignore solutes, where some retention times are not given. (`default = true`).
+
+# Output
+A tuple of the following quantities:
+* `col` ... settings of the column as `GasChromatographySimulator.Column` structure.
+* `prog` ... Array of the GC programs as `GasChromatographySimulator.Program` structure.
+* `tRs` ... DataFrame of the retention times.
+* `solute_names` ... Vector of the solute names.
+* `pout` ... outlet pressure (detector pressure), "vacuum" or "atmospheric". 
+* `time_unit` ... unit of time scale used in the retention times and GC programs, "min" or "s".
+"""
 function load_chromatograms(file; filter_missing=true) # new version
     n = open(f->countlines(f), file)
     col_df = DataFrame(CSV.File(file, header=1, limit=1, stringtype=String, silencewarnings=true))
@@ -131,6 +149,25 @@ function load_chromatograms(file; filter_missing=true) # new version
     return col, prog, tRs[!,1:(length(solute_names)+1)], solute_names, pout, time_unit#, TPs, PPs
 end
 
+"""
+    load_chromatograms(file::Dict{Any, Any}; filter_missing=true, path=joinpath(dirname(pwd()), "data", "exp_pro"))
+
+Loading of the chromatographic data (column information, GC program information, retention time information, see also "Structure of input data") from a file selected by the FilePicker in a Pluto notebook.
+
+# Arguments
+* `file` ... file dictionary from the FilePicker.
+* `filter_missing` ... option to ignore solutes, where some retention times are not given. (`default = true`).
+* `path` ... if the temperature programs are defined by measured temperatures over time, define the path to these files.
+
+# Output
+A tuple of the following quantities:
+* `col` ... settings of the column as `GasChromatographySimulator.Column` structure.
+* `prog` ... Array of the GC programs as `GasChromatographySimulator.Program` structure.
+* `tRs` ... DataFrame of the retention times.
+* `solute_names` ... Vector of the solute names.
+* `pout` ... outlet pressure (detector pressure), "vacuum" or "atmospheric". 
+* `time_unit` ... unit of time scale used in the retention times and GC programs, "min" or "s".
+"""
 function load_chromatograms(file::Dict{Any, Any}; filter_missing=true, path=joinpath(dirname(pwd()), "data", "exp_pro")) # if file is the output of FilePicker()
     n = length(CSV.File(file["data"]; silencewarnings=true))+1
     col_df = DataFrame(CSV.File(file["data"], header=1, limit=1, stringtype=String, silencewarnings=true))

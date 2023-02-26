@@ -17,15 +17,9 @@ end
 # ╔═╡ 09422105-a747-40ac-9666-591326850d8f
 begin 
 	using GasChromatographySimulator, Plots, OptimizationOptimJL, PlutoUI, CSV, DataFrames, Statistics, LaTeXStrings, StatsPlots, Measurements, UrlDownload
-	#using RetentionParameterEstimator
+	using RetentionParameterEstimator
 	TableOfContents()
 end
-
-# ╔═╡ ee641f1d-4840-4250-9eec-0f0166f49ff2
-using ForwardDiff
-
-# ╔═╡ 5be3a351-f6e0-4cc6-800d-a55f8decf889
-plotly()
 
 # ╔═╡ eb5fc23c-2151-47fa-b56c-5771a4f8b9c5
 html"""
@@ -39,12 +33,8 @@ html"""
 # ╔═╡ 6d4ec54b-01b2-4208-9b9e-fcb70d236c3e
 md"""
 # Estimation of K-centric retention parameters
-by temperature programmed GC **simulations** with different temperature programs
+by temperature programmed GC with different temperature programs
 """
-
-# ╔═╡ 3e808e31-081e-48d2-908e-d66726e270e8
-# if nothing is selected -> load the data for the paper from the github
-# for alternativa data and isothermal data load these from the github only if the measurements are loaded from the github
 
 # ╔═╡ ebc2a807-4413-4721-930a-6328ae72a1a9
 md"""
@@ -58,7 +48,7 @@ Load own data: $(@bind own_data CheckBox(default=false))
 function download_data(url)
 	io = IOBuffer();
 	download = urldownload(url, save_raw=io);
-	return io.data
+	return Dict{Any, Any}("data" => io, "name" => split(url, '/')[end])
 end
 
 # ╔═╡ 51a22a15-24f9-4280-9c91-32e48727003a
@@ -69,9 +59,6 @@ if own_data == true
 else
 	file_meas = download_data("https://raw.githubusercontent.com/JanLeppert/RetentionParameterEstimator.jl/main/data/meas_df05_Rxi5SilMS.csv");
 end
-
-# ╔═╡ c86a9bec-3e0b-4207-b322-23075765dec9
-file_meas
 
 # ╔═╡ eb14e619-82d4-49ac-ab2a-28e56230dbc6
 begin
@@ -103,56 +90,65 @@ begin
 	end
 end
 
-# ╔═╡ 365ec346-65e4-4bb8-9b8f-824ed0e5e3f2
-# reduce the modes to the two methods m1 and m2 of the paper + test
+# ╔═╡ b41c6bc0-5134-4eee-8846-dc065224af55
+# test und m1 sind gleich, nur test aber mit den zusätzlichen funktionen von m1 benutzen 
 
 # ╔═╡ f3ffd4ce-a378-4033-88e9-bc1fb8cc4bbe
 md"""
 ## Select mode
 
-$(@bind select_mode confirm(Select(["check measurement for plausibility", "estimate retention parameters", "estimate retention parameters and diameter, 2x single", "estimate retention parameters and diameter, single", "estimate retention parameters and diameter, all", "estimate retention parameters and diameter, direct", "estimate retention parameters and diameter, all, mod", "estimate retention parameters and diameter, multistart"])))
+$(@bind select_mode confirm(Select(["test", "m1", "m2"])))
 """
 
-# ╔═╡ e98f4b1b-e577-40d0-a7d8-71c53d99ee1b
-if select_mode == "estimate retention parameters"
-	#md"""
-	#Column parameters:
+# ╔═╡ 0aa4adbe-3b2e-4970-93a7-a298e910b1cb
+function method_m1(meas, col_input)
+	
+	col = GasChromatographySimulator.Column(col_input.L, col_input.d*1e-3, meas[1].df, meas[1].sp, meas[1].gas)
+	
+	Tchar_est, θchar_est, ΔCp_est, Telu_max = RetentionParameterEstimator.estimate_start_parameter(meas[3], col, meas[2]; time_unit=meas[6])
+	
+	res = RetentionParameterEstimator.estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6])[1]
 
-	#L in m: $(@bind L_input NumberField(0.0:0.01:1000.0; default=meas[1].L))
+	return res, Telu_max
+end
 
-	#d in mm: $(@bind d_input NumberField(0.0:0.0001:1.0; default=meas[1].d*1000.0))
+# ╔═╡ b86b3a41-56f0-460f-acba-9d027e1f2336
+function method_m2(meas)
+	
+	tRs = meas[3][!,findall((collect(any(ismissing, c) for c in eachcol(meas[3]))).==false)]
+	
+	solute_names = meas[4][findall((collect(any(ismissing, c) for c in eachcol(meas[3]))).==false)[2:end].-1]
+		
+	Tchar_est, θchar_est, ΔCp_est, Telu_max = RetentionParameterEstimator.estimate_start_parameter(tRs, meas[1], meas[2]; time_unit=meas[6])
+		
+	res_dKcentric_single = RetentionParameterEstimator.estimate_parameters(tRs, solute_names, meas[1], meas[2], Tchar_est, θchar_est, ΔCp_est; pout=meas[5], time_unit=meas[6], mode="dKcentric_single")[1]
 
-	@bind col_input confirm(
-		PlutoUI.combine() do Child
-		md"""
-		## Column dimensions 
-		L in m: $(Child("L", NumberField(0.0:0.01:1000.0; default=meas[1].L)))
+	new_col = GasChromatographySimulator.Column(meas[1].L, mean(res_dKcentric_single.d), meas[1].df, meas[1].sp, meas[1].gas)
+	
+	res = RetentionParameterEstimator.estimate_parameters(tRs, solute_names, new_col, meas[2], res_dKcentric_single.Tchar, res_dKcentric_single.θchar, res_dKcentric_single.ΔCp; pout=meas[5], time_unit=meas[6], mode="Kcentric_single")[1]
 
-		d in mm: $(Child("d", NumberField(0.0:0.0001:1.0; default=meas[1].d*1000.0))) 
-		"""
-		end
-	)
-end	
+	res[!, :d] = mean(res_dKcentric_single.d).*ones(length(res.Name))
+	
+	res[!, :d_std] = std(res_dKcentric_single.d).*ones(length(res.Name))
 
-# ╔═╡ 882b9cf0-7320-408d-b7aa-3e20fffb0ff2
-md"""
-## Test confidence
-"""
-
-# ╔═╡ 1f34c58b-5f35-422b-a645-4aa9e96a51f6
-"squared" # metric
+	return res, Telu_max
+end
 
 # ╔═╡ 0d61fd05-c0c6-4764-9f96-3b867a456ad3
 md"""
 ## Select verification data
 
 Measured chromatograms used to **verify** the estimated parameters:
-
-$(@bind file_comp FilePicker([MIME("text/csv")]))
-
-Select folder of chromatograms:
-$(@bind folder_chromatograms confirm(TextField(default="/Users/janleppert/Documents/GitHub/RetentionParameterEstimator_Paper/papers/data/chromatograms")))
 """
+
+# ╔═╡ 38d1e196-f375-48ac-bc11-80b10472c1cd
+if own_data == true
+	md"""
+	$(@bind file_comp FilePicker([MIME("text/csv")]))
+	"""
+else
+	file_comp = download_data("https://raw.githubusercontent.com/JanLeppert/RetentionParameterEstimator.jl/main/data/comp_df05_Rxi5SilMS.csv");
+end
 
 # ╔═╡ 762c877d-3f41-49de-a7ea-0eef1456ac11
 begin
@@ -188,15 +184,6 @@ begin
 	end
 end
 
-# ╔═╡ af2aa109-c514-40dc-a5a9-c7b9974dd8f1
-begin
-	chroms = Array{DataFrame}(undef, length(selected_comparison))
-	for i=1:length(selected_comparison)
-		chroms[i] = DataFrame(CSV.File(joinpath(folder_chromatograms,string("Chrom_", selected_comparison[i],".csv")); header=4))
-	end
-	chroms
-end
-
 # ╔═╡ ae424251-f4f7-48aa-a72b-3be85a193705
 md"""
 ## Verification
@@ -204,14 +191,48 @@ md"""
 Using the estimated parameters (``T_{char}``, ``θ_{char}``, ``ΔC_p``) resp. (``T_{char}``, ``θ_{char}``, ``ΔC_p``, ``d``) to simulate other temperature programs. Compare the simulated retention times with measured retention times.
 """
 
+# ╔═╡ 9e9c20cc-c601-4f5f-afef-512b8dd18fad
+# add mean(abs(ΔtR)) and mean(abs(relΔtR))
+
+# ╔═╡ 4dde6bc4-0316-4ea3-82dd-5d3fda15c16c
+function plot_chromatogram_comparison(pl, meas, comp)
+	gr()
+	p_chrom = Array{Plots.Plot}(undef, length(pl))
+	for i=1:length(pl)
+		p_chrom[i] = plot(xlabel="time in $(meas[6])", legend=false)
+
+		max_ = maximum(GasChromatographySimulator.plot_chromatogram(pl[i], (minimum(pl[i].tR)*0.95, maximum(pl[i].tR)*1.05))[3])*1.05
+
+		min_ = - max_/20
+		
+		GasChromatographySimulator.plot_chromatogram!(p_chrom[i], pl[i], (minimum(pl[i].tR)*0.95, maximum(pl[i].tR)*1.05); annotation=false)
+		xlims!((minimum(pl[i].tR)*0.95, maximum(pl[i].tR)*1.05))
+		ylims!(min_, max_)
+		#add marker for measured retention times
+		for j=1:length(comp[4])
+			plot!(p_chrom[i], comp[3][i,j+1].*ones(2), [min_, max_], c=:orange)
+		end
+		plot!(p_chrom[i], title=comp[3].measurement[i])
+	end
+	
+	return plot(p_chrom..., layout=(length(p_chrom),1), size=(800,length(p_chrom)*200), yaxis=nothing, grid=false)
+end	
+
 # ╔═╡ f83b26e7-f16d-49ac-ab3b-230533ac9c82
 md"""
 ## Alternative parameters
 
 Select file with alternative parameters:
-
-$(@bind file_db FilePicker([MIME("text/csv")]))
 """
+
+# ╔═╡ 62c014d5-5e57-49d7-98f8-dace2f1aaa32
+if own_data == true
+	md"""
+	$(@bind file_db FilePicker([MIME("text/csv")]))
+	"""
+else
+	file_db = download_data("https://raw.githubusercontent.com/JanLeppert/RetentionParameterEstimator.jl/main/data/database_Rxi5SilMS_beta125.csv");
+end
 
 # ╔═╡ 6187b9a9-83e4-49e0-be6f-8aea1a09da7c
 # add test for correct data format
@@ -220,10 +241,17 @@ $(@bind file_db FilePicker([MIME("text/csv")]))
 md"""
 ## Isothermal ``\ln{k}`` data
 
-Select file with isothermal measured ``\ln{k}`` data.
-
-$(@bind file_isolnk FilePicker([MIME("text/csv")]))
+Select file with isothermal measured ``\ln{k}`` data:
 """
+
+# ╔═╡ a41148bc-03b0-4bd1-b76a-7406aab63f48
+if own_data == true
+	md"""
+	$(@bind file_isolnk FilePicker([MIME("text/csv")]))
+	"""
+else
+	file_isolnk = download_data("https://raw.githubusercontent.com/JanLeppert/RetentionParameterEstimator.jl/main/data/isothermal_lnk_df05_Rxi5SilMS.csv");
+end
 
 # ╔═╡ 347c53d6-9c94-47de-814a-aef43fa5aae2
 # add test for correct data format
@@ -278,23 +306,26 @@ end
 # ╔═╡ b2c254a2-a5d6-4f18-803a-75d048fc7cdf
 meas_select = filter_selected_measurements(meas, selected_measurements, selected_solutes)
 
-# ╔═╡ 31b176dc-b667-4604-b490-046d55e545c9
-meas_select[3][!,2] # tRs
+# ╔═╡ e98f4b1b-e577-40d0-a7d8-71c53d99ee1b
+if select_mode == "m1"
+	#md"""
+	#Column parameters:
 
-# ╔═╡ 1ed16860-6899-4a17-aa2e-dffd32a4cf82
-meas_select[1].L # L
+	#L in m: $(@bind L_input NumberField(0.0:0.01:1000.0; default=meas[1].L))
 
-# ╔═╡ 2c418101-9184-49b7-8ad8-ae3be25d7cdb
-meas_select[1].d # d
+	#d in mm: $(@bind d_input NumberField(0.0:0.0001:1.0; default=meas[1].d*1000.0))
 
-# ╔═╡ fcc0c0cf-aee7-42bb-9ad9-790325db31aa
-meas_select[2] # prog
+	@bind col_input confirm(
+		PlutoUI.combine() do Child
+		md"""
+		## Column dimensions 
+		L in m: $(Child("L", NumberField(0.0:0.01:1000.0; default=meas_select[1].L)))
 
-# ╔═╡ cdef487b-1a2b-470a-9f13-e08b88e079a2
-meas_select[1].gas # gas
-
-# ╔═╡ fb4ccf8c-18af-4b7d-8bff-50028afdcb6a
-@isdefined col_input
+		d in mm: $(Child("d", NumberField(0.0:0.0001:1.0; default=meas_select[1].d*1000.0))) 
+		"""
+		end
+	)
+end	
 
 # ╔═╡ 06d5dd5a-6883-4b62-8942-dc19e7b08e4d
 function comparison(res, meas, comp)
@@ -408,7 +439,7 @@ end
 # ╔═╡ 3b40b0b1-7007-48c7-b47b-dbeaf501b73d
 begin
 	std_opt = RetentionParameterEstimator.std_opt
-	if select_mode == "check measurement for plausibility"
+	if select_mode == "test"
 		check, msg, df_flag, res, Telu_max = check_measurement(meas_select; min_th=0.1, loss_th=1.0)
 		md"""
 		## Results
@@ -426,10 +457,8 @@ begin
 
 		$(res)
 		"""
-	elseif select_mode == "estimate retention parameters"
-		col = GasChromatographySimulator.Column(col_input.L, col_input.d*1e-3, meas_select[1].df, meas_select[1].sp, meas_select[1].gas)
-		Tchar_est, θchar_est, ΔCp_est, Telu_max = RetentionParameterEstimator.estimate_start_parameter(meas_select[3], col, meas_select[2]; time_unit=meas_select[6])
-		res = RetentionParameterEstimator.estimate_parameters(meas_select[3], meas_select[4], col, meas_select[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas_select[5], time_unit=meas_select[6], opt=std_opt)[1]
+	elseif select_mode == "m1"
+		res, Telu_max = method_m1(meas_select, col_input)
 		md"""
 		## Results
 
@@ -437,189 +466,19 @@ begin
 		
 		$(res)
 		"""
-	elseif select_mode == "estimate retention parameters and diameter, single"
-		tRs = meas_select[3][!,findall((collect(any(ismissing, c) for c in eachcol(meas_select[3]))).==false)]
-		solute_names = meas_select[4][findall((collect(any(ismissing, c) for c in eachcol(meas_select[3]))).==false)[2:end].-1]
-		Tchar_est, θchar_est, ΔCp_est, Telu_max = RetentionParameterEstimator.estimate_start_parameter(tRs, meas_select[1], meas_select[2]; time_unit=meas_select[6])
-		res = RetentionParameterEstimator.estimate_parameters(tRs, solute_names, meas_select[1], meas_select[2], Tchar_est, θchar_est, ΔCp_est; pout=meas_select[5], time_unit=meas_select[6], mode="dKcentric_single", opt=std_opt)[1]
-		md"""
-		## Results
-		
-		L/d ratio: $(mean(meas_select[1].L./res.d) ± std(meas_select[1].L./res.d))
-		
-		$(res)
-		"""
-	elseif select_mode == "estimate retention parameters and diameter, all"
-		tRs = meas_select[3][!,findall((collect(any(ismissing, c) for c in eachcol(meas_select[3]))).==false)]
-		solute_names = meas_select[4][findall((collect(any(ismissing, c) for c in eachcol(meas_select[3]))).==false)[2:end].-1]
-		Tchar_est, θchar_est, ΔCp_est, Telu_max = RetentionParameterEstimator.estimate_start_parameter(tRs, meas_select[1], meas_select[2]; time_unit=meas_select[6])
-		#res_dK_single = RetentionParameterEstimator.estimate_parameters(tRs, solute_names, meas_select[1], meas_select[2], Tchar_est.*(1 + rand((-1.0, 1.0))*rand()/100), θchar_est.*(1 + rand((-1.0, 1.0))*rand()/100), ΔCp_est.*(1 + rand((-1.0, 1.0))*rand()/100); pout=meas_select[5], time_unit=meas_select[6], mode="dKcentric_single")[1]
-		res_dK_single = RetentionParameterEstimator.estimate_parameters(tRs, solute_names, meas_select[1], meas_select[2], Tchar_est, θchar_est, ΔCp_est; pout=meas_select[5], time_unit=meas_select[6], mode="dKcentric_single")[1]
-	
-		#res = RetentionParameterEstimator.estimate_parameters(tRs, solute_names, meas_select[1], meas_select[2], res_dK_single.Tchar, res_dK_single.θchar, res_dK_single.ΔCp; pout=meas_select[5], time_unit=meas_select[6], mode="dKcentric", opt=std_opt)[1]
-		
-		new_col = GasChromatographySimulator.Column(meas_select[1].L, mean(res_dK_single.d), meas_select[1].df, meas_select[1].sp, meas_select[1].gas)
-		res = RetentionParameterEstimator.estimate_parameters(tRs, solute_names, new_col, meas_select[2], res_dK_single.Tchar, res_dK_single.θchar, res_dK_single.ΔCp; pout=meas_select[5], time_unit=meas_select[6], mode="dKcentric", opt=std_opt)[1]
-		md"""
-		## Results
-		
-		L/d ratio: $(meas_select[1].L/res.d[1])
-		
-		$(res)
-		"""
-	elseif select_mode == "estimate retention parameters and diameter, direct"
-		tRs = meas_select[3][!,findall((collect(any(ismissing, c) for c in eachcol(meas_select[3]))).==false)]
-		solute_names = meas_select[4][findall((collect(any(ismissing, c) for c in eachcol(meas_select[3]))).==false)[2:end].-1]
-		Tchar_est, θchar_est, ΔCp_est, Telu_max = RetentionParameterEstimator.estimate_start_parameter(tRs, meas_select[1], meas_select[2]; time_unit=meas_select[6])
-		res = RetentionParameterEstimator.estimate_parameters(tRs, solute_names, meas_select[1], meas_select[2], Tchar_est, θchar_est, ΔCp_est; pout=meas_select[5], time_unit=meas_select[6], mode="dKcentric")[1]
-		md"""
-		## Results
-		
-		L/d ratio: $(meas_select[1].L/res.d[1])
-		
-		$(res)
-		"""
-	elseif select_mode == "estimate retention parameters and diameter, all, mod"
-		tRs = meas_select[3][!,findall((collect(any(ismissing, c) for c in eachcol(meas_select[3]))).==false)]
-		solute_names = meas_select[4][findall((collect(any(ismissing, c) for c in eachcol(meas_select[3]))).==false)[2:end].-1]
-		Tchar_est, θchar_est, ΔCp_est, Telu_max = RetentionParameterEstimator.estimate_start_parameter(tRs, meas_select[1], meas_select[2]; time_unit=meas_select[6])
-		#res_dK_single = RetentionParameterEstimator.estimate_parameters(tRs, solute_names, meas_select[1], meas_select[2], Tchar_est.*(1 + rand((-1.0, 1.0))*rand()/100), θchar_est.*(1 + rand((-1.0, 1.0))*rand()/100), ΔCp_est.*(1 + rand((-1.0, 1.0))*rand()/100); pout=meas_select[5], time_unit=meas_select[6], mode="dKcentric_single")[1]
-		res_dK_single = RetentionParameterEstimator.estimate_parameters(tRs, solute_names, meas_select[1], meas_select[2], Tchar_est, θchar_est, ΔCp_est; pout=meas_select[5], time_unit=meas_select[6], mode="dKcentric_single")[1]
-	
-		#res = RetentionParameterEstimator.estimate_parameters(tRs, solute_names, meas_select[1], meas_select[2], res_dK_single.Tchar, res_dK_single.θchar, res_dK_single.ΔCp; pout=meas_select[5], time_unit=meas_select[6], mode="dKcentric", opt=std_opt)[1]
-		
-		new_col = GasChromatographySimulator.Column(meas_select[1].L, mean(res_dK_single.d), meas_select[1].df, meas_select[1].sp, meas_select[1].gas)
-		res = RetentionParameterEstimator.estimate_parameters(tRs, solute_names, new_col, meas_select[2], res_dK_single.Tchar.+6.0, res_dK_single.θchar.+3.0, res_dK_single.ΔCp.*1.1; pout=meas_select[5], time_unit=meas_select[6], mode="dKcentric", opt=std_opt)[1]
-		md"""
-		## Results
-		
-		L/d ratio: $(meas_select[1].L/res.d[1])
-		
-		$(res)
-		"""
-	elseif select_mode == "estimate retention parameters and diameter, multistart"
-		tRs = meas_select[3][!,findall((collect(any(ismissing, c) for c in eachcol(meas_select[3]))).==false)]
-		solute_names = meas_select[4][findall((collect(any(ismissing, c) for c in eachcol(meas_select[3]))).==false)[2:end].-1]
-		Tchar_est, θchar_est, ΔCp_est, Telu_max = RetentionParameterEstimator.estimate_start_parameter(tRs, meas_select[1], meas_select[2]; time_unit=meas_select[6])
-		
-		res_multi = Array{DataFrame}(undef, 10)
-		min = Array{Float64}(undef, 10)
-		loss_init = Array{Float64}(undef, 10)
-		init_Tchar = Array{Array{Float64}}(undef, 10)
-		init_θchar = Array{Array{Float64}}(undef, 10)
-		init_ΔCp = Array{Array{Float64}}(undef, 10)
-		#Threads.@threads for i=1:10
-		for i=1:10
-			if i==1
-				f_Tchar = 1.0
-				f_θchar = 1.0
-				f_ΔCp = 1.0
-			else
-				f_Tchar = 1+randn()/20
-				f_θchar = 1+randn()/20
-				f_ΔCp = 1+randn()/20
-			end
-			init_Tchar[i] = Tchar_est.*f_Tchar
-			init_θchar[i] = θchar_est.*f_θchar
-			init_ΔCp[i] = ΔCp_est.*f_ΔCp
-			loss_init[i] = RetentionParameterEstimator.loss(Array(tRs[!,2:end]), init_Tchar[i], init_θchar[i], init_ΔCp[i], meas_select[1].L, meas_select[1].d, meas_select[2], meas_select[1].gas)
-			if  loss_init[i] < 1
-				res_multi[i] = RetentionParameterEstimator.estimate_parameters(tRs, solute_names, meas_select[1], meas_select[2], Tinit_Tchar[i], init_θchar[i], init_ΔCp[i]; pout=meas_select[5], time_unit=meas_select[6], mode="dKcentric", opt=std_opt)[1]
-				min[i] = res_multi[i].min[1]
-			else
-				res_multi[i] = DataFrame()
-				min[i] = loss_init[i]
-			end
-		end
-		res = res_multi[findfirst(minimum(min).==min)]
-		#=md"""
-		## Results
-		
-		L/d ratio: $(meas_select[1].L/res.d[1])
-		
-		$(res)
-		"""=#
-	elseif select_mode == "estimate retention parameters and diameter, 2x single"
-		tRs = meas_select[3][!,findall((collect(any(ismissing, c) for c in eachcol(meas_select[3]))).==false)]
-		solute_names = meas_select[4][findall((collect(any(ismissing, c) for c in eachcol(meas_select[3]))).==false)[2:end].-1]
-		
-		Tchar_est, θchar_est, ΔCp_est, Telu_max = RetentionParameterEstimator.estimate_start_parameter(tRs, meas_select[1], meas_select[2]; time_unit=meas_select[6])
-		
-		res_dKcentric_single = RetentionParameterEstimator.estimate_parameters(tRs, solute_names, meas_select[1], meas_select[2], Tchar_est, θchar_est, ΔCp_est; pout=meas_select[5], time_unit=meas_select[6], mode="dKcentric_single", opt=std_opt)[1]
-		
-		d = mean(res_dKcentric_single.d) ± std(res_dKcentric_single.d)
-
-		new_col = GasChromatographySimulator.Column(meas_select[1].L, mean(res_dKcentric_single.d), meas_select[1].df, meas_select[1].sp, meas_select[1].gas)
-		res = RetentionParameterEstimator.estimate_parameters(tRs, solute_names, new_col, meas_select[2], res_dKcentric_single.Tchar, res_dKcentric_single.θchar, res_dKcentric_single.ΔCp; pout=meas_select[5], time_unit=meas_select[6], mode="Kcentric_single", opt=std_opt)[1]
-		#res = RetentionParameterEstimator.estimate_parameters(tRs, solute_names, new_col, meas_select[2], Tchar_est, θchar_est, ΔCp_est; pout=meas_select[5], time_unit=meas_select[6], mode="Kcentric_single", opt=std_opt)[1]
-
-		res[!, :d] = mean(res_dKcentric_single.d).*ones(length(res.Name))
-		res[!, :d_std] = std(res_dKcentric_single.d).*ones(length(res.Name))
+	elseif select_mode == "m2"
+		res, Telu_max = method_m2(meas)
 		md"""
 		## Results
 
-		d = $(d)
+		d = $(1000.0 * (res.d[1] ± res.d_std[1])) mm
 		
-		L/d ratio: $(meas_select[1].L./d)
+		L/d ratio: $(meas_select[1].L./(res.d[1] ± res.d_std[1]))
 		
 		$(res)
 		"""
 	end
 end
-
-# ╔═╡ 992fae9e-5257-4996-840c-7bf8969d3e02
-res.Tchar.-Tchar_est
-
-# ╔═╡ f75dcbf4-b146-47ea-8fa2-1cdf3f772aeb
-res.θchar.-θchar_est
-
-# ╔═╡ d09e48ec-1d38-46c8-b8ce-19d9a83bfa51
-res.ΔCp.-ΔCp_est
-
-# ╔═╡ 4779a2ed-c827-4d4e-aa5f-614aaca6c173
-std_opt # opt
-
-# ╔═╡ 3ac78538-e2ec-466d-bfe4-d55bcc009db0
-p = [meas_select[3][!,end].*60.0, meas_select[1].L, meas_select[1].d, meas_select[2], std_opt, meas_select[1].gas, "squared"]
-
-# ╔═╡ f650199a-554d-49ff-8346-f0e5c6819b7c
-LF(x) = RetentionParameterEstimator.opt_Kcentric(x, p)
-
-# ╔═╡ 07187629-64b7-4869-9eeb-7d530e43587d
-LF([300, 30, 100])
-
-# ╔═╡ 26672fc0-3b99-44e6-8a46-47dbeb3bca38
-H(x) = ForwardDiff.hessian(LF, x)
-
-# ╔═╡ deb2179f-06e5-4439-a3a0-1664fc1a5083
-xx = [res.Tchar[end], res.θchar[end], res.ΔCp[end]]
-
-# ╔═╡ c3e0b7e9-f8d3-4b63-9e36-fb4995211a6c
-LF(xx)
-
-# ╔═╡ 0e6aa86b-1cd5-4281-b0f1-d8e96b2d6e2e
-H(xx)
-
-# ╔═╡ a1c0f53a-925c-4800-a920-955e9da97e12
-inv(H(xx))
-
-# ╔═╡ 9347878d-66f0-464b-a315-9c6eb46ea43d
-sqrt.(abs.(inv(H(xx))))
-
-# ╔═╡ f408ded9-9130-4652-b0aa-219936f4c947
-xx[1] ± sqrt.(abs.(inv(H(xx))))[1,1]
-
-# ╔═╡ 6475ab4f-f701-4398-ac25-b65d0844301a
-xx[2] ± sqrt.(abs.(inv(H(xx))))[2,2]
-
-# ╔═╡ 20902ac4-f210-4ddd-90f5-a713eb4bd9b5
-xx[3] ± sqrt.(abs.(inv(H(xx))))[3,3]
-
-# ╔═╡ 93224376-c99e-4182-b430-3d75a52ee0f1
-res.min[end]
-
-# ╔═╡ 47e7621e-58e9-4701-912d-82f646e64e0f
-LF(xx)/res.min[1]
 
 # ╔═╡ 0f4c35c4-32f7-4d11-874d-1f23daad7da8
 begin
@@ -653,27 +512,7 @@ end
 pl
 
 # ╔═╡ ddadd79d-7b74-4b2c-ad59-a31a5692cf3b
-begin
-	p_chrom = Array{Plots.Plot}(undef, length(pl))
-	for i=1:length(pl)
-		p_chrom[i] = plot(xlabel="time in $(meas_select[6])", legend=false)
-		plot!(chroms[i][!,1], -1e-6.*chroms[i][!,2])
-		i1 = findfirst(minimum(pl[i].tR)*0.95.<chroms[i][!,1])
-		i2 = findlast(maximum(pl[i].tR)*1.05.>chroms[i][!,1])
-		min_ = minimum(-1e-6.*chroms[i][!,2][i1:i2])*1.05
-		max_ = maximum(GasChromatographySimulator.plot_chromatogram(pl[i], (minimum(pl[i].tR)*0.95, maximum(pl[i].tR)*1.05))[3])*1.05
-		GasChromatographySimulator.plot_chromatogram!(p_chrom[i], pl[i], (minimum(pl[i].tR)*0.95, maximum(pl[i].tR)*1.05); annotation=false)
-		xlims!((minimum(pl[i].tR)*0.95, maximum(pl[i].tR)*1.05))
-		ylims!(min_, max_)
-		#add marker for measured retention times
-		for j=1:length(comp_select[4])
-			plot!(p_chrom[i], comp_select[3][i,j+1].*ones(2), [min_, max_], c=:orange)
-		end
-		plot!(p_chrom[i], title=comp_select[3].measurement[i])
-	end
-	p_chrom
-	plot(p_chrom..., layout=(length(p_chrom),1), size=(800,length(p_chrom)*200), yaxis=nothing, grid=false)
-end
+plot_chromatogram_comparison(pl, meas_select, comp_select)
 
 # ╔═╡ 3b03f424-57a4-45c6-9838-5b7635e1278a
 function plot_lnk!(p, lnk, Tmin, Tmax; lbl="")
@@ -802,13 +641,13 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
-ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 GasChromatographySimulator = "dd82b6e2-56ef-419d-b271-0be268cb65f5"
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
 OptimizationOptimJL = "36348300-93cb-4f02-beb5-3c3902f8871e"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+RetentionParameterEstimator = "0afdae40-3141-486e-b874-33af99ac38b5"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StatsPlots = "f3b207a7-027a-5e70-b257-86293d7955fd"
 UrlDownload = "856ac37a-3032-4c1c-9122-f86d88358c8b"
@@ -816,13 +655,13 @@ UrlDownload = "856ac37a-3032-4c1c-9122-f86d88358c8b"
 [compat]
 CSV = "~0.10.9"
 DataFrames = "~1.5.0"
-ForwardDiff = "~0.10.34"
 GasChromatographySimulator = "~0.3.18"
 LaTeXStrings = "~1.3.0"
 Measurements = "~2.8.0"
 OptimizationOptimJL = "~0.1.5"
-Plots = "~1.38.5"
+Plots = "~1.38.6"
 PlutoUI = "~0.7.50"
+RetentionParameterEstimator = "~0.1.0"
 StatsPlots = "~0.15.4"
 UrlDownload = "~1.0.1"
 """
@@ -833,7 +672,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.2"
 manifest_format = "2.0"
-project_hash = "90a89e649bf606e5be4465f380887053b7b5a046"
+project_hash = "eccc17d12aa790757137726c96cac1f70ab2a6ea"
 
 [[deps.AbstractFFTs]]
 deps = ["ChainRulesCore", "LinearAlgebra"]
@@ -933,6 +772,12 @@ git-tree-sha1 = "0c5f81f47bbbcf4aea7b2959135713459170798b"
 uuid = "62783981-4cbd-42fc-bca8-16325de8dc4b"
 version = "0.1.5"
 
+[[deps.BlackBoxOptim]]
+deps = ["CPUTime", "Compat", "Distributed", "Distributions", "HTTP", "JSON", "LinearAlgebra", "Printf", "Random", "SpatialIndexing", "StatsBase"]
+git-tree-sha1 = "136079f37e3514ec691926093924b591a8842f5d"
+uuid = "a134a8b2-14d6-55f6-9291-3336d3ab0209"
+version = "0.6.2"
+
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "19a35467a82e236ff51bc17a3a44b69ef35185a2"
@@ -944,11 +789,22 @@ git-tree-sha1 = "eb4cb44a499229b3b8426dcfb5dd85333951ff90"
 uuid = "fa961155-64e5-5f13-b03f-caf6b980ea82"
 version = "0.4.2"
 
+[[deps.CMAEvolutionStrategy]]
+deps = ["Dates", "LinearAlgebra", "Printf", "Random", "Statistics"]
+git-tree-sha1 = "6bf0985be2c5ea58305d2d04e336684f64fdc12a"
+uuid = "8d3b24bd-414e-49e0-94fb-163cc3a3e411"
+version = "0.2.6"
+
 [[deps.CPUSummary]]
 deps = ["CpuId", "IfElse", "Static"]
 git-tree-sha1 = "2c144ddb46b552f72d7eafe7cc2f50746e41ea21"
 uuid = "2a0fbf3d-bb9c-48f3-b0a9-814d99fd7ab9"
 version = "0.2.2"
+
+[[deps.CPUTime]]
+git-tree-sha1 = "2dcc50ea6a0a1ef6440d6eecd0fe3813e5671f45"
+uuid = "a9c8d775-2e2e-55fc-8582-045d282d599e"
+version = "1.0.0"
 
 [[deps.CSV]]
 deps = ["CodecZlib", "Dates", "FilePathsBase", "InlineStrings", "Mmap", "Parsers", "PooledArrays", "SentinelArrays", "SnoopPrecompile", "Tables", "Unicode", "WeakRefStrings", "WorkerUtilities"]
@@ -1075,9 +931,9 @@ version = "0.1.2"
 
 [[deps.ConstructionBase]]
 deps = ["LinearAlgebra"]
-git-tree-sha1 = "45269494fcfa0cc14032b7aa640fa71320e1976e"
+git-tree-sha1 = "89a9db8d28102b094992472d333674bd1a83ce2a"
 uuid = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
-version = "1.5.0"
+version = "1.5.1"
 
 [[deps.Contour]]
 git-tree-sha1 = "d05d9e7b7aedff4e5b51a029dced05cfb6125781"
@@ -1138,10 +994,10 @@ uuid = "b429d917-457f-4dbc-8f4c-0cc954292b1d"
 version = "0.4.0"
 
 [[deps.DiffEqBase]]
-deps = ["ArrayInterface", "ChainRulesCore", "DataStructures", "Distributions", "DocStringExtensions", "EnumX", "FastBroadcast", "ForwardDiff", "FunctionWrappers", "FunctionWrappersWrappers", "LinearAlgebra", "Logging", "Markdown", "MuladdMacro", "Parameters", "PreallocationTools", "Printf", "RecursiveArrayTools", "Reexport", "Requires", "SciMLBase", "Setfield", "SparseArrays", "Static", "StaticArraysCore", "Statistics", "Tricks", "ZygoteRules"]
-git-tree-sha1 = "9441053d50b00cd5fe54ed13fd7081cf9feb2ce5"
+deps = ["ArrayInterface", "ChainRulesCore", "DataStructures", "Distributions", "DocStringExtensions", "EnumX", "FastBroadcast", "ForwardDiff", "FunctionWrappers", "FunctionWrappersWrappers", "LinearAlgebra", "Logging", "Markdown", "MuladdMacro", "Parameters", "PreallocationTools", "Printf", "RecursiveArrayTools", "Reexport", "Requires", "SciMLBase", "Setfield", "SparseArrays", "Static", "StaticArraysCore", "Statistics", "Tricks", "TruncatedStacktraces", "ZygoteRules"]
+git-tree-sha1 = "a057a5fe2a6a05f28ef1092d5974a0c2986be23c"
 uuid = "2b5f629d-d688-5b77-993f-72d75c75574e"
-version = "6.120.0"
+version = "6.121.1"
 
 [[deps.DiffResults]]
 deps = ["StaticArraysCore"]
@@ -1167,9 +1023,9 @@ uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
 [[deps.Distributions]]
 deps = ["ChainRulesCore", "DensityInterface", "FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SparseArrays", "SpecialFunctions", "Statistics", "StatsBase", "StatsFuns", "Test"]
-git-tree-sha1 = "239fe7c3312050992dcc5d5a8d54abcf099c3ff2"
+git-tree-sha1 = "d71264a7b9a95dca3b8fff4477d94a837346c545"
 uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
-version = "0.25.82"
+version = "0.25.84"
 
 [[deps.DocStringExtensions]]
 deps = ["LibGit2"]
@@ -1292,9 +1148,9 @@ version = "0.4.2"
 
 [[deps.ForwardDiff]]
 deps = ["CommonSubexpressions", "DiffResults", "DiffRules", "LinearAlgebra", "LogExpFunctions", "NaNMath", "Preferences", "Printf", "Random", "SpecialFunctions", "StaticArrays"]
-git-tree-sha1 = "a69dd6db8a809f78846ff259298678f0d6212180"
+git-tree-sha1 = "00e252f4d706b3d55a8863432e742bf5717b498d"
 uuid = "f6369f11-7733-5829-9624-2563aa707210"
-version = "0.10.34"
+version = "0.10.35"
 
 [[deps.FreeType2_jll]]
 deps = ["Artifacts", "Bzip2_jll", "JLLWrappers", "Libdl", "Pkg", "Zlib_jll"]
@@ -1318,6 +1174,12 @@ deps = ["FunctionWrappers"]
 git-tree-sha1 = "b104d487b34566608f8b4e1c39fb0b10aa279ff8"
 uuid = "77dc65aa-8811-40c2-897b-53d922fa7daf"
 version = "0.1.3"
+
+[[deps.Functors]]
+deps = ["LinearAlgebra"]
+git-tree-sha1 = "7ed0833a55979d3d2658a60b901469748a6b9a7c"
+uuid = "d9f16b24-f501-4c13-a1f2-28368ffc5196"
+version = "0.4.3"
 
 [[deps.Future]]
 deps = ["Random"]
@@ -1491,9 +1353,9 @@ uuid = "41ab1584-1d38-5bbf-9106-f11c6c58b48f"
 version = "1.2.0"
 
 [[deps.IrrationalConstants]]
-git-tree-sha1 = "637b58b3c037d3877f263418de820920b47ceeb5"
+git-tree-sha1 = "3868cac300a188a7c3a74f9abd930e52ce1a7a51"
 uuid = "92d709cd-6900-40b7-9082-c6be49f344b6"
-version = "0.2.0"
+version = "0.2.1"
 
 [[deps.IterativeSolvers]]
 deps = ["LinearAlgebra", "Printf", "Random", "RecipesBase", "SparseArrays"]
@@ -1708,9 +1570,9 @@ version = "1.0.0"
 
 [[deps.LoopVectorization]]
 deps = ["ArrayInterface", "ArrayInterfaceCore", "CPUSummary", "ChainRulesCore", "CloseOpenIntervals", "DocStringExtensions", "ForwardDiff", "HostCPUFeatures", "IfElse", "LayoutPointers", "LinearAlgebra", "OffsetArrays", "PolyesterWeave", "SIMDTypes", "SLEEFPirates", "SnoopPrecompile", "SpecialFunctions", "Static", "StaticArrayInterface", "ThreadingUtilities", "UnPack", "VectorizationBase"]
-git-tree-sha1 = "d407ea0d7c354f5765914d0982c233328523c82f"
+git-tree-sha1 = "2acf6874142d05d5d1ad49e8d3786b8cd800936d"
 uuid = "bdcacae8-1622-11e9-2a5c-532679323890"
-version = "0.12.151"
+version = "0.12.152"
 
 [[deps.Lz4_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1832,9 +1694,9 @@ version = "1.2.0"
 
 [[deps.NonlinearSolve]]
 deps = ["ArrayInterface", "DiffEqBase", "FiniteDiff", "ForwardDiff", "LinearAlgebra", "LinearSolve", "RecursiveArrayTools", "Reexport", "SciMLBase", "SimpleNonlinearSolve", "SnoopPrecompile", "SparseArrays", "SparseDiffTools", "StaticArraysCore", "UnPack"]
-git-tree-sha1 = "536aa8b33b2c3a10df8ce89bdb0b0affef93d393"
+git-tree-sha1 = "3f856788ba532419c07ba2e0dc37b06e5d784992"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
-version = "1.4.0"
+version = "1.5.0"
 
 [[deps.Observables]]
 git-tree-sha1 = "6862738f9796b3edc1c09d0890afce4eca9e7e93"
@@ -1887,17 +1749,41 @@ git-tree-sha1 = "1903afc76b7d01719d9c30d3c7d501b61db96721"
 uuid = "429524aa-4258-5aef-a3af-852621145aeb"
 version = "1.7.4"
 
+[[deps.Optimisers]]
+deps = ["ChainRulesCore", "Functors", "LinearAlgebra", "Random", "Statistics"]
+git-tree-sha1 = "e5a1825d3d53aa4ad4fb42bd4927011ad4a78c3d"
+uuid = "3bd65402-5787-11e9-1adc-39752487f4e2"
+version = "0.2.15"
+
 [[deps.Optimization]]
 deps = ["ArrayInterface", "ConsoleProgressMonitor", "DocStringExtensions", "Logging", "LoggingExtras", "Pkg", "Printf", "ProgressLogging", "Reexport", "Requires", "SciMLBase", "SparseArrays", "TerminalLoggers"]
 git-tree-sha1 = "2d145638f4029711871b4754aa8782f9b7116d76"
 uuid = "7f7a1694-90dd-40f0-9382-eb1efda571ba"
 version = "3.12.0"
 
+[[deps.OptimizationBBO]]
+deps = ["BlackBoxOptim", "Optimization", "Reexport"]
+git-tree-sha1 = "5f653f29459f2aba3c1961dff265b727bd1ed5be"
+uuid = "3e6eede4-6085-4f62-9a71-46d9bc1eb92b"
+version = "0.1.4"
+
+[[deps.OptimizationCMAEvolutionStrategy]]
+deps = ["CMAEvolutionStrategy", "Optimization", "Reexport"]
+git-tree-sha1 = "283223e397f5885c50d23c2d1a9290300111a8f2"
+uuid = "bd407f91-200f-4536-9381-e4ba712f53f8"
+version = "0.1.3"
+
 [[deps.OptimizationOptimJL]]
 deps = ["Optim", "Optimization", "Reexport", "SparseArrays"]
 git-tree-sha1 = "8de765af24432390000bc39e1efae51cf4dbdc5c"
 uuid = "36348300-93cb-4f02-beb5-3c3902f8871e"
 version = "0.1.5"
+
+[[deps.OptimizationOptimisers]]
+deps = ["Optimisers", "Optimization", "Printf", "ProgressLogging", "Reexport"]
+git-tree-sha1 = "aa84303b3e56c864557fd25dfb5dd341867bc1d8"
+uuid = "42dfb2eb-d2b4-4451-abcd-913932933ac1"
+version = "0.1.1"
 
 [[deps.Opus_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1911,10 +1797,10 @@ uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 version = "1.4.1"
 
 [[deps.OrdinaryDiffEq]]
-deps = ["Adapt", "ArrayInterface", "DataStructures", "DiffEqBase", "DocStringExtensions", "ExponentialUtilities", "FastBroadcast", "FastClosures", "FiniteDiff", "ForwardDiff", "FunctionWrappersWrappers", "IfElse", "LinearAlgebra", "LinearSolve", "Logging", "LoopVectorization", "MacroTools", "MuladdMacro", "NLsolve", "NonlinearSolve", "Polyester", "PreallocationTools", "Preferences", "RecursiveArrayTools", "Reexport", "SciMLBase", "SciMLNLSolve", "SimpleNonlinearSolve", "SnoopPrecompile", "SparseArrays", "SparseDiffTools", "StaticArrayInterface", "StaticArrays", "UnPack"]
-git-tree-sha1 = "a364df19a43c4a9520eeca693aa2e77b679a2b0c"
+deps = ["Adapt", "ArrayInterface", "DataStructures", "DiffEqBase", "DocStringExtensions", "ExponentialUtilities", "FastBroadcast", "FastClosures", "FiniteDiff", "ForwardDiff", "FunctionWrappersWrappers", "IfElse", "LinearAlgebra", "LinearSolve", "Logging", "LoopVectorization", "MacroTools", "MuladdMacro", "NLsolve", "NonlinearSolve", "Polyester", "PreallocationTools", "Preferences", "RecursiveArrayTools", "Reexport", "SciMLBase", "SciMLNLSolve", "SimpleNonlinearSolve", "SnoopPrecompile", "SparseArrays", "SparseDiffTools", "StaticArrayInterface", "StaticArrays", "TruncatedStacktraces", "UnPack"]
+git-tree-sha1 = "5370a27bf89e6ac04517c6b9778295cdb7a411f8"
 uuid = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
-version = "6.47.0"
+version = "6.48.0"
 
 [[deps.PCRE2_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -1969,9 +1855,9 @@ version = "1.3.4"
 
 [[deps.Plots]]
 deps = ["Base64", "Contour", "Dates", "Downloads", "FFMPEG", "FixedPointNumbers", "GR", "JLFzf", "JSON", "LaTeXStrings", "Latexify", "LinearAlgebra", "Measures", "NaNMath", "Pkg", "PlotThemes", "PlotUtils", "Preferences", "Printf", "REPL", "Random", "RecipesBase", "RecipesPipeline", "Reexport", "RelocatableFolders", "Requires", "Scratch", "Showoff", "SnoopPrecompile", "SparseArrays", "Statistics", "StatsBase", "UUIDs", "UnicodeFun", "Unzip"]
-git-tree-sha1 = "8ac949bd0ebc46a44afb1fdca1094554a84b086e"
+git-tree-sha1 = "da1d3fb7183e38603fcdd2061c47979d91202c97"
 uuid = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-version = "1.38.5"
+version = "1.38.6"
 
 [[deps.PlutoUI]]
 deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
@@ -2104,6 +1990,12 @@ git-tree-sha1 = "838a3a4188e2ded87a4f9f184b4b0d78a1e91cb7"
 uuid = "ae029012-a4dd-5104-9daa-d747884805df"
 version = "1.3.0"
 
+[[deps.RetentionParameterEstimator]]
+deps = ["CSV", "DataFrames", "GasChromatographySimulator", "Interpolations", "Optimization", "OptimizationBBO", "OptimizationCMAEvolutionStrategy", "OptimizationOptimJL", "OptimizationOptimisers", "Statistics"]
+git-tree-sha1 = "afb49620aafc76f25258f70839d11b675cc99664"
+uuid = "0afdae40-3141-486e-b874-33af99ac38b5"
+version = "0.1.0"
+
 [[deps.Rmath]]
 deps = ["Random", "Rmath_jll"]
 git-tree-sha1 = "f65dcb5fa46aee0cf9ed6274ccbd597adc49aa7b"
@@ -2138,10 +2030,10 @@ uuid = "476501e8-09a2-5ece-8869-fb82de89a1fa"
 version = "0.6.38"
 
 [[deps.SciMLBase]]
-deps = ["ArrayInterface", "CommonSolve", "ConstructionBase", "Distributed", "DocStringExtensions", "EnumX", "FunctionWrappersWrappers", "IteratorInterfaceExtensions", "LinearAlgebra", "Logging", "Markdown", "Preferences", "RecipesBase", "RecursiveArrayTools", "Reexport", "RuntimeGeneratedFunctions", "SciMLOperators", "StaticArraysCore", "Statistics", "SymbolicIndexingInterface", "Tables"]
-git-tree-sha1 = "f0fa74c1460b9db3afa749e87e4180a09059f4b0"
+deps = ["ArrayInterface", "CommonSolve", "ConstructionBase", "Distributed", "DocStringExtensions", "EnumX", "FunctionWrappersWrappers", "IteratorInterfaceExtensions", "LinearAlgebra", "Logging", "Markdown", "Preferences", "RecipesBase", "RecursiveArrayTools", "Reexport", "RuntimeGeneratedFunctions", "SciMLOperators", "SnoopPrecompile", "StaticArraysCore", "Statistics", "SymbolicIndexingInterface", "Tables", "TruncatedStacktraces"]
+git-tree-sha1 = "fe55d9f9d73fec26f64881ba8d120607c22a54b0"
 uuid = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
-version = "1.86.3"
+version = "1.88.0"
 
 [[deps.SciMLNLSolve]]
 deps = ["DiffEqBase", "LineSearches", "NLsolve", "Reexport", "SciMLBase"]
@@ -2234,6 +2126,11 @@ git-tree-sha1 = "342cf4b449c299d8d1ceaf00b7a49f4fbc7940e7"
 uuid = "e56a9233-b9d6-4f03-8d0f-1825330902ac"
 version = "0.3.9"
 
+[[deps.SpatialIndexing]]
+git-tree-sha1 = "fb7041e6bd266266fa7cdeb80427579e55275e4f"
+uuid = "d4ead438-fe20-5cc5-a293-4fd39a41b74c"
+version = "0.1.3"
+
 [[deps.SpecialFunctions]]
 deps = ["ChainRulesCore", "IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_jll"]
 git-tree-sha1 = "ef28127915f4229c971eb43f3fc075dd3fe91880"
@@ -2281,9 +2178,9 @@ version = "0.33.21"
 
 [[deps.StatsFuns]]
 deps = ["ChainRulesCore", "HypergeometricFunctions", "InverseFunctions", "IrrationalConstants", "LogExpFunctions", "Reexport", "Rmath", "SpecialFunctions"]
-git-tree-sha1 = "53cd758b96903d556e96f11b8cd2169c7e9f08af"
+git-tree-sha1 = "5aa6250a781e567388f3285fb4b0f214a501b4d5"
 uuid = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
-version = "1.2.0"
+version = "1.2.1"
 
 [[deps.StatsPlots]]
 deps = ["AbstractFFTs", "Clustering", "DataStructures", "DataValues", "Distributions", "Interpolations", "KernelDensity", "LinearAlgebra", "MultivariateStats", "NaNMath", "Observables", "Plots", "RecipesBase", "RecipesPipeline", "Reexport", "StatsBase", "TableOperations", "Tables", "Widgets"]
@@ -2390,6 +2287,12 @@ git-tree-sha1 = "6bac775f2d42a611cdfcd1fb217ee719630c4175"
 uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
 version = "0.1.6"
 
+[[deps.TruncatedStacktraces]]
+deps = ["InteractiveUtils"]
+git-tree-sha1 = "7cdbe45f0018b7f681a6b63ad1250ee6f2297a87"
+uuid = "781d530d-4396-4725-bb49-402e4bee1e77"
+version = "1.0.0"
+
 [[deps.URIs]]
 git-tree-sha1 = "074f993b0ca030848b897beff716d93aca60f06a"
 uuid = "5c2747f8-b7ea-4ff2-ba2e-563bfd36b1d4"
@@ -2426,9 +2329,9 @@ version = "1.0.1"
 
 [[deps.VectorizationBase]]
 deps = ["ArrayInterface", "CPUSummary", "HostCPUFeatures", "IfElse", "LayoutPointers", "Libdl", "LinearAlgebra", "SIMDTypes", "Static", "StaticArrayInterface"]
-git-tree-sha1 = "7bdcd1b36993026f91e61c3cc671c7127770be84"
+git-tree-sha1 = "952ba509a61d1ebb26381ac459c5c6e838ed43c4"
 uuid = "3d5dd08c-fd9d-11e8-17fa-ed2836048c2f"
-version = "0.21.59"
+version = "0.21.60"
 
 [[deps.VertexSafeGraphs]]
 deps = ["Graphs"]
@@ -2698,68 +2601,44 @@ version = "1.4.1+0"
 
 # ╔═╡ Cell order:
 # ╠═09422105-a747-40ac-9666-591326850d8f
-# ╠═5be3a351-f6e0-4cc6-800d-a55f8decf889
 # ╠═eb5fc23c-2151-47fa-b56c-5771a4f8b9c5
-# ╟─6d4ec54b-01b2-4208-9b9e-fcb70d236c3e
-# ╠═3e808e31-081e-48d2-908e-d66726e270e8
+# ╠═6d4ec54b-01b2-4208-9b9e-fcb70d236c3e
 # ╠═ebc2a807-4413-4721-930a-6328ae72a1a9
 # ╠═3ac77a9e-e23c-424a-acc2-d24c4d76ee5e
 # ╠═51a22a15-24f9-4280-9c91-32e48727003a
-# ╠═c86a9bec-3e0b-4207-b322-23075765dec9
-# ╟─eb14e619-82d4-49ac-ab2a-28e56230dbc6
-# ╟─d745c22b-1c96-4a96-83da-abb1df91ab87
+# ╠═eb14e619-82d4-49ac-ab2a-28e56230dbc6
+# ╠═d745c22b-1c96-4a96-83da-abb1df91ab87
 # ╠═b2c254a2-a5d6-4f18-803a-75d048fc7cdf
-# ╠═365ec346-65e4-4bb8-9b8f-824ed0e5e3f2
-# ╟─f3ffd4ce-a378-4033-88e9-bc1fb8cc4bbe
-# ╟─e98f4b1b-e577-40d0-a7d8-71c53d99ee1b
-# ╟─3b40b0b1-7007-48c7-b47b-dbeaf501b73d
-# ╠═992fae9e-5257-4996-840c-7bf8969d3e02
-# ╠═f75dcbf4-b146-47ea-8fa2-1cdf3f772aeb
-# ╠═d09e48ec-1d38-46c8-b8ce-19d9a83bfa51
-# ╠═882b9cf0-7320-408d-b7aa-3e20fffb0ff2
-# ╠═f650199a-554d-49ff-8346-f0e5c6819b7c
-# ╠═31b176dc-b667-4604-b490-046d55e545c9
-# ╠═1ed16860-6899-4a17-aa2e-dffd32a4cf82
-# ╠═2c418101-9184-49b7-8ad8-ae3be25d7cdb
-# ╠═fcc0c0cf-aee7-42bb-9ad9-790325db31aa
-# ╠═4779a2ed-c827-4d4e-aa5f-614aaca6c173
-# ╠═cdef487b-1a2b-470a-9f13-e08b88e079a2
-# ╠═1f34c58b-5f35-422b-a645-4aa9e96a51f6
-# ╠═3ac78538-e2ec-466d-bfe4-d55bcc009db0
-# ╠═ee641f1d-4840-4250-9eec-0f0166f49ff2
-# ╠═deb2179f-06e5-4439-a3a0-1664fc1a5083
-# ╠═93224376-c99e-4182-b430-3d75a52ee0f1
-# ╠═c3e0b7e9-f8d3-4b63-9e36-fb4995211a6c
-# ╠═07187629-64b7-4869-9eeb-7d530e43587d
-# ╠═47e7621e-58e9-4701-912d-82f646e64e0f
-# ╠═26672fc0-3b99-44e6-8a46-47dbeb3bca38
-# ╠═0e6aa86b-1cd5-4281-b0f1-d8e96b2d6e2e
-# ╠═a1c0f53a-925c-4800-a920-955e9da97e12
-# ╠═9347878d-66f0-464b-a315-9c6eb46ea43d
-# ╠═f408ded9-9130-4652-b0aa-219936f4c947
-# ╠═6475ab4f-f701-4398-ac25-b65d0844301a
-# ╠═20902ac4-f210-4ddd-90f5-a713eb4bd9b5
+# ╠═b41c6bc0-5134-4eee-8846-dc065224af55
+# ╠═f3ffd4ce-a378-4033-88e9-bc1fb8cc4bbe
+# ╠═e98f4b1b-e577-40d0-a7d8-71c53d99ee1b
+# ╠═3b40b0b1-7007-48c7-b47b-dbeaf501b73d
+# ╠═0aa4adbe-3b2e-4970-93a7-a298e910b1cb
+# ╠═b86b3a41-56f0-460f-acba-9d027e1f2336
 # ╟─0f4c35c4-32f7-4d11-874d-1f23daad7da8
 # ╟─b4f17579-9994-46e1-a3d0-6030650f0dbe
-# ╟─0d61fd05-c0c6-4764-9f96-3b867a456ad3
+# ╠═0d61fd05-c0c6-4764-9f96-3b867a456ad3
+# ╠═38d1e196-f375-48ac-bc11-80b10472c1cd
 # ╟─762c877d-3f41-49de-a7ea-0eef1456ac11
 # ╟─07a7e45a-d73e-4a83-9323-700d3e2a88cc
-# ╠═af2aa109-c514-40dc-a5a9-c7b9974dd8f1
 # ╟─ae424251-f4f7-48aa-a72b-3be85a193705
+# ╠═9e9c20cc-c601-4f5f-afef-512b8dd18fad
 # ╠═116ccf37-4a18-44ac-ae6e-98932901a8b0
 # ╠═157f24e6-1664-41c8-9079-b9dd0a2c98a9
 # ╠═ddadd79d-7b74-4b2c-ad59-a31a5692cf3b
-# ╟─f83b26e7-f16d-49ac-ab3b-230533ac9c82
+# ╠═4dde6bc4-0316-4ea3-82dd-5d3fda15c16c
+# ╠═f83b26e7-f16d-49ac-ab3b-230533ac9c82
+# ╠═62c014d5-5e57-49d7-98f8-dace2f1aaa32
 # ╠═6187b9a9-83e4-49e0-be6f-8aea1a09da7c
-# ╟─5123aa1b-b899-4dd6-8909-6be3b82a80d0
-# ╟─903d12f1-6d6f-4a71-8095-7457cffcafc4
+# ╠═5123aa1b-b899-4dd6-8909-6be3b82a80d0
+# ╠═903d12f1-6d6f-4a71-8095-7457cffcafc4
+# ╠═a41148bc-03b0-4bd1-b76a-7406aab63f48
 # ╠═347c53d6-9c94-47de-814a-aef43fa5aae2
 # ╟─66287dfc-fe77-4fa8-8892-79d2d3de6cb3
 # ╠═b4fc2f6e-4500-45da-852e-59fb084e365a
 # ╠═c0f0b955-6791-401f-8252-745332c4210f
 # ╟─9178967d-26dc-43be-b6e4-f35bbd0b0b04
 # ╠═46fab3fe-cf88-4cbf-b1cc-a232bb7520db
-# ╠═fb4ccf8c-18af-4b7d-8bff-50028afdcb6a
 # ╠═06d5dd5a-6883-4b62-8942-dc19e7b08e4d
 # ╠═505f722f-5429-4282-a1c9-d41fc3284c11
 # ╠═72312748-de7d-4b15-8ef8-ea7165d19640

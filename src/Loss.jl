@@ -3,8 +3,7 @@
 """
     tR_calc(Tchar, θchar, ΔCp, L, d, prog, gas; opt=std_opt)
 
-Calculates the retention time tR for a solute with the K-centric parameters `Tchar` `θchar` and `ΔCp` and the corresponding dimensionless film 
-thickness `φ₀` for a column with length `L`, internal diameter `d` and film thickness `df`, the (conventional) program `prog`, options `opt` and mobile phase `gas`.
+Calculates the retention time tR for a solute with the K-centric parameters `Tchar` `θchar` and `ΔCp` for a column with length `L`, internal diameter `d`, the (conventional) program `prog`, options `opt` and mobile phase `gas`.
 For this calculation only the ODE for the migration of a solute in a GC column is solved, using the function `GasChromatographySimulator.solving_migration`.
 """
 function tR_calc(Tchar, θchar, ΔCp, L, d, prog, gas; opt=std_opt)
@@ -26,7 +25,7 @@ end
 
 function tR_calc(Tchar, θchar, ΔCp, φ₀, L, d, df, prog, gas; opt=std_opt)
 	# df has no influence on the result (is hidden in Tchar, θchar, ΔCp)
-	solution = solving_migration(Tchar, θchar, ΔCp, φ₀, L, d, df, prog, opt, gas)
+	solution = GasChromatographySimulator.solving_migration(Tchar, θchar, ΔCp, φ₀, L, d, df, prog, opt, gas)
 	tR = solution.u[end]
 	return tR
 end
@@ -50,7 +49,6 @@ Loss function as sum of squares of the residuals between the measured and calcul
 # Output
 The output is a tuple of the following quantites:
 * `sum((tR.-tRcalc).^2)` ... sum of the squared residuals over m GC-programs and n solutes.
-* `tRcalc` ... mxn-array of the calculated retention times
 """
 function loss(tR, Tchar, θchar, ΔCp, L, d, prog, gas; opt=std_opt, metric="squared")
 	if length(size(tR)) == 1

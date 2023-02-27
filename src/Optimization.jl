@@ -19,6 +19,7 @@ Function used for optimization of the loss-function in regards to the three K-ce
     * `prog = p[4]` ... m-array of structure GasChromatographySimulator.Programs containing the definition of the GC-programs.
     * `opt = p[5]` ... struture GasChromatographySimulator.Options containing the settings for options for the simulation.
     * `gas = p[6]` ... string of name of the mobile phase gas. 
+    * `metric = p[7]` ... string of the metric used for the loss function (`squared` or `abs`). 
 
 # Output
 * `sum((tR.-tRcalc).^2)` ... sum of the squared residuals over m GC-programs and n solutes.
@@ -67,7 +68,7 @@ end
     optimize_Kcentric(tR, col, prog, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, metric="squared") 
 
 Optimization regarding the estimization of the retention parameters `Tchar`, `θchar` and `ΔCp`. The initial guess is a vector (`Tchar_e`, `θchar_e` and `ΔCp_e`) for optimization
-algorithms, which do not need lower/upper bounds. It should be a matrix (`Tchar_e`, `θchar_e` and `ΔCp_e`), with the first column (`[1,:]`)
+algorithms, which do not need lower/upper bounds. If a method is used, which needs lower/upper bounds the initial parameters should be a matrix, with the first column (`[1,:]`)
 beeing the initial guess, the second column (`[2,:]`) the lower bound and the third column (`[3,:]`) the upper bound.
 """
 function optimize_Kcentric(tR, col, prog, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number
@@ -79,7 +80,7 @@ function optimize_Kcentric(tR, col, prog, Tchar_e::Vector{T}, θchar_e::Vector{T
 	return opt_sol
 end
 
-function optimize_Kcentric(tR, col, prog, Tchar_e::Matrix{T}, θchar_e::Matrix{T}, ΔCp_e::Matrix{T}; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number # here default method should be one which needs bounds
+function optimize_Kcentric(tR, col, prog, Tchar_e::Matrix{T}, θchar_e::Matrix{T}, ΔCp_e::Matrix{T}; method=BBO_adaptive_de_rand_1_bin_radiuslimited(), opt=std_opt, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number # here default method should be one which needs bounds
     p = [tR, col.L, col.d, prog, opt, col.gas, metric]
 	x0 = [Tchar_e[1,:]; θchar_e[1,:]; ΔCp_e[1,:]]
     lb = [Tchar_e[2,:]; θchar_e[2,:]; ΔCp_e[2,:]]
@@ -99,6 +100,24 @@ function optimize_Kcentric_(tR, col, prog, Tchar_e::Vector{T}, θchar_e::Vector{
 	return opt_sol
 end
 
+"""
+    opt_dKcentric(x, p)
+
+Function used for optimization of the loss-function in regards to the three K-centric parameters and the column diameter.
+
+# Arguments
+* `x` ... (3n+1)-vector of the column diameter and the three K-centric parameters of n solutes. The first element represents the column diameterd `d` and elements 2:n+1 are `Tchar`, n+2:2n+1 are `θchar` and 2n+2:3n+1 are `ΔCp` values.
+* `p` ... vector containing the fixed parameters:
+    * `tR = p[1]` ... mxn-array of the measured retention times in seconds.
+    * `L = p[2]` ... number of the length of the column in m.
+    * `prog = p[3]` ... m-array of structure GasChromatographySimulator.Programs containing the definition of the GC-programs.
+    * `opt = p[4]` ... struture GasChromatographySimulator.Options containing the settings for options for the simulation.
+    * `gas = p[5]` ... string of name of the mobile phase gas. 
+    * `metric = p[6]` ... string of the metric used for the loss function (`squared` or `abs`). 
+
+# Output
+* `sum((tR.-tRcalc).^2)` ... sum of the squared residuals over m GC-programs and n solutes.
+"""
 function opt_dKcentric(x, p)
     tR = p[1]
     L = p[2]
@@ -145,7 +164,7 @@ end
     optimize_dKcentric(tR, col, prog, d_e, Tchar_e, θchar_e, ΔCp_e; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, metric="squared") 
 
 Optimization regarding the estimization of the column diameter `d` and the retention parameters `Tchar`, `θchar` and `ΔCp`. The initial guess is a number (`d_e`) or a vector (`Tchar_e`, `θchar_e` and `ΔCp_e`) for optimization
-algorithms, which do not need lower/upper bounds. It should be a vector of length 3 (`d_e`) or a matrix (`Tchar_e`, `θchar_e` and `ΔCp_e`), with the first element/column 
+algorithms, which do not need lower/upper bounds. If a method is used, which needs lower/upper bounds the initial parameters should be a vector of length 3 (`d_e`) or a matrix (`Tchar_e`, `θchar_e` and `ΔCp_e`), with the first element/column 
 beeing the initial guess, the second element/column the lower bound and the third element/column the upper bound.
 """
 function optimize_dKcentric(tR, col, prog, d_e::Number, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number
@@ -157,7 +176,8 @@ function optimize_dKcentric(tR, col, prog, d_e::Number, Tchar_e::Vector{T}, θch
 	return opt_sol
 end
 
-function optimize_dKcentric(tR, col, prog, d_e::Vector{T}, Tchar_e::Matrix{T}, θchar_e::Matrix{T}, ΔCp_e::Matrix{T}; method=NewtonTrustRegion(), opt=opt_std, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number  # here default method should be one which needs bounds  
+
+function optimize_dKcentric(tR, col, prog, d_e::Vector{T}, Tchar_e::Matrix{T}, θchar_e::Matrix{T}, ΔCp_e::Matrix{T}; method=BBO_adaptive_de_rand_1_bin_radiuslimited(), opt=opt_std, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number  # here default method should be one which needs bounds  
     p = [tR, col.L, prog, opt, col.gas, metric]
 	x0 = [d_e[1]; Tchar_e[1,:]; θchar_e[1,:]; ΔCp_e[1,:]]
     lb = [d_e[2]; Tchar_e[2,:]; θchar_e[2,:]; ΔCp_e[2,:]]
@@ -248,6 +268,31 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
 	return df, sol
 end
 
+"""
+    estimate_parameters()
+
+Calculate the estimates for the K-centric parameters and (optional) the column diameter.
+
+# Arguments
+* `chrom` ... Tuple of the loaded chromatogram, see [`load_chromatograms`](@ref)
+
+# Options
+* `method=NewtonTrustRegion()` ... used optimization method
+* `opt=std_opt` ... general options, `std_opt = GasChromatographySimulator.Options(abstol=1e-8, reltol=1e-5, ng=true, odesys=false)`
+* `maxiters=10000` ... maximum number of iterations for every single optimization
+* `maxtime=600.0` ... maximum time for every single optimization
+* `mode="dKcentric"` ... mode of the estimation. 
+    Possible options: 
+    * "Kcentric_single" ... optimization for the three K-centric retention parameters separatly for every solute
+    * "Kcentric" ... optimization for the three K-centric retention parameters together for all solutes
+    * "dKcentric_single" ... optimization for the column diameter and the three K-centric retention parameters separatly for every solute
+    * "dKcentric" ... optimization for the column diameter and the three K-centric retention parameters together for all solutes
+* `metric="squared"` ... used metric for the loss function ("squared" or "abs")
+
+# Output
+* `df` ... DataFrame with the columns `Name` (solute names), `d` (estimated column diameter, optional), `Tchar` (estimated Tchar), `θchar` (estimated θchar), `ΔCp` (estimated ΔCp) and `min` (value of the loss function at the found optima)
+* `sol` ... Array of `SciMLBase.OptimizationSolution` with the results of the optimization with some additional informations.
+"""    
 function estimate_parameters(chrom; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, mode="dKcentric", metric="squared")
 	Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter(chrom[3], chrom[1], chrom[2]; time_unit=chrom[6])
 	return estimate_parameters(chrom[3], chrom[4], chrom[1], chrom[2], Tchar_est, θchar_est, ΔCp_est; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, mode=mode, metric=metric, pout=chrom[5], time_unit=chrom[6])

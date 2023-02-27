@@ -6,7 +6,7 @@
 #Description.
 #"""
 function conventional_GC(L, d, df, sp, gas, TP, PP, solutes, db_path, db_file; pout="vacuum", time_unit="min")
-opt = GasChromatographySimulator.Options(ng=true, odesys=false)
+opt = std_opt
 col = GasChromatographySimulator.Column(L, d, df, sp, gas)
 prog = GasChromatographySimulator.Program(TP, PP, L; pout=pout, time_unit=time_unit)
 sub = GasChromatographySimulator.load_solute_database(db_path, db_file, sp, gas, solutes, zeros(length(solutes)), zeros(length(solutes)))

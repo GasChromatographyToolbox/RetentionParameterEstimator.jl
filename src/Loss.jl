@@ -25,7 +25,7 @@ end
 
 function tR_calc(Tchar, θchar, ΔCp, φ₀, L, d, df, prog, gas; opt=std_opt)
 	# df has no influence on the result (is hidden in Tchar, θchar, ΔCp)
-	solution = solving_migration(Tchar, θchar, ΔCp, φ₀, L, d, df, prog, opt, gas)
+	solution = GasChromatographySimulator.solving_migration(Tchar, θchar, ΔCp, φ₀, L, d, df, prog, opt, gas)
 	tR = solution.u[end]
 	return tR
 end

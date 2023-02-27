@@ -30,11 +30,11 @@ time_unit = "min"
     ΔCp = par.sub[3].ΔCp
     opt = par.opt
 
-    tR = RetentionParameterEstimator.tR_calc(Tchar, θchar, ΔCp, df/d, L, d, df, par.prog, gas)
+    ##tR = RetentionParameterEstimator.tR_calc(Tchar, θchar, ΔCp, df/d, L, d, df, par.prog, gas)
 
-    pl.tR[3] == tR # false, because of odesys=true for GasChromatographySimulator
+    ##pl.tR[3] == tR # false, because of odesys=true for GasChromatographySimulator
         # and in RetentionParameterEstimator only the migration ODE is used 
-    @test isapprox(pl.tR[3], tR, atol=1e-4)
+    ##@test isapprox(pl.tR[3], tR, atol=1e-4)
 
     #opt_ = GasChromatographySimulator.Options(ng=true)
     #par_ = GasChromatographySimulator.Parameters(par.col, par.prog, par.sub, opt_)

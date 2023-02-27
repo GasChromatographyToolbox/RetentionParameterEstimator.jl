@@ -44,6 +44,47 @@ Measured chromatograms used to **estimate** the parameters by optimization:
 Load own data: $(@bind own_data CheckBox(default=false))
 """
 
+# ╔═╡ f3ffd4ce-a378-4033-88e9-bc1fb8cc4bbe
+md"""
+## Select mode
+* `m1` ... estimate the three retention parameters (``T_{char}``, ``θ_{char}`` and ``ΔC_p``).
+* `m2` ... estimate the three retention parameters (``T_{char}``, ``θ_{char}`` and ``ΔC_p``) and the column diameter ``d``.
+$(@bind select_mode confirm(Select(["m1", "m2"])))
+"""
+
+# ╔═╡ 0d61fd05-c0c6-4764-9f96-3b867a456ad3
+md"""
+## Select verification data
+
+Measured chromatograms used to **verify** the estimated parameters:
+"""
+
+# ╔═╡ ae424251-f4f7-48aa-a72b-3be85a193705
+md"""
+## Verification
+
+Using the estimated parameters (``T_{char}``, ``θ_{char}``, ``ΔC_p``) resp. (``T_{char}``, ``θ_{char}``, ``ΔC_p``, ``d``) to simulate other temperature programs. Compare the simulated retention times with measured retention times.
+"""
+
+# ╔═╡ f83b26e7-f16d-49ac-ab3b-230533ac9c82
+md"""
+## Alternative parameters
+
+Select file with alternative parameters:
+"""
+
+# ╔═╡ 903d12f1-6d6f-4a71-8095-7457cffcafc4
+md"""
+## Isothermal ``\ln{k}`` data
+
+Select file with isothermal measured ``\ln{k}`` data:
+"""
+
+# ╔═╡ 9178967d-26dc-43be-b6e4-f35bbd0b0b04
+md"""
+# End
+"""
+
 # ╔═╡ 3ac77a9e-e23c-424a-acc2-d24c4d76ee5e
 function download_data(url)
 	io = IOBuffer();
@@ -76,6 +117,14 @@ begin
 	end
 end
 
+# ╔═╡ b4fc2f6e-4500-45da-852e-59fb084e365a
+md"""
+## Plot ``\ln{k}`` over ``T``
+
+Select solute for ``\ln{k}`` plot:
+$(@bind select_solute confirm(Select(meas[4]; default=meas[4][1])))
+"""
+
 # ╔═╡ d745c22b-1c96-4a96-83da-abb1df91ab87
 begin
 	if !isnothing(file_meas)
@@ -89,57 +138,6 @@ begin
 		"""
 	end
 end
-
-# ╔═╡ b41c6bc0-5134-4eee-8846-dc065224af55
-# test und m1 sind gleich, nur test aber mit den zusätzlichen funktionen von m1 benutzen 
-
-# ╔═╡ f3ffd4ce-a378-4033-88e9-bc1fb8cc4bbe
-md"""
-## Select mode
-
-$(@bind select_mode confirm(Select(["test", "m1", "m2"])))
-"""
-
-# ╔═╡ 0aa4adbe-3b2e-4970-93a7-a298e910b1cb
-function method_m1(meas, col_input)
-	
-	col = GasChromatographySimulator.Column(col_input.L, col_input.d*1e-3, meas[1].df, meas[1].sp, meas[1].gas)
-	
-	Tchar_est, θchar_est, ΔCp_est, Telu_max = RetentionParameterEstimator.estimate_start_parameter(meas[3], col, meas[2]; time_unit=meas[6])
-	
-	res = RetentionParameterEstimator.estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6])[1]
-
-	return res, Telu_max
-end
-
-# ╔═╡ b86b3a41-56f0-460f-acba-9d027e1f2336
-function method_m2(meas)
-	
-	tRs = meas[3][!,findall((collect(any(ismissing, c) for c in eachcol(meas[3]))).==false)]
-	
-	solute_names = meas[4][findall((collect(any(ismissing, c) for c in eachcol(meas[3]))).==false)[2:end].-1]
-		
-	Tchar_est, θchar_est, ΔCp_est, Telu_max = RetentionParameterEstimator.estimate_start_parameter(tRs, meas[1], meas[2]; time_unit=meas[6])
-		
-	res_dKcentric_single = RetentionParameterEstimator.estimate_parameters(tRs, solute_names, meas[1], meas[2], Tchar_est, θchar_est, ΔCp_est; pout=meas[5], time_unit=meas[6], mode="dKcentric_single")[1]
-
-	new_col = GasChromatographySimulator.Column(meas[1].L, mean(res_dKcentric_single.d), meas[1].df, meas[1].sp, meas[1].gas)
-	
-	res = RetentionParameterEstimator.estimate_parameters(tRs, solute_names, new_col, meas[2], res_dKcentric_single.Tchar, res_dKcentric_single.θchar, res_dKcentric_single.ΔCp; pout=meas[5], time_unit=meas[6], mode="Kcentric_single")[1]
-
-	res[!, :d] = mean(res_dKcentric_single.d).*ones(length(res.Name))
-	
-	res[!, :d_std] = std(res_dKcentric_single.d).*ones(length(res.Name))
-
-	return res, Telu_max
-end
-
-# ╔═╡ 0d61fd05-c0c6-4764-9f96-3b867a456ad3
-md"""
-## Select verification data
-
-Measured chromatograms used to **verify** the estimated parameters:
-"""
 
 # ╔═╡ 38d1e196-f375-48ac-bc11-80b10472c1cd
 if own_data == true
@@ -184,47 +182,6 @@ begin
 	end
 end
 
-# ╔═╡ ae424251-f4f7-48aa-a72b-3be85a193705
-md"""
-## Verification
-
-Using the estimated parameters (``T_{char}``, ``θ_{char}``, ``ΔC_p``) resp. (``T_{char}``, ``θ_{char}``, ``ΔC_p``, ``d``) to simulate other temperature programs. Compare the simulated retention times with measured retention times.
-"""
-
-# ╔═╡ 9e9c20cc-c601-4f5f-afef-512b8dd18fad
-# add mean(abs(ΔtR)) and mean(abs(relΔtR))
-
-# ╔═╡ 4dde6bc4-0316-4ea3-82dd-5d3fda15c16c
-function plot_chromatogram_comparison(pl, meas, comp)
-	gr()
-	p_chrom = Array{Plots.Plot}(undef, length(pl))
-	for i=1:length(pl)
-		p_chrom[i] = plot(xlabel="time in $(meas[6])", legend=false)
-
-		max_ = maximum(GasChromatographySimulator.plot_chromatogram(pl[i], (minimum(pl[i].tR)*0.95, maximum(pl[i].tR)*1.05))[3])*1.05
-
-		min_ = - max_/20
-		
-		GasChromatographySimulator.plot_chromatogram!(p_chrom[i], pl[i], (minimum(pl[i].tR)*0.95, maximum(pl[i].tR)*1.05); annotation=false)
-		xlims!((minimum(pl[i].tR)*0.95, maximum(pl[i].tR)*1.05))
-		ylims!(min_, max_)
-		#add marker for measured retention times
-		for j=1:length(comp[4])
-			plot!(p_chrom[i], comp[3][i,j+1].*ones(2), [min_, max_], c=:orange)
-		end
-		plot!(p_chrom[i], title=comp[3].measurement[i])
-	end
-	
-	return plot(p_chrom..., layout=(length(p_chrom),1), size=(800,length(p_chrom)*200), yaxis=nothing, grid=false)
-end	
-
-# ╔═╡ f83b26e7-f16d-49ac-ab3b-230533ac9c82
-md"""
-## Alternative parameters
-
-Select file with alternative parameters:
-"""
-
 # ╔═╡ 62c014d5-5e57-49d7-98f8-dace2f1aaa32
 if own_data == true
 	md"""
@@ -234,16 +191,6 @@ else
 	file_db = download_data("https://raw.githubusercontent.com/JanLeppert/RetentionParameterEstimator.jl/main/data/database_Rxi5SilMS_beta125.csv");
 end
 
-# ╔═╡ 6187b9a9-83e4-49e0-be6f-8aea1a09da7c
-# add test for correct data format
-
-# ╔═╡ 903d12f1-6d6f-4a71-8095-7457cffcafc4
-md"""
-## Isothermal ``\ln{k}`` data
-
-Select file with isothermal measured ``\ln{k}`` data:
-"""
-
 # ╔═╡ a41148bc-03b0-4bd1-b76a-7406aab63f48
 if own_data == true
 	md"""
@@ -252,9 +199,6 @@ if own_data == true
 else
 	file_isolnk = download_data("https://raw.githubusercontent.com/JanLeppert/RetentionParameterEstimator.jl/main/data/isothermal_lnk_df05_Rxi5SilMS.csv");
 end
-
-# ╔═╡ 347c53d6-9c94-47de-814a-aef43fa5aae2
-# add test for correct data format
 
 # ╔═╡ 66287dfc-fe77-4fa8-8892-79d2d3de6cb3
 begin
@@ -275,18 +219,39 @@ begin
 end
 
 
-# ╔═╡ b4fc2f6e-4500-45da-852e-59fb084e365a
-md"""
-## Plot ``\ln{k}`` over ``T``
+# ╔═╡ 0aa4adbe-3b2e-4970-93a7-a298e910b1cb
+function method_m1(meas, col_input)
+	
+	col = GasChromatographySimulator.Column(col_input.L, col_input.d*1e-3, meas[1].df, meas[1].sp, meas[1].gas)
+	
+	Tchar_est, θchar_est, ΔCp_est, Telu_max = RetentionParameterEstimator.estimate_start_parameter(meas[3], col, meas[2]; time_unit=meas[6])
+	
+	res = RetentionParameterEstimator.estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6])[1]
 
-Select solute for ``\ln{k}`` plot:
-$(@bind select_solute confirm(Select(meas[4]; default=meas[4][1])))
-"""
+	return res, Telu_max
+end
 
-# ╔═╡ 9178967d-26dc-43be-b6e4-f35bbd0b0b04
-md"""
-# End
-"""
+# ╔═╡ b86b3a41-56f0-460f-acba-9d027e1f2336
+function method_m2(meas)
+	
+	tRs = meas[3][!,findall((collect(any(ismissing, c) for c in eachcol(meas[3]))).==false)]
+	
+	solute_names = meas[4][findall((collect(any(ismissing, c) for c in eachcol(meas[3]))).==false)[2:end].-1]
+		
+	Tchar_est, θchar_est, ΔCp_est, Telu_max = RetentionParameterEstimator.estimate_start_parameter(tRs, meas[1], meas[2]; time_unit=meas[6])
+		
+	res_dKcentric_single = RetentionParameterEstimator.estimate_parameters(tRs, solute_names, meas[1], meas[2], Tchar_est, θchar_est, ΔCp_est; pout=meas[5], time_unit=meas[6], mode="dKcentric_single")[1]
+
+	new_col = GasChromatographySimulator.Column(meas[1].L, mean(res_dKcentric_single.d), meas[1].df, meas[1].sp, meas[1].gas)
+	
+	res = RetentionParameterEstimator.estimate_parameters(tRs, solute_names, new_col, meas[2], res_dKcentric_single.Tchar, res_dKcentric_single.θchar, res_dKcentric_single.ΔCp; pout=meas[5], time_unit=meas[6], mode="Kcentric_single")[1]
+
+	res[!, :d] = mean(res_dKcentric_single.d).*ones(length(res.Name))
+	
+	res[!, :d_std] = std(res_dKcentric_single.d).*ones(length(res.Name))
+
+	return res, Telu_max
+end
 
 # ╔═╡ 46fab3fe-cf88-4cbf-b1cc-a232bb7520db
 # filter function for selected measurements and selected solutes
@@ -304,7 +269,7 @@ function filter_selected_measurements(meas, selected_measurements, selected_solu
 end
 
 # ╔═╡ b2c254a2-a5d6-4f18-803a-75d048fc7cdf
-meas_select = filter_selected_measurements(meas, selected_measurements, selected_solutes)
+meas_select = filter_selected_measurements(meas, selected_measurements, selected_solutes);
 
 # ╔═╡ e98f4b1b-e577-40d0-a7d8-71c53d99ee1b
 if select_mode == "m1"
@@ -318,7 +283,8 @@ if select_mode == "m1"
 	@bind col_input confirm(
 		PlutoUI.combine() do Child
 		md"""
-		## Column dimensions 
+		## Column dimensions
+		
 		L in m: $(Child("L", NumberField(0.0:0.01:1000.0; default=meas_select[1].L)))
 
 		d in mm: $(Child("d", NumberField(0.0:0.0001:1.0; default=meas_select[1].d*1000.0))) 
@@ -389,6 +355,30 @@ function comparison(res, meas, comp)
 	return pl, loss, par
 end
 
+# ╔═╡ 4dde6bc4-0316-4ea3-82dd-5d3fda15c16c
+function plot_chromatogram_comparison(pl, meas, comp)
+	gr()
+	p_chrom = Array{Plots.Plot}(undef, length(pl))
+	for i=1:length(pl)
+		p_chrom[i] = plot(xlabel="time in $(meas[6])", legend=false)
+
+		max_ = maximum(GasChromatographySimulator.plot_chromatogram(pl[i], (minimum(pl[i].tR)*0.95, maximum(pl[i].tR)*1.05))[3])*1.05
+
+		min_ = - max_/20
+		
+		GasChromatographySimulator.plot_chromatogram!(p_chrom[i], pl[i], (minimum(pl[i].tR)*0.95, maximum(pl[i].tR)*1.05); annotation=false)
+		xlims!((minimum(pl[i].tR)*0.95, maximum(pl[i].tR)*1.05))
+		ylims!(min_, max_)
+		#add marker for measured retention times
+		for j=1:length(comp[4])
+			plot!(p_chrom[i], comp[3][i,j+1].*ones(2), [min_, max_], c=:orange)
+		end
+		plot!(p_chrom[i], title=comp[3].measurement[i])
+	end
+	
+	return plot(p_chrom..., layout=(length(p_chrom),1), size=(800,length(p_chrom)*200), yaxis=nothing, grid=false)
+end	
+
 # ╔═╡ 505f722f-5429-4282-a1c9-d41fc3284c11
 function flagged_loss(meas, df, index_flag)
 	if meas[6] == "min"
@@ -433,32 +423,15 @@ function check_measurement(meas; min_th=0.1, loss_th=1.0)
 		end
 		df_flag = DataFrame(measurement=flag_meas, solute=flag_sub, tRmeas=tRmeas_, tRcalc=tRcalc_)
 	end
-	return check, msg, df_flag, df, Telu_max
+	return check, msg, df_flag, index_flag, df, Telu_max
 end
 
 # ╔═╡ 3b40b0b1-7007-48c7-b47b-dbeaf501b73d
 begin
-	std_opt = RetentionParameterEstimator.std_opt
-	if select_mode == "test"
-		check, msg, df_flag, res, Telu_max = check_measurement(meas_select; min_th=0.1, loss_th=1.0)
-		md"""
-		## Results
-		
-		$(check)
-
-		$(msg)
-
-		$(df_flag)
-		
-		!!! Hint
-		
-		Check for the plausibility of measurements, if a solute is listed there, all retention times for all used measurements should be checked, not only the listed flagged ones. An error in one retention time, e.g. transposed digits or typo, could produce deviations from the model in other (correct) measurements
-		-> Only list the name of the substance, not the measurements.
-
-		$(res)
-		"""
-	elseif select_mode == "m1"
-		res, Telu_max = method_m1(meas_select, col_input)
+	min_th = 0.1
+	loss_th = 1.0
+	if select_mode == "m1"
+		check, msg, df_flag, index_flag, res, Telu_max = check_measurement(meas_select; min_th=min_th, loss_th=loss_th)
 		md"""
 		## Results
 
@@ -475,6 +448,27 @@ begin
 		
 		L/d ratio: $(meas_select[1].L./(res.d[1] ± res.d_std[1]))
 		
+		$(res)
+		"""
+	end
+end
+
+# ╔═╡ 8cc151a6-a60a-4aba-a813-1a142a073948
+begin
+	if check == false
+		md"""
+		## Results
+		
+		!!! warning
+		
+		$(msg)
+
+		The found minima for solutes $(meas[4][index_flag]) is above the threshold $(min_th) s².
+
+		$(df_flag)
+		
+		Check for the plausibility of measurements, if a solute is listed there, all retention times for all used measurements should be checked, not only the listed flagged ones. An error in one retention time, e.g. typo, could produce deviations from the model in other (correct) measurements.
+
 		$(res)
 		"""
 	end
@@ -505,11 +499,21 @@ $(DownloadButton(io.data, result_filename))
 begin
 	comp_select = filter_selected_measurements(comp, selected_comparison, selected_solutes)
 	pl, loss, par = comparison(res, meas_select, comp_select)
-	df_loss = DataFrame(comp=selected_comparison, loss=loss, sqrt_loss=sqrt.(loss))
+	meanΔtR = Array{Float64}(undef, length(pl))
+	meanrelΔtR = Array{Float64}(undef, length(pl))
+	for i=1:length(pl)
+		meanΔtR[i] = mean(abs.(pl[i].ΔtR))
+		meanrelΔtR[i] = mean(abs.(pl[i].relΔtR))
+	end
+	df_loss = DataFrame(comp=selected_comparison, loss=loss, sqrt_loss=sqrt.(loss), mean_ΔtR=meanΔtR, mean_relΔtR_percent=meanrelΔtR.*100.0)
 end
 
 # ╔═╡ 157f24e6-1664-41c8-9079-b9dd0a2c98a9
-pl
+md"""
+Peaklists of the simulated verification programs, including difference to measured retention times.
+
+$(embed_display(pl))
+"""
 
 # ╔═╡ ddadd79d-7b74-4b2c-ad59-a31a5692cf3b
 plot_chromatogram_comparison(pl, meas_select, comp_select)
@@ -2601,45 +2605,42 @@ version = "1.4.1+0"
 
 # ╔═╡ Cell order:
 # ╠═09422105-a747-40ac-9666-591326850d8f
-# ╠═eb5fc23c-2151-47fa-b56c-5771a4f8b9c5
-# ╠═6d4ec54b-01b2-4208-9b9e-fcb70d236c3e
-# ╠═ebc2a807-4413-4721-930a-6328ae72a1a9
-# ╠═3ac77a9e-e23c-424a-acc2-d24c4d76ee5e
-# ╠═51a22a15-24f9-4280-9c91-32e48727003a
-# ╠═eb14e619-82d4-49ac-ab2a-28e56230dbc6
-# ╠═d745c22b-1c96-4a96-83da-abb1df91ab87
-# ╠═b2c254a2-a5d6-4f18-803a-75d048fc7cdf
-# ╠═b41c6bc0-5134-4eee-8846-dc065224af55
-# ╠═f3ffd4ce-a378-4033-88e9-bc1fb8cc4bbe
-# ╠═e98f4b1b-e577-40d0-a7d8-71c53d99ee1b
-# ╠═3b40b0b1-7007-48c7-b47b-dbeaf501b73d
-# ╠═0aa4adbe-3b2e-4970-93a7-a298e910b1cb
-# ╠═b86b3a41-56f0-460f-acba-9d027e1f2336
+# ╟─eb5fc23c-2151-47fa-b56c-5771a4f8b9c5
+# ╟─6d4ec54b-01b2-4208-9b9e-fcb70d236c3e
+# ╟─ebc2a807-4413-4721-930a-6328ae72a1a9
+# ╟─51a22a15-24f9-4280-9c91-32e48727003a
+# ╟─eb14e619-82d4-49ac-ab2a-28e56230dbc6
+# ╟─d745c22b-1c96-4a96-83da-abb1df91ab87
+# ╟─b2c254a2-a5d6-4f18-803a-75d048fc7cdf
+# ╟─f3ffd4ce-a378-4033-88e9-bc1fb8cc4bbe
+# ╟─e98f4b1b-e577-40d0-a7d8-71c53d99ee1b
+# ╟─3b40b0b1-7007-48c7-b47b-dbeaf501b73d
+# ╟─8cc151a6-a60a-4aba-a813-1a142a073948
 # ╟─0f4c35c4-32f7-4d11-874d-1f23daad7da8
 # ╟─b4f17579-9994-46e1-a3d0-6030650f0dbe
-# ╠═0d61fd05-c0c6-4764-9f96-3b867a456ad3
-# ╠═38d1e196-f375-48ac-bc11-80b10472c1cd
+# ╟─0d61fd05-c0c6-4764-9f96-3b867a456ad3
+# ╟─38d1e196-f375-48ac-bc11-80b10472c1cd
 # ╟─762c877d-3f41-49de-a7ea-0eef1456ac11
 # ╟─07a7e45a-d73e-4a83-9323-700d3e2a88cc
 # ╟─ae424251-f4f7-48aa-a72b-3be85a193705
-# ╠═9e9c20cc-c601-4f5f-afef-512b8dd18fad
-# ╠═116ccf37-4a18-44ac-ae6e-98932901a8b0
-# ╠═157f24e6-1664-41c8-9079-b9dd0a2c98a9
-# ╠═ddadd79d-7b74-4b2c-ad59-a31a5692cf3b
-# ╠═4dde6bc4-0316-4ea3-82dd-5d3fda15c16c
-# ╠═f83b26e7-f16d-49ac-ab3b-230533ac9c82
-# ╠═62c014d5-5e57-49d7-98f8-dace2f1aaa32
-# ╠═6187b9a9-83e4-49e0-be6f-8aea1a09da7c
-# ╠═5123aa1b-b899-4dd6-8909-6be3b82a80d0
-# ╠═903d12f1-6d6f-4a71-8095-7457cffcafc4
-# ╠═a41148bc-03b0-4bd1-b76a-7406aab63f48
-# ╠═347c53d6-9c94-47de-814a-aef43fa5aae2
+# ╟─116ccf37-4a18-44ac-ae6e-98932901a8b0
+# ╟─157f24e6-1664-41c8-9079-b9dd0a2c98a9
+# ╟─ddadd79d-7b74-4b2c-ad59-a31a5692cf3b
+# ╟─f83b26e7-f16d-49ac-ab3b-230533ac9c82
+# ╟─62c014d5-5e57-49d7-98f8-dace2f1aaa32
+# ╟─5123aa1b-b899-4dd6-8909-6be3b82a80d0
+# ╟─903d12f1-6d6f-4a71-8095-7457cffcafc4
+# ╟─a41148bc-03b0-4bd1-b76a-7406aab63f48
 # ╟─66287dfc-fe77-4fa8-8892-79d2d3de6cb3
-# ╠═b4fc2f6e-4500-45da-852e-59fb084e365a
-# ╠═c0f0b955-6791-401f-8252-745332c4210f
+# ╟─b4fc2f6e-4500-45da-852e-59fb084e365a
+# ╟─c0f0b955-6791-401f-8252-745332c4210f
 # ╟─9178967d-26dc-43be-b6e4-f35bbd0b0b04
+# ╠═3ac77a9e-e23c-424a-acc2-d24c4d76ee5e
+# ╠═0aa4adbe-3b2e-4970-93a7-a298e910b1cb
+# ╠═b86b3a41-56f0-460f-acba-9d027e1f2336
 # ╠═46fab3fe-cf88-4cbf-b1cc-a232bb7520db
 # ╠═06d5dd5a-6883-4b62-8942-dc19e7b08e4d
+# ╠═4dde6bc4-0316-4ea3-82dd-5d3fda15c16c
 # ╠═505f722f-5429-4282-a1c9-d41fc3284c11
 # ╠═72312748-de7d-4b15-8ef8-ea7165d19640
 # ╠═3b03f424-57a4-45c6-9838-5b7635e1278a

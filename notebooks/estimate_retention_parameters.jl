@@ -441,6 +441,7 @@ begin
 		"""
 	elseif select_mode == "m2"
 		res, Telu_max = method_m2(meas)
+		check = true
 		md"""
 		## Results
 

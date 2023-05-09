@@ -66,7 +66,8 @@ You can contribute (e.g. fix bugs, add new features, add to the documentation) t
 
 ## Citation
 
-@article{leppert_estimation_2023,
+```
+@article{Leppert2023,
   author = {Leppert, Jan and Brehmer, Tillman and Wüst, Matthias and Boeker, Peter},
 	title = {Estimation of retention parameters from temperature programmed gas chromatography},
   journal = {Journal of Chromatography A},
@@ -77,3 +78,4 @@ You can contribute (e.g. fix bugs, add new features, add to the documentation) t
   issn = {00219673},
 	doi = {10.1016/j.chroma.2023.464008},
 }
+```

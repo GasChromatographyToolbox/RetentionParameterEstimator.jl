@@ -21,6 +21,9 @@ begin
 	TableOfContents()
 end
 
+# ╔═╡ 7aec25c0-ef65-424b-ac0b-03b9b389ebff
+using ForwardDiff
+
 # ╔═╡ eb5fc23c-2151-47fa-b56c-5771a4f8b9c5
 html"""
 <style>
@@ -219,38 +222,71 @@ begin
 end
 
 
+# ╔═╡ 0155b15e-f18d-4b4c-89c4-93856a85dadb
+function stderror(meas, res)
+	
+	
+	sdTchar = Array{Float64}(undef, size(res)[1])
+	sdθchar = Array{Float64}(undef, size(res)[1])
+	sdΔCp = Array{Float64}(undef, size(res)[1])
+	Hessian = Array{Any}(undef, size(res)[1])
+	for i=1:size(res)[1]
+		# the loss-function used in the optimization
+		p = [meas[3][!,i+1].*60.0, meas[1].L, meas[1].d, meas[2], RetentionParameterEstimator.std_opt, meas[1].gas, "squared"]
+		LF(x) = RetentionParameterEstimator.opt_Kcentric(x, p)
+		# the hessian matrix of the loss-function, calculated with ForwardDiff.jl
+		H(x) = ForwardDiff.hessian(LF, x)
+		# the hessian matrix at the found optima
+		Hessian[i] = H([res.Tchar[i], res.θchar[i], res.ΔCp[i]])
+		# the calculated standard errors of the parameters
+		sdTchar[i] = sqrt.(abs.(inv(Hessian[i])))[1,1]
+		sdθchar[i] = sqrt.(abs.(inv(Hessian[i])))[2,2]
+		sdΔCp[i] = sqrt.(abs.(inv(Hessian[i])))[3,3]
+	end
+	stderrors = DataFrame(Name=res.Name, sd_Tchar=sdTchar, sd_θchar=sdθchar, sd_ΔCp=sdΔCp)
+	return stderrors, Hessian
+end
+
 # ╔═╡ 0aa4adbe-3b2e-4970-93a7-a298e910b1cb
 function method_m1(meas, col_input)
-	
+	# definition of the column
 	col = GasChromatographySimulator.Column(col_input.L, col_input.d*1e-3, meas[1].df, meas[1].sp, meas[1].gas)
-	
+	# calculate start parameters	
 	Tchar_est, θchar_est, ΔCp_est, Telu_max = RetentionParameterEstimator.estimate_start_parameter(meas[3], col, meas[2]; time_unit=meas[6])
-	
+	# optimize every solute separatly for the 3 remaining parameters `Tchar`, `θchar`, `ΔCp`
 	res = RetentionParameterEstimator.estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6])[1]
-
-	return res, Telu_max
+	# calculate the standard errors of the 3 parameters using the hessian matrix
+	stderrors, hessian = stderror(meas, res)
+	# output dataframe
+	#res_ = DataFrame(Name=res.Name, min=res.min, Tchar=res.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res.ΔCp, ΔCp_std=stderrors.sd_ΔCp, d=res.d, d_std=res.d_std)
+	res_ = DataFrame(Name=res.Name, min=res.min, Tchar=res.Tchar.±stderrors.sd_Tchar, θchar=res.θchar.±stderrors.sd_θchar, ΔCp=res.ΔCp.±stderrors.sd_ΔCp)
+	return res_, Telu_max
 end
 
 # ╔═╡ b86b3a41-56f0-460f-acba-9d027e1f2336
 function method_m2(meas)
-	
+	# retention times, use only the solutes, which have non-missing retention time entrys
 	tRs = meas[3][!,findall((collect(any(ismissing, c) for c in eachcol(meas[3]))).==false)]
-	
+	# solute names, use only the solutes, which have non-missing retention time entrys
 	solute_names = meas[4][findall((collect(any(ismissing, c) for c in eachcol(meas[3]))).==false)[2:end].-1]
-		
+	# calculate start parameters	
 	Tchar_est, θchar_est, ΔCp_est, Telu_max = RetentionParameterEstimator.estimate_start_parameter(tRs, meas[1], meas[2]; time_unit=meas[6])
-		
+	# optimize every solute separatly for the 4 parameters `Tchar`, `θchar`, `ΔCp` and `d`	
 	res_dKcentric_single = RetentionParameterEstimator.estimate_parameters(tRs, solute_names, meas[1], meas[2], Tchar_est, θchar_est, ΔCp_est; pout=meas[5], time_unit=meas[6], mode="dKcentric_single")[1]
-
+	# define a new column with the mean value of the estimated `d` over all solutes
 	new_col = GasChromatographySimulator.Column(meas[1].L, mean(res_dKcentric_single.d), meas[1].df, meas[1].sp, meas[1].gas)
-	
+	# optimize every solute separatly for the 3 remaining parameters `Tchar`, `θchar`, `ΔCp`
 	res = RetentionParameterEstimator.estimate_parameters(tRs, solute_names, new_col, meas[2], res_dKcentric_single.Tchar, res_dKcentric_single.θchar, res_dKcentric_single.ΔCp; pout=meas[5], time_unit=meas[6], mode="Kcentric_single")[1]
 
 	res[!, :d] = mean(res_dKcentric_single.d).*ones(length(res.Name))
 	
 	res[!, :d_std] = std(res_dKcentric_single.d).*ones(length(res.Name))
-
-	return res, Telu_max
+	# calculate the standard errors of the 3 parameters using the hessian matrix
+	stderrors, hessian = stderror(meas, res)
+	# output dataframe
+	#res_ = DataFrame(Name=res.Name, min=res.min, Tchar=res.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res.ΔCp, ΔCp_std=stderrors.sd_ΔCp, d=res.d, d_std=res.d_std)
+	res_ = DataFrame(Name=res.Name, min=res.min, Tchar=res.Tchar.±stderrors.sd_Tchar, θchar=res.θchar.±stderrors.sd_θchar, ΔCp=res.ΔCp.±stderrors.sd_ΔCp, d=res.d.±res.d_std)
+	return res_, Telu_max
 end
 
 # ╔═╡ 46fab3fe-cf88-4cbf-b1cc-a232bb7520db
@@ -305,7 +341,7 @@ function comparison(res, meas, comp)
 		ii = findfirst(meas[4][i].==res.Name)
 		Cag = GasChromatographySimulator.diffusivity(CAS, comp[1].gas)
 		if "θchar" in names(res) 
-			sub[i] = GasChromatographySimulator.Substance(res.Name[ii], CAS, res.Tchar[ii], res.θchar[ii], res.ΔCp[ii], comp[1].df/comp[1].d, "", Cag, 0.0, 0.0)
+			sub[i] = GasChromatographySimulator.Substance(res.Name[ii], CAS, Measurements.value(res.Tchar[ii]), Measurements.value(res.θchar[ii]), Measurements.value(res.ΔCp[ii]), comp[1].df/comp[1].d, "", Cag, 0.0, 0.0)
 		else
 			sub[i] = GasChromatographySimulator.Substance(res.Name[ii], CAS, res.Tchar[ii]+273.15, res.thetachar[ii], res.DeltaCp[ii], comp[1].df/comp[1].d, "", Cag, 0.0, 0.0)
 		end
@@ -323,7 +359,7 @@ function comparison(res, meas, comp)
 	for i=1:length(comp[3].measurement)
 		#ii = findfirst(solute_names[i].==solute_names_compare)
 		if "d" in names(res)
-			d = mean(res.d) # if d was estimate use the mean value
+			d = mean(Measurements.value.(res.d)) # if d was estimate use the mean value
 		elseif @isdefined col_input
 			d = col_input.d/1000.0
 		else
@@ -423,7 +459,12 @@ function check_measurement(meas; min_th=0.1, loss_th=1.0)
 		end
 		df_flag = DataFrame(measurement=flag_meas, solute=flag_sub, tRmeas=tRmeas_, tRcalc=tRcalc_)
 	end
-	return check, msg, df_flag, index_flag, df, Telu_max
+	# calculate the standard errors of the 3 parameters using the hessian matrix
+	stderrors, hessian = stderror(meas, df)
+	# output dataframe
+	#df_ = DataFrame(Name=df.Name, min=df.min, Tchar=df.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=df.θchar, θchar_std=stderrors.sd_θchar, ΔCp=df.ΔCp, ΔCp_std=stderrors.sd_ΔCp)
+	df_ = DataFrame(Name=df.Name, min=df.min, Tchar=df.Tchar.±stderrors.sd_Tchar, θchar=df.θchar.±stderrors.sd_θchar, ΔCp=df.ΔCp.±stderrors.sd_ΔCp)
+	return check, msg, df_flag, index_flag, df_, Telu_max
 end
 
 # ╔═╡ 3b40b0b1-7007-48c7-b47b-dbeaf501b73d
@@ -445,14 +486,15 @@ begin
 		md"""
 		## Results
 
-		d = $(1000.0 * (res.d[1] ± res.d_std[1])) mm
+		d = $(1000.0 * res.d[1]) mm
 		
-		L/d ratio: $(meas_select[1].L./(res.d[1] ± res.d_std[1]))
+		L/d ratio: $(meas_select[1].L./(res.d[1]))
 		
 		$(res)
 		"""
 	end
 end
+# d = $(1000.0 * (res.d[1] ± res.d_std[1])) mm
 
 # ╔═╡ 8cc151a6-a60a-4aba-a813-1a142a073948
 begin
@@ -572,9 +614,9 @@ function difference_estimation_to_alternative_data(res, db)
 	for i=1:length(res.Name)
 		ii = findfirst(GasChromatographySimulator.CAS_identification([res.Name[i]]).CAS[1].==db.CAS)
 		if !isnothing(ii)
-			ΔTchar[i] = res.Tchar[i] - (db.Tchar[ii] + 273.15) 
-			Δθchar[i] = res.θchar[i] - db.thetachar[ii]
-			ΔΔCp[i] = res.ΔCp[i] - db.DeltaCp[ii]
+			ΔTchar[i] = Measurements.value(res.Tchar[i]) - (db.Tchar[ii] + 273.15) 
+			Δθchar[i] = Measurements.value(res.θchar[i]) - db.thetachar[ii]
+			ΔΔCp[i] = Measurements.value(res.ΔCp[i]) - db.DeltaCp[ii]
 			relΔTchar[i] = ΔTchar[i]/(db.Tchar[ii] + 273.15)
 			relΔθchar[i] = Δθchar[i]/db.thetachar[ii]
 			relΔΔCp[i] = ΔΔCp[i]/db.DeltaCp[ii]
@@ -634,7 +676,7 @@ begin
 		end
 	end
 	res_f = filter([:Name] => x -> x == select_solute, res)
-	lnk(T) = (res_f.ΔCp[1]/8.31446261815324 + res_f.Tchar[1]/res_f.θchar[1])*(res_f.Tchar[1]/(T+273.15)-1) + res_f.ΔCp[1]/8.31446261815324*log((T+273.15)/res_f.Tchar[1])
+	lnk(T) = (Measurements.value.(res_f.ΔCp[1])/8.31446261815324 + Measurements.value.(res_f.Tchar[1])/Measurements.value.(res_f.θchar[1]))*(Measurements.value.(res_f.Tchar[1])/(T+273.15)-1) + Measurements.value.(res_f.ΔCp[1])/8.31446261815324*log((T+273.15)/Measurements.value.(res_f.Tchar[1]))
 	
 	plot_lnk!(p_lnk_, lnk, Tmin(meas)*0.925, (Telu_max[findfirst(select_solute.==meas[4])]-273.15)*1.025, lbl=select_mode)
 	add_min_max_marker!(p_lnk_, Tmin(meas), Telu_max[findfirst(select_solute.==meas[4])]-273.15, lnk)
@@ -646,6 +688,7 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 GasChromatographySimulator = "dd82b6e2-56ef-419d-b271-0be268cb65f5"
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
@@ -660,6 +703,7 @@ UrlDownload = "856ac37a-3032-4c1c-9122-f86d88358c8b"
 [compat]
 CSV = "~0.10.9"
 DataFrames = "~1.5.0"
+ForwardDiff = "~0.10.35"
 GasChromatographySimulator = "~0.3.18"
 LaTeXStrings = "~1.3.0"
 Measurements = "~2.8.0"
@@ -677,7 +721,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.2"
 manifest_format = "2.0"
-project_hash = "eccc17d12aa790757137726c96cac1f70ab2a6ea"
+project_hash = "bd5975ae80908a32ff10f342d4e0b794b2955333"
 
 [[deps.AbstractFFTs]]
 deps = ["ChainRulesCore", "LinearAlgebra"]
@@ -2606,6 +2650,7 @@ version = "1.4.1+0"
 
 # ╔═╡ Cell order:
 # ╠═09422105-a747-40ac-9666-591326850d8f
+# ╠═7aec25c0-ef65-424b-ac0b-03b9b389ebff
 # ╟─eb5fc23c-2151-47fa-b56c-5771a4f8b9c5
 # ╟─6d4ec54b-01b2-4208-9b9e-fcb70d236c3e
 # ╟─ebc2a807-4413-4721-930a-6328ae72a1a9
@@ -2639,6 +2684,7 @@ version = "1.4.1+0"
 # ╠═3ac77a9e-e23c-424a-acc2-d24c4d76ee5e
 # ╠═0aa4adbe-3b2e-4970-93a7-a298e910b1cb
 # ╠═b86b3a41-56f0-460f-acba-9d027e1f2336
+# ╠═0155b15e-f18d-4b4c-89c4-93856a85dadb
 # ╠═46fab3fe-cf88-4cbf-b1cc-a232bb7520db
 # ╠═06d5dd5a-6883-4b62-8942-dc19e7b08e4d
 # ╠═4dde6bc4-0316-4ea3-82dd-5d3fda15c16c

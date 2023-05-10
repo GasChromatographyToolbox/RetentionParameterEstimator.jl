@@ -1,8 +1,12 @@
 # RetentionParameterEstimator.jl
 
+[![DOI]](https://doi.org/10.1016/j.chroma.2023.464008)
 [![DOI](https://zenodo.org/badge/550339258.svg)](https://zenodo.org/badge/latestdoi/550339258)
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://JanLeppert.github.io/RetentionParameterEstimator.jl/stable)
 [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://JanLeppert.github.io/RetentionParameterEstimator.jl/dev)
+[![CI](https://github.com/JanLeppert/RetentionParameterEstimator.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/JanLeppert/RetentionParameterEstimator.jl/actions/workflows/ci.yml)
+[![codecov.io](http://codecov.io/github/JanLeppert/RetentionParameterEstimator.jl/coverage.svg?branch=main)](http://codecov.io/github/JanLeppert/RetentionParameterEstimator.jl?branch=main)
+
 
 Estimation of retention parameters for the interaction of analytes with a stationary phase in Gas Chromatography (GC).
 

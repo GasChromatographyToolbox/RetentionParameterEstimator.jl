@@ -1,6 +1,6 @@
 # RetentionParameterEstimator.jl
 
-[![DOI:10.1016/j.chroma.2023.464008](http://img.shields.io/badge/DOI-10.1016/j.chroma.2023.464008-B31B1B.svg)](https://doi.org/10.1016/j.chroma.2023.464008))
+[![DOI:10.1016/j.chroma.2023.464008](http://img.shields.io/badge/DOI-10.1016/j.chroma.2023.464008-B31B1B.svg)](https://doi.org/10.1016/j.chroma.2023.464008)
 [![DOI](https://zenodo.org/badge/550339258.svg)](https://zenodo.org/badge/latestdoi/550339258)
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://JanLeppert.github.io/RetentionParameterEstimator.jl/stable)
 [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://JanLeppert.github.io/RetentionParameterEstimator.jl/dev)

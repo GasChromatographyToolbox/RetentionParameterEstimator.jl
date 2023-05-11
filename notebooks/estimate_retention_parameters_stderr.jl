@@ -481,7 +481,7 @@ begin
 		$(res)
 		"""
 	elseif select_mode == "m2"
-		res, Telu_max = method_m2(meas)
+		res, Telu_max = method_m2(meas_select)
 		check = true
 		md"""
 		## Results

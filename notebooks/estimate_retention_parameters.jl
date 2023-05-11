@@ -440,7 +440,7 @@ begin
 		$(res)
 		"""
 	elseif select_mode == "m2"
-		res, Telu_max = method_m2(meas)
+		res, Telu_max = method_m2(meas_select)
 		check = true
 		md"""
 		## Results
@@ -2615,7 +2615,7 @@ version = "1.4.1+0"
 # ╟─b2c254a2-a5d6-4f18-803a-75d048fc7cdf
 # ╟─f3ffd4ce-a378-4033-88e9-bc1fb8cc4bbe
 # ╟─e98f4b1b-e577-40d0-a7d8-71c53d99ee1b
-# ╟─3b40b0b1-7007-48c7-b47b-dbeaf501b73d
+# ╠═3b40b0b1-7007-48c7-b47b-dbeaf501b73d
 # ╟─8cc151a6-a60a-4aba-a813-1a142a073948
 # ╟─0f4c35c4-32f7-4d11-874d-1f23daad7da8
 # ╟─b4f17579-9994-46e1-a3d0-6030650f0dbe

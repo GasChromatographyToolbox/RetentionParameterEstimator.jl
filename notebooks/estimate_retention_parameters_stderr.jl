@@ -298,7 +298,11 @@ function filter_selected_measurements(meas, selected_measurements, selected_solu
 	end
 	index_solutes = Array{Int}(undef, length(selected_solutes))
 	for i=1:length(selected_solutes)
-		index_solutes[i] = findfirst(selected_solutes[i].==names(meas[3]))
+		if isnothing(findfirst(selected_solutes[i].==names(meas[3])))
+			error("The names of selected analytes are different from the measurement file.")
+		else
+			index_solutes[i] = findfirst(selected_solutes[i].==names(meas[3]))
+		end
 	end
 	meas_select = (meas[1], meas[2][index_measurements], meas[3][index_measurements, [1; index_solutes]], selected_solutes, meas[5], meas[6])
 	return meas_select
@@ -329,8 +333,76 @@ if select_mode == "m1"
 	)
 end	
 
-# ╔═╡ 06d5dd5a-6883-4b62-8942-dc19e7b08e4d
+# ╔═╡ ceb3afab-acec-46d1-8a9c-ab07dbb00449
+# test
 function comparison(res, meas, comp)
+	opt = GasChromatographySimulator.Options(ng=true, odesys=false)
+	#CAS_comp = GasChromatographySimulator.CAS_identification(comp[4]).CAS
+	#CAS_meas = GasChromatographySimulator.CAS_identification(meas[4]).CAS
+	i_sub = findall(x->x in meas[4], comp[4]) # indices of common elements of CAS_comp in CAS_meas (indeices relative to CAS_meas)
+	sub = Array{GasChromatographySimulator.Substance}(undef, length(i_sub))
+	for i in i_sub
+		CAS = GasChromatographySimulator.CAS_identification([meas[4][i]]).CAS[1]
+		ii = findfirst(meas[4][i].==res.Name)
+		if ismissing(CAS)
+			Cag = GasChromatographySimulator.diffusivity("629-62-9", comp[1].gas) # use C15 value
+		else
+			Cag = GasChromatographySimulator.diffusivity(CAS, comp[1].gas)
+		end
+		if "θchar" in names(res) 
+			sub[i] = GasChromatographySimulator.Substance(res.Name[ii], CAS, Measurements.value(res.Tchar[ii]), Measurements.value(res.θchar[ii]), Measurements.value(res.ΔCp[ii]), comp[1].df/comp[1].d, "", Cag, 0.0, 0.0)
+		else
+			sub[i] = GasChromatographySimulator.Substance(res.Name[ii], CAS, res.Tchar[ii]+273.15, res.thetachar[ii], res.DeltaCp[ii], comp[1].df/comp[1].d, "", Cag, 0.0, 0.0)
+		end
+		# this is for phase ratio as set in comp
+	end
+	if comp[6] == "min"
+		a = 60.0
+	else
+		a = 1.0
+	end
+
+	par = Array{GasChromatographySimulator.Parameters}(undef, length(comp[3].measurement))
+	pl = Array{DataFrame}(undef, length(comp[3].measurement))
+	loss = Array{Float64}(undef, length(comp[3].measurement))
+	for i=1:length(comp[3].measurement)
+		#ii = findfirst(solute_names[i].==solute_names_compare)
+		if "d" in names(res)
+			d = mean(Measurements.value.(res.d)) # if d was estimate use the mean value
+		elseif @isdefined col_input
+			d = col_input.d/1000.0
+		else
+			d = comp[1].d
+		end
+		col = GasChromatographySimulator.Column(comp[1].L, d, comp[1].df/comp[1].d*d, comp[1].sp, comp[1].gas)
+		par[i] = GasChromatographySimulator.Parameters(col, comp[2][i], sub, opt)
+		try
+			pl[i] = GasChromatographySimulator.simulate(par[i])[1]
+			
+		catch
+			pl[i] = DataFrame(Name=comp[4], tR=NaN.*ones(length(comp[4])), τR=NaN.*ones(length(comp[4])))
+		end
+		#CAS = GasChromatographySimulator.CAS_identification(string.(result[j].Name)).CAS
+		ΔtR = Array{Float64}(undef, length(comp[4]))
+		relΔtR = Array{Float64}(undef, length(comp[4]))
+		for k=1:length(comp[4])
+			kk = findfirst(pl[i].Name[k].==comp[4])
+			tR_compare = Array(comp[3][i, 2:(length(comp[4])+1)]).*a
+			ΔtR[k] = pl[i].tR[k] - tR_compare[kk]
+			relΔtR[k] = (pl[i].tR[k] - tR_compare[kk])/tR_compare[kk]		
+		end
+		pl[i][!, :tR] = pl[i].tR./a
+		pl[i][!, :τR] = pl[i].τR./a
+		pl[i][!, :ΔtR] = ΔtR./a
+		pl[i][!, :relΔtR] = relΔtR
+		loss[i] = sum(ΔtR.^2)/length(ΔtR)
+	end
+	return pl, loss, par
+end
+
+# ╔═╡ 06d5dd5a-6883-4b62-8942-dc19e7b08e4d
+# old
+function _comparison(res, meas, comp)
 	opt = GasChromatographySimulator.Options(ng=true, odesys=false)
 	CAS_comp = GasChromatographySimulator.CAS_identification(comp[4]).CAS
 	CAS_meas = GasChromatographySimulator.CAS_identification(meas[4]).CAS
@@ -701,16 +773,16 @@ StatsPlots = "f3b207a7-027a-5e70-b257-86293d7955fd"
 UrlDownload = "856ac37a-3032-4c1c-9122-f86d88358c8b"
 
 [compat]
-CSV = "~0.10.9"
+CSV = "~0.10.10"
 DataFrames = "~1.5.0"
 ForwardDiff = "~0.10.35"
-GasChromatographySimulator = "~0.3.18"
+GasChromatographySimulator = "~0.3.19"
 LaTeXStrings = "~1.3.0"
 Measurements = "~2.9.0"
 OptimizationOptimJL = "~0.1.8"
 Plots = "~1.38.11"
 PlutoUI = "~0.7.51"
-RetentionParameterEstimator = "~0.1.1"
+RetentionParameterEstimator = "~0.1.2"
 StatsPlots = "~0.15.5"
 UrlDownload = "~1.0.1"
 """
@@ -742,9 +814,9 @@ version = "0.4.4"
 
 [[deps.Adapt]]
 deps = ["LinearAlgebra", "Requires"]
-git-tree-sha1 = "cc37d689f599e8df4f464b2fa3870ff7db7492ef"
+git-tree-sha1 = "76289dc51920fdc6e0013c872ba9551d54961c24"
 uuid = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
-version = "3.6.1"
+version = "3.6.2"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -856,10 +928,10 @@ uuid = "a9c8d775-2e2e-55fc-8582-045d282d599e"
 version = "1.0.0"
 
 [[deps.CSV]]
-deps = ["CodecZlib", "Dates", "FilePathsBase", "InlineStrings", "Mmap", "Parsers", "PooledArrays", "SentinelArrays", "SnoopPrecompile", "Tables", "Unicode", "WeakRefStrings", "WorkerUtilities"]
-git-tree-sha1 = "c700cce799b51c9045473de751e9319bdd1c6e94"
+deps = ["CodecZlib", "Dates", "FilePathsBase", "InlineStrings", "Mmap", "Parsers", "PooledArrays", "PrecompileTools", "SentinelArrays", "Tables", "Unicode", "WeakRefStrings", "WorkerUtilities"]
+git-tree-sha1 = "ed28c86cbde3dc3f53cf76643c2e9bc11d56acc7"
 uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
-version = "0.10.9"
+version = "0.10.10"
 
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Pkg", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
@@ -974,9 +1046,9 @@ version = "0.5.2+0"
 
 [[deps.ConcurrentUtilities]]
 deps = ["Serialization", "Sockets"]
-git-tree-sha1 = "b306df2650947e9eb100ec125ff8c65ca2053d30"
+git-tree-sha1 = "96d823b94ba8d187a6d8f0826e731195a74b90e9"
 uuid = "f0e56b4a-5159-44fe-b623-3e5288b988bb"
-version = "2.1.1"
+version = "2.2.0"
 
 [[deps.ConsoleProgressMonitor]]
 deps = ["Logging", "ProgressMeter"]
@@ -1071,10 +1143,10 @@ deps = ["Random", "Serialization", "Sockets"]
 uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
 [[deps.Distributions]]
-deps = ["ChainRulesCore", "DensityInterface", "FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SparseArrays", "SpecialFunctions", "Statistics", "StatsBase", "StatsFuns", "Test"]
-git-tree-sha1 = "c2614fa3aafe03d1a44b8e16508d9be718b8095a"
+deps = ["ChainRulesCore", "DensityInterface", "FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SparseArrays", "SpecialFunctions", "Statistics", "StatsAPI", "StatsBase", "StatsFuns", "Test"]
+git-tree-sha1 = "eead66061583b6807652281c0fbf291d7a9dc497"
 uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
-version = "0.25.89"
+version = "0.25.90"
 
 [[deps.DocStringExtensions]]
 deps = ["LibGit2"]
@@ -1284,9 +1356,9 @@ version = "0.72.4+0"
 
 [[deps.GasChromatographySimulator]]
 deps = ["CSV", "ChemicalIdentifiers", "DataFrames", "ForwardDiff", "HypertextLiteral", "Integrals", "Interpolations", "OrdinaryDiffEq", "Plots", "PlutoUI", "Reexport", "UrlDownload"]
-git-tree-sha1 = "c5f29eed59582292bb5c46b3316b3060bafabb91"
+git-tree-sha1 = "2e402f31b726fddb4ef133c6f9609d93f13fc1a9"
 uuid = "dd82b6e2-56ef-419d-b271-0be268cb65f5"
-version = "0.3.18"
+version = "0.3.19"
 
 [[deps.GenericSchur]]
 deps = ["LinearAlgebra", "Printf"]
@@ -1331,9 +1403,9 @@ version = "1.5.1"
 
 [[deps.HTTP]]
 deps = ["Base64", "CodecZlib", "ConcurrentUtilities", "Dates", "Logging", "LoggingExtras", "MbedTLS", "NetworkOptions", "OpenSSL", "Random", "SimpleBufferStream", "Sockets", "URIs", "UUIDs"]
-git-tree-sha1 = "69182f9a2d6add3736b7a06ab6416aafdeec2196"
+git-tree-sha1 = "877b7bc42729aa2c90bbbf5cb0d4294bd6d42e5a"
 uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
-version = "1.8.0"
+version = "1.9.1"
 
 [[deps.HarfBuzz_jll]]
 deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "Graphite2_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Pkg"]
@@ -1349,9 +1421,9 @@ version = "0.1.14"
 
 [[deps.HypergeometricFunctions]]
 deps = ["DualNumbers", "LinearAlgebra", "OpenLibm_jll", "SpecialFunctions"]
-git-tree-sha1 = "432b5b03176f8182bd6841fbfc42c718506a2d5f"
+git-tree-sha1 = "84204eae2dd237500835990bcade263e27674a93"
 uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
-version = "0.3.15"
+version = "0.3.16"
 
 [[deps.Hyperscript]]
 deps = ["Test"]
@@ -1498,9 +1570,9 @@ version = "3.0.0+1"
 
 [[deps.LLVM]]
 deps = ["CEnum", "LLVMExtra_jll", "Libdl", "Printf", "Unicode"]
-git-tree-sha1 = "a8960cae30b42b66dd41808beb76490519f6f9e2"
+git-tree-sha1 = "26a31cdd9f1f4ea74f649a7bf249703c687a953d"
 uuid = "929cbde3-209d-540e-8aea-75f648917ca0"
-version = "5.0.0"
+version = "5.1.0"
 
 [[deps.LLVMExtra_jll]]
 deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML"]
@@ -1650,9 +1722,9 @@ version = "1.0.0"
 
 [[deps.LoopVectorization]]
 deps = ["ArrayInterface", "ArrayInterfaceCore", "CPUSummary", "ChainRulesCore", "CloseOpenIntervals", "DocStringExtensions", "ForwardDiff", "HostCPUFeatures", "IfElse", "LayoutPointers", "LinearAlgebra", "OffsetArrays", "PolyesterWeave", "PrecompileTools", "SIMDTypes", "SLEEFPirates", "SpecialFunctions", "Static", "StaticArrayInterface", "ThreadingUtilities", "UnPack", "VectorizationBase"]
-git-tree-sha1 = "e7ce3cdc520da8135e73d7cb303e0617a19f582b"
+git-tree-sha1 = "3bb62b5003bc7d2d49f26663484267dc49fa1bf5"
 uuid = "bdcacae8-1622-11e9-2a5c-532679323890"
-version = "0.12.158"
+version = "0.12.159"
 
 [[deps.Lz4_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1906,10 +1978,10 @@ uuid = "d96e819e-fc66-5662-9728-84c9c7592b0a"
 version = "0.12.3"
 
 [[deps.Parsers]]
-deps = ["Dates", "SnoopPrecompile"]
-git-tree-sha1 = "478ac6c952fddd4399e71d4779797c538d0ff2bf"
+deps = ["Dates", "PrecompileTools", "UUIDs"]
+git-tree-sha1 = "7302075e5e06da7d000d9bfa055013e3e85578ca"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "2.5.8"
+version = "2.5.9"
 
 [[deps.Pipe]]
 git-tree-sha1 = "6842804e7867b115ca9de748a0cf6b364523c16d"
@@ -2055,9 +2127,9 @@ version = "0.6.12"
 
 [[deps.RecursiveArrayTools]]
 deps = ["Adapt", "ArrayInterface", "DocStringExtensions", "GPUArraysCore", "IteratorInterfaceExtensions", "LinearAlgebra", "RecipesBase", "Requires", "StaticArraysCore", "Statistics", "SymbolicIndexingInterface", "Tables"]
-git-tree-sha1 = "68078e9fa9130a6a768815c48002d0921a232c11"
+git-tree-sha1 = "02ef02926f30d53b94be443bfaea010c47f6b556"
 uuid = "731186ca-8d62-57ce-b412-fbd966d074cd"
-version = "2.38.4"
+version = "2.38.5"
 
 [[deps.RecursiveFactorization]]
 deps = ["LinearAlgebra", "LoopVectorization", "Polyester", "SnoopPrecompile", "StrideArraysCore", "TriangularSolve"]
@@ -2084,9 +2156,9 @@ version = "1.3.0"
 
 [[deps.RetentionParameterEstimator]]
 deps = ["CSV", "DataFrames", "GasChromatographySimulator", "Interpolations", "Optimization", "OptimizationBBO", "OptimizationCMAEvolutionStrategy", "OptimizationOptimJL", "OptimizationOptimisers", "Statistics"]
-git-tree-sha1 = "4ae659967f31bebf46279e8b59293a9c0bf5b110"
+git-tree-sha1 = "eeb2f955972fe26313aed98166ec65c8621ebc51"
 uuid = "0afdae40-3141-486e-b874-33af99ac38b5"
-version = "0.1.1"
+version = "0.1.2"
 
 [[deps.Rmath]]
 deps = ["Random", "Rmath_jll"]
@@ -2135,9 +2207,9 @@ version = "0.1.6"
 
 [[deps.SciMLOperators]]
 deps = ["ArrayInterface", "DocStringExtensions", "Lazy", "LinearAlgebra", "Setfield", "SparseArrays", "StaticArraysCore", "Tricks"]
-git-tree-sha1 = "5950ad7bec86ba22e4861db61d031625a26a9ec3"
+git-tree-sha1 = "16196c45c17c480d1ab31952ac1481c71b76d171"
 uuid = "c0aeaf25-5076-4817-a8d5-81caf7dfa961"
-version = "0.2.3"
+version = "0.2.5"
 
 [[deps.Scratch]]
 deps = ["Dates"]
@@ -2236,9 +2308,9 @@ version = "2.2.0"
 
 [[deps.Static]]
 deps = ["IfElse"]
-git-tree-sha1 = "08be5ee09a7632c32695d954a602df96a877bf0d"
+git-tree-sha1 = "dbde6766fc677423598138a5951269432b0fcc90"
 uuid = "aedffcd0-7271-4cad-89d0-dc628f76c6d3"
-version = "0.8.6"
+version = "0.8.7"
 
 [[deps.StaticArrayInterface]]
 deps = ["ArrayInterface", "Compat", "IfElse", "LinearAlgebra", "Requires", "SnoopPrecompile", "SparseArrays", "Static", "SuiteSparse"]
@@ -2287,9 +2359,9 @@ version = "0.15.5"
 
 [[deps.StrideArraysCore]]
 deps = ["ArrayInterface", "CloseOpenIntervals", "IfElse", "LayoutPointers", "ManualMemory", "SIMDTypes", "Static", "StaticArrayInterface", "ThreadingUtilities"]
-git-tree-sha1 = "b3e9c174a9df77ed7b66fc0aa605def3351a0653"
+git-tree-sha1 = "5ffcee1813efc849f188dce82ca1553bd5f3a476"
 uuid = "7792a7ef-975c-4747-a70f-980b88e8d1da"
-version = "0.4.13"
+version = "0.4.14"
 
 [[deps.StringManipulation]]
 git-tree-sha1 = "46da2434b41f41ac3594ee9816ce5541c6096123"
@@ -2729,9 +2801,9 @@ version = "1.4.1+0"
 # ╟─762c877d-3f41-49de-a7ea-0eef1456ac11
 # ╟─07a7e45a-d73e-4a83-9323-700d3e2a88cc
 # ╟─ae424251-f4f7-48aa-a72b-3be85a193705
-# ╟─116ccf37-4a18-44ac-ae6e-98932901a8b0
+# ╠═116ccf37-4a18-44ac-ae6e-98932901a8b0
 # ╟─157f24e6-1664-41c8-9079-b9dd0a2c98a9
-# ╟─ddadd79d-7b74-4b2c-ad59-a31a5692cf3b
+# ╠═ddadd79d-7b74-4b2c-ad59-a31a5692cf3b
 # ╟─f83b26e7-f16d-49ac-ab3b-230533ac9c82
 # ╟─62c014d5-5e57-49d7-98f8-dace2f1aaa32
 # ╟─5123aa1b-b899-4dd6-8909-6be3b82a80d0
@@ -2746,6 +2818,7 @@ version = "1.4.1+0"
 # ╠═b86b3a41-56f0-460f-acba-9d027e1f2336
 # ╠═0155b15e-f18d-4b4c-89c4-93856a85dadb
 # ╠═46fab3fe-cf88-4cbf-b1cc-a232bb7520db
+# ╠═ceb3afab-acec-46d1-8a9c-ab07dbb00449
 # ╠═06d5dd5a-6883-4b62-8942-dc19e7b08e4d
 # ╠═4dde6bc4-0316-4ea3-82dd-5d3fda15c16c
 # ╠═505f722f-5429-4282-a1c9-d41fc3284c11

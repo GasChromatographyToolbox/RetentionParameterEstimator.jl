@@ -51,8 +51,9 @@ Load own data: $(@bind own_data CheckBox(default=false))
 md"""
 ## Select mode
 * `m1` ... estimate the three retention parameters (``T_{char}``, ``θ_{char}`` and ``ΔC_p``).
+* `m1a` ... estimate the three retention parameters (``T_{char}``, ``θ_{char}`` and ``ΔC_p``) and select ``L`` and ``d``.
 * `m2` ... estimate the three retention parameters (``T_{char}``, ``θ_{char}`` and ``ΔC_p``) and the column diameter ``d``.
-$(@bind select_mode confirm(Select(["m1", "m2"])))
+$(@bind select_mode confirm(Select(["m1", "m1a", "m2"])))
 """
 
 # ╔═╡ 0d61fd05-c0c6-4764-9f96-3b867a456ad3
@@ -247,6 +248,31 @@ function stderror(meas, res)
 	return stderrors, Hessian
 end
 
+# ╔═╡ 079f5f4e-b5c7-47c7-a5fd-8b6b87d47944
+function stderror(meas, col_input, res)
+	
+	
+	sdTchar = Array{Float64}(undef, size(res)[1])
+	sdθchar = Array{Float64}(undef, size(res)[1])
+	sdΔCp = Array{Float64}(undef, size(res)[1])
+	Hessian = Array{Any}(undef, size(res)[1])
+	for i=1:size(res)[1]
+		# the loss-function used in the optimization
+		p = [meas[3][!,i+1].*60.0, col_input.L, col_input.d, meas[2], RetentionParameterEstimator.std_opt, meas[1].gas, "squared"]
+		LF(x) = RetentionParameterEstimator.opt_Kcentric(x, p)
+		# the hessian matrix of the loss-function, calculated with ForwardDiff.jl
+		H(x) = ForwardDiff.hessian(LF, x)
+		# the hessian matrix at the found optima
+		Hessian[i] = H([res.Tchar[i], res.θchar[i], res.ΔCp[i]])
+		# the calculated standard errors of the parameters
+		sdTchar[i] = sqrt.(abs.(inv(Hessian[i])))[1,1]
+		sdθchar[i] = sqrt.(abs.(inv(Hessian[i])))[2,2]
+		sdΔCp[i] = sqrt.(abs.(inv(Hessian[i])))[3,3]
+	end
+	stderrors = DataFrame(Name=res.Name, sd_Tchar=sdTchar, sd_θchar=sdθchar, sd_ΔCp=sdΔCp)
+	return stderrors, Hessian
+end
+
 # ╔═╡ 0aa4adbe-3b2e-4970-93a7-a298e910b1cb
 function method_m1(meas, col_input)
 	# definition of the column
@@ -256,7 +282,7 @@ function method_m1(meas, col_input)
 	# optimize every solute separatly for the 3 remaining parameters `Tchar`, `θchar`, `ΔCp`
 	res = RetentionParameterEstimator.estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6])[1]
 	# calculate the standard errors of the 3 parameters using the hessian matrix
-	stderrors, hessian = stderror(meas, res)
+	stderrors, hessian = stderror(meas, col_input, res)
 	# output dataframe
 	#res_ = DataFrame(Name=res.Name, min=res.min, Tchar=res.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res.ΔCp, ΔCp_std=stderrors.sd_ΔCp, d=res.d, d_std=res.d_std)
 	res_ = DataFrame(Name=res.Name, min=res.min, Tchar=res.Tchar.±stderrors.sd_Tchar, θchar=res.θchar.±stderrors.sd_θchar, ΔCp=res.ΔCp.±stderrors.sd_ΔCp)
@@ -312,7 +338,7 @@ end
 meas_select = filter_selected_measurements(meas, selected_measurements, selected_solutes);
 
 # ╔═╡ e98f4b1b-e577-40d0-a7d8-71c53d99ee1b
-if select_mode == "m1"
+if select_mode == "m1a"
 	#md"""
 	#Column parameters:
 
@@ -506,9 +532,10 @@ function flagged_loss(meas, df, index_flag)
 end
 
 # ╔═╡ 72312748-de7d-4b15-8ef8-ea7165d19640
-function check_measurement(meas; min_th=0.1, loss_th=1.0)
-	Tchar_est, θchar_est, ΔCp_est, Telu_max = RetentionParameterEstimator.estimate_start_parameter(meas[3], meas[1], meas[2]; time_unit=meas[6])
-	df = RetentionParameterEstimator.estimate_parameters(meas[3], meas[4], meas[1], meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6])[1]
+function check_measurement(meas, col_input; min_th=0.1, loss_th=1.0)
+	col = GasChromatographySimulator.Column(col_input.L, col_input.d*1e-3, meas[1].df, meas[1].sp, meas[1].gas)
+	Tchar_est, θchar_est, ΔCp_est, Telu_max = RetentionParameterEstimator.estimate_start_parameter(meas[3], col, meas[2]; time_unit=meas[6])
+	df = RetentionParameterEstimator.estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6])[1]
 	index_flag = findall(df.min.>min_th)
 	if length(index_flag) == 0
 		check = true
@@ -532,7 +559,7 @@ function check_measurement(meas; min_th=0.1, loss_th=1.0)
 		df_flag = DataFrame(measurement=flag_meas, solute=flag_sub, tRmeas=tRmeas_, tRcalc=tRcalc_)
 	end
 	# calculate the standard errors of the 3 parameters using the hessian matrix
-	stderrors, hessian = stderror(meas, df)
+	stderrors, hessian = stderror(meas, col_input, df)
 	# output dataframe
 	#df_ = DataFrame(Name=df.Name, min=df.min, Tchar=df.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=df.θchar, θchar_std=stderrors.sd_θchar, ΔCp=df.ΔCp, ΔCp_std=stderrors.sd_ΔCp)
 	df_ = DataFrame(Name=df.Name, min=df.min, Tchar=df.Tchar.±stderrors.sd_Tchar, θchar=df.θchar.±stderrors.sd_θchar, ΔCp=df.ΔCp.±stderrors.sd_ΔCp)
@@ -544,7 +571,16 @@ begin
 	min_th = 0.1
 	loss_th = 1.0
 	if select_mode == "m1"
-		check, msg, df_flag, index_flag, res, Telu_max = check_measurement(meas_select; min_th=min_th, loss_th=loss_th)
+		check, msg, df_flag, index_flag, res, Telu_max = check_measurement(meas_select, (L = meas_select[1].L, d = meas_select[1].d*1000); min_th=min_th, loss_th=loss_th)
+		md"""
+		## Results
+
+		L/d ratio: $(meas_select[1].L/(meas_select[1].d))
+		
+		$(res)
+		"""
+	elseif select_mode == "m1a"
+		check, msg, df_flag, index_flag, res, Telu_max = check_measurement(meas_select, col_input; min_th=min_th, loss_th=loss_th)
 		md"""
 		## Results
 
@@ -793,7 +829,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.2"
 manifest_format = "2.0"
-project_hash = "f92d24ea82b144f30c60afd6599d99dd88ac0ff6"
+project_hash = "fbc2faa924136760c1f9f911a00528bff234bff5"
 
 [[deps.AbstractFFTs]]
 deps = ["ChainRulesCore", "LinearAlgebra"]
@@ -2817,6 +2853,7 @@ version = "1.4.1+0"
 # ╠═0aa4adbe-3b2e-4970-93a7-a298e910b1cb
 # ╠═b86b3a41-56f0-460f-acba-9d027e1f2336
 # ╠═0155b15e-f18d-4b4c-89c4-93856a85dadb
+# ╠═079f5f4e-b5c7-47c7-a5fd-8b6b87d47944
 # ╠═46fab3fe-cf88-4cbf-b1cc-a232bb7520db
 # ╠═ceb3afab-acec-46d1-8a9c-ab07dbb00449
 # ╠═06d5dd5a-6883-4b62-8942-dc19e7b08e4d

@@ -368,3 +368,204 @@ function estimate_parameters_(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e;
 	
 	return df, sol
 end
+
+# full methods
+
+"""
+    check_measurement(meas, col_input; min_th=0.1, loss_th=1.0)
+
+Similar to `method_m1` ([`method_m1`](@ref)) estimate the three retention parameters ``T_{char}``, ``θ_{char}`` and ``ΔC_p`` including standard errors, see [`stderror`](@ref).
+In addition, if the found optimized minima is above a threshold `min_th`, it is flagged and the squared differences of single measured retention times and calculated retention times above
+another threshold `loss_th` are recorded.   
+
+# Arguments
+* `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
+* `col_input` ... Named tuple with `col_input.L` the column length in m and `col_input.d` the column diameter in mm. If this parameter is not gicen, than these parameters are taken from `meas`. 
+
+# Output 
+* `check` ... Boolean. `true` if all values are below the thresholds, `false` if not.
+* `msg` ... String. Description of `check`
+* `df_flag` ... Dataframe containing name of the flagged measurements, solutes and the corresponding mesured and calculated retention times.
+* `index_flag` ... Indices of flagged results
+* `res` ... Dataframe with the optimized parameters and the found minima.
+* `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
+"""  
+function check_measurement(meas, col_input; min_th=0.1, loss_th=1.0)
+	col = GasChromatographySimulator.Column(col_input.L, col_input.d*1e-3, meas[1].df, meas[1].sp, meas[1].gas)
+	Tchar_est, θchar_est, ΔCp_est, Telu_max = RetentionParameterEstimator.estimate_start_parameter(meas[3], col, meas[2]; time_unit=meas[6])
+	df = estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6])[1]
+	index_flag = findall(df.min.>min_th)
+	if length(index_flag) == 0
+		check = true
+		msg = "retention times in normal range"
+		df_flag = DataFrame()
+	else
+		check = false
+		msg = "discrapancy of retention times detected"
+		loss_flag, tRcalc, tRmeas = flagged_loss(meas, df, index_flag)
+		index_loss_flag = findall(loss_flag.>loss_th)
+		flag_meas = Array{String}(undef, length(index_loss_flag))
+		flag_sub = Array{String}(undef, length(index_loss_flag))
+		tRmeas_ = Array{Float64}(undef, length(index_loss_flag))
+		tRcalc_ = Array{Float64}(undef, length(index_loss_flag))
+		for i=1:length(index_loss_flag)
+			flag_meas[i] = meas[3].measurement[index_loss_flag[i][1]]
+			flag_sub[i] = meas[4][index_flag[index_loss_flag[i][2]]]
+			tRmeas_[i] = tRmeas[index_loss_flag[i][1], index_loss_flag[i][2]]
+			tRcalc_[i] = tRcalc[index_loss_flag[i][1], index_loss_flag[i][2]]
+		end
+		df_flag = DataFrame(measurement=flag_meas, solute=flag_sub, tRmeas=tRmeas_, tRcalc=tRcalc_)
+	end
+	# calculate the standard errors of the 3 parameters using the hessian matrix
+	stderrors = stderror(meas, df, col_input)[1]
+	# output dataframe
+	#df_ = DataFrame(Name=df.Name, min=df.min, Tchar=df.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=df.θchar, θchar_std=stderrors.sd_θchar, ΔCp=df.ΔCp, ΔCp_std=stderrors.sd_ΔCp)
+	res = DataFrame(Name=df.Name, min=df.min, Tchar=df.Tchar.±stderrors.sd_Tchar, θchar=df.θchar.±stderrors.sd_θchar, ΔCp=df.ΔCp.±stderrors.sd_ΔCp)
+	return check, msg, df_flag, index_flag, res, Telu_max
+end
+
+function flagged_loss(meas, df, index_flag)
+	if meas[6] == "min"
+		a = 60.0
+	else
+		a = 1.0
+	end
+	tRcalc = Array{Float64}(undef, length(meas[3].measurement), length(index_flag))
+	tRmeas = Array{Float64}(undef, length(meas[3].measurement), length(index_flag))
+	for j=1:length(index_flag)
+		for i=1:length(meas[3].measurement)
+			tRcalc[i,j] = RetentionParameterEstimator.tR_calc(df.Tchar[index_flag[j]], df.θchar[index_flag[j]], df.ΔCp[index_flag[j]], meas[1].L, meas[1].d, meas[2][i], meas[1].gas)
+			tRmeas[i,j] = meas[3][!, index_flag[j]+1][i]*a
+		end
+	end
+	(tRmeas.-tRcalc).^2, tRcalc, tRmeas
+end
+
+"""
+    method_m1(meas, col_input)
+
+Estimation of the three retention parameters ``T_{char}``, ``θ_{char}`` and ``ΔC_p`` including standard errors, see [`stderror`](@ref).
+
+# Arguments
+* `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
+* `col_input` ... Named tuple with `col_input.L` the column length in m and `col_input.d` the column diameter in mm. If this parameter is not gicen, than these parameters are taken from `meas`. 
+
+# Output 
+* `res` ... Dataframe with the optimized parameters and the found minima.
+* `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
+"""   
+function method_m1(meas, col_input)
+	# definition of the column
+	col = GasChromatographySimulator.Column(col_input.L, col_input.d*1e-3, meas[1].df, meas[1].sp, meas[1].gas)
+	# calculate start parameters	
+	Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter(meas[3], col, meas[2]; time_unit=meas[6])
+	# optimize every solute separatly for the 3 remaining parameters `Tchar`, `θchar`, `ΔCp`
+	res_ = estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6])[1]
+	# calculate the standard errors of the 3 parameters using the hessian matrix
+	stderrors = stderror(meas, res_, col_input)[1]
+	# output dataframe
+	#res_ = DataFrame(Name=res.Name, min=res.min, Tchar=res.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res.ΔCp, ΔCp_std=stderrors.sd_ΔCp, d=res.d, d_std=res.d_std)
+	res = DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±stderrors.sd_Tchar, θchar=res_.θchar.±stderrors.sd_θchar, ΔCp=res_.ΔCp.±stderrors.sd_ΔCp)
+	return res, Telu_max
+end
+
+"""
+    method_m2(meas)
+
+Estimation of the column diameter ``d`` and three retention parameters ``T_{char}``, ``θ_{char}`` and ``Δ C_p`` including standard errors, see [`stderror`](@ref).
+In a first run all four parameters are estimated for every substance separatly, resulting in different optimized column diameters. The mean value of the column diameter is used for 
+a second optimization using this mean diameter and optimize the remainig thre retention parameters ``T_{char}``, ``θ_{char}`` and ``Δ C_p``.
+
+# Arguments
+* `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
+* `col_input` ... Named tuple with `col_input.L` the column length in m and `col_input.d` the column diameter in mm. If this parameter is not gicen, than these parameters are taken from `meas`. 
+
+# Output 
+* `res` ... Dataframe with the optimized parameters and the found minima.
+* `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
+"""   
+function method_m2(meas)
+	# retention times, use only the solutes, which have non-missing retention time entrys
+	tRs = meas[3][!,findall((collect(any(ismissing, c) for c in eachcol(meas[3]))).==false)]
+	# solute names, use only the solutes, which have non-missing retention time entrys
+	solute_names = meas[4][findall((collect(any(ismissing, c) for c in eachcol(meas[3]))).==false)[2:end].-1]
+	# calculate start parameters	
+	Tchar_est, θchar_est, ΔCp_est, Telu_max = Restimate_start_parameter(tRs, meas[1], meas[2]; time_unit=meas[6])
+	# optimize every solute separatly for the 4 parameters `Tchar`, `θchar`, `ΔCp` and `d`	
+	res_dKcentric_single = estimate_parameters(tRs, solute_names, meas[1], meas[2], Tchar_est, θchar_est, ΔCp_est; pout=meas[5], time_unit=meas[6], mode="dKcentric_single")[1]
+	# define a new column with the mean value of the estimated `d` over all solutes
+	new_col = GasChromatographySimulator.Column(meas[1].L, mean(res_dKcentric_single.d), meas[1].df, meas[1].sp, meas[1].gas)
+	# optimize every solute separatly for the 3 remaining parameters `Tchar`, `θchar`, `ΔCp`
+	res_ = estimate_parameters(tRs, solute_names, new_col, meas[2], res_dKcentric_single.Tchar, res_dKcentric_single.θchar, res_dKcentric_single.ΔCp; pout=meas[5], time_unit=meas[6], mode="Kcentric_single")[1]
+
+	res_[!, :d] = mean(res_dKcentric_single.d).*ones(length(res.Name))
+	
+	res_[!, :d_std] = std(res_dKcentric_single.d).*ones(length(res.Name))
+	# calculate the standard errors of the 3 parameters using the hessian matrix
+	stderrors = stderror(meas, res_)[1]
+	# output dataframe
+	#res_ = DataFrame(Name=res.Name, min=res.min, Tchar=res.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res.ΔCp, ΔCp_std=stderrors.sd_ΔCp, d=res.d, d_std=res.d_std)
+	res = DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±stderrors.sd_Tchar, θchar=res_.θchar.±stderrors.sd_θchar, ΔCp=res_.ΔCp.±stderrors.sd_ΔCp, d=res_.d.±res.d_std)
+	return res, Telu_max
+end
+
+"""
+    stderror(meas, res)
+
+Calculation of the standard error of the found optimized parameters using the hessian matrix at the optima.
+
+# Arguments
+* `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
+* `res` ... Dataframe with the result of the optimization, see [`estimate_parameters`](@ref).
+
+Optional parameters
+* `col_input` ... Named tuple with `col_input.L` the column length in m and `col_input.d` the column diameter in mm. If this parameter is not gicen, than these parameters are taken from `meas`. 
+
+
+# Output
+* `stderrors` ... Dataframe with the standard errors of the optimized parameters.
+* `Hessian` ... The hessian matrix at the found optims. 
+"""
+function stderror(meas, res)
+	sdTchar = Array{Float64}(undef, size(res)[1])
+	sdθchar = Array{Float64}(undef, size(res)[1])
+	sdΔCp = Array{Float64}(undef, size(res)[1])
+	Hessian = Array{Any}(undef, size(res)[1])
+	for i=1:size(res)[1]
+		# the loss-function used in the optimization
+		p = [meas[3][!,i+1].*60.0, meas[1].L, meas[1].d, meas[2], std_opt, meas[1].gas, "squared"]
+		LF(x) = opt_Kcentric(x, p)
+		# the hessian matrix of the loss-function, calculated with ForwardDiff.jl
+		H(x) = ForwardDiff.hessian(LF, x)
+		# the hessian matrix at the found optima
+		Hessian[i] = H([res.Tchar[i], res.θchar[i], res.ΔCp[i]])
+		# the calculated standard errors of the parameters
+		sdTchar[i] = sqrt.(abs.(inv(Hessian[i])))[1,1]
+		sdθchar[i] = sqrt.(abs.(inv(Hessian[i])))[2,2]
+		sdΔCp[i] = sqrt.(abs.(inv(Hessian[i])))[3,3]
+	end
+	stderrors = DataFrame(Name=res.Name, sd_Tchar=sdTchar, sd_θchar=sdθchar, sd_ΔCp=sdΔCp)
+	return stderrors, Hessian
+end
+
+function stderror(meas, res, col_input)
+	sdTchar = Array{Float64}(undef, size(res)[1])
+	sdθchar = Array{Float64}(undef, size(res)[1])
+	sdΔCp = Array{Float64}(undef, size(res)[1])
+	Hessian = Array{Any}(undef, size(res)[1])
+	for i=1:size(res)[1]
+		# the loss-function used in the optimization
+		p = [meas[3][!,i+1].*60.0, col_input.L, col_input.d, meas[2], std_opt, meas[1].gas, "squared"]
+		LF(x) = opt_Kcentric(x, p)
+		# the hessian matrix of the loss-function, calculated with ForwardDiff.jl
+		H(x) = ForwardDiff.hessian(LF, x)
+		# the hessian matrix at the found optima
+		Hessian[i] = H([res.Tchar[i], res.θchar[i], res.ΔCp[i]])
+		# the calculated standard errors of the parameters
+		sdTchar[i] = sqrt.(abs.(inv(Hessian[i])))[1,1]
+		sdθchar[i] = sqrt.(abs.(inv(Hessian[i])))[2,2]
+		sdΔCp[i] = sqrt.(abs.(inv(Hessian[i])))[3,3]
+	end
+	stderrors = DataFrame(Name=res.Name, sd_Tchar=sdTchar, sd_θchar=sdθchar, sd_ΔCp=sdΔCp)
+	return stderrors, Hessian
+end

@@ -10,8 +10,8 @@ function reference_holdup_time(col, prog; control="Pressure")
     # estimate the time of the temperature program for T=Tref
     t_ = prog.time_steps
     T_ = prog.temp_steps
-    knots = Interpolations.deduplicate_knots!((T_ .- Tref, ); move_knots=true)
-    interp = interpolate(knots, cumsum(t_), Gridded(Linear()))
+    knots = Interpolations.deduplicate_knots!(T_ .- Tref; move_knots=true)
+    interp = interpolate((knots, ), cumsum(t_), Gridded(Linear()))
 	tref = interp(0.0)
     # inlet and outlet pressure at time tref
     Fpin_ref = prog.Fpin_itp(tref)

@@ -22,7 +22,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -35,8 +35,8 @@
      guidetolerance="10"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:window-width="1920"
-     inkscape:window-height="1027"
+     inkscape:window-width="1440"
+     inkscape:window-height="760"
      id="namedview2317"
      showgrid="false"
      inkscape:zoom="1.4090177"
@@ -147,7 +147,9 @@
   </defs>
   <g
      id="g5464"
-     transform="matrix(4.5226485,0,0,4.5226485,-70.413745,-94.955448)">
+     transform="matrix(4.5226485,0,0,4.5226485,-70.413745,-94.955448)"
+     inkscape:export-xdpi="205"
+     inkscape:export-ydpi="205">
     <g
        id="g1625"
        transform="matrix(0.58293576,0,0,0.99273966,22.472389,0.31329386)">

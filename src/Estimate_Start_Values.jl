@@ -10,7 +10,8 @@ function reference_holdup_time(col, prog; control="Pressure")
     # estimate the time of the temperature program for T=Tref
     t_ = prog.time_steps
     T_ = prog.temp_steps
-    interp = interpolate(Interpolations.deduplicate_knots!((T_ .- Tref, )), cumsum(t_), Gridded(Linear()))
+    knots = Interpolations.deduplicate_knots!((T_ .- Tref, ); move_knots=true)
+    interp = interpolate(knots, cumsum(t_), Gridded(Linear()))
 	tref = interp(0.0)
     # inlet and outlet pressure at time tref
     Fpin_ref = prog.Fpin_itp(tref)
@@ -80,7 +81,8 @@ function estimate_start_parameter_single_ramp(tRs::DataFrame, col, prog; time_un
     θchar_est = Array{Float64}(undef, ns)
     ΔCp_est = Array{Float64}(undef, ns)
     for i=1:ns
-        interp = interpolate((rT .- rT_nom, ), Interpolations.deduplicate_knots!(Telu_meas[:,i]), Gridded(Linear()))
+        knots = Interpolations.deduplicate_knots!(Telu_meas[:,i]; move_knots=true)
+        interp = interpolate((rT .- rT_nom, ), knots, Gridded(Linear()))
         Telu_max[i] = maximum(Telu_meas[:,i])
         Tchar_est[i] = interp(0.0)
         θchar_est[i] = 22.0*(Tchar_est[i]/Tst)^0.7*(1000*col.df/col.d)^0.09

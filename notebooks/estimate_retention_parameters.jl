@@ -602,7 +602,7 @@ begin
 		scatter!(p_lnk_, isolnk.T.-273.15, isolnk[!, select_solute], label="isothermal meas.")
 	end
 	if @isdefined db
-		i = findfirst(GasChromatographySimulator.CAS_identification([select_solute])[1].CAS.==db.CAS)
+		i = findfirst(GasChromatographySimulator.CAS_identification(select_solute).CAS.==db.CAS)
 		if !isnothing(i)
 			lnk_db(T) = (db.DeltaCp[i]/8.31446261815324 + (db.Tchar[i]+273.15)/db.thetachar[i])*((db.Tchar[i]+273.15)/(T+273.15)-1) + db.DeltaCp[i]/8.31446261815324*log((T+273.15)/(db.Tchar[i]+273.15))
 			plot_lnk!(p_lnk_, lnk_db, Tmin(meas)*0.925, (Telu_max[findfirst(select_solute.==meas[4])]-273.15)*1.025, lbl="alternative database")
@@ -2805,7 +2805,7 @@ version = "1.4.1+0"
 """
 
 # ╔═╡ Cell order:
-# ╟─09422105-a747-40ac-9666-591326850d8f
+# ╠═09422105-a747-40ac-9666-591326850d8f
 # ╟─eb5fc23c-2151-47fa-b56c-5771a4f8b9c5
 # ╟─6d4ec54b-01b2-4208-9b9e-fcb70d236c3e
 # ╟─ebc2a807-4413-4721-930a-6328ae72a1a9
@@ -2820,7 +2820,7 @@ version = "1.4.1+0"
 # ╟─0f4c35c4-32f7-4d11-874d-1f23daad7da8
 # ╟─b4f17579-9994-46e1-a3d0-6030650f0dbe
 # ╟─0d61fd05-c0c6-4764-9f96-3b867a456ad3
-# ╟─38d1e196-f375-48ac-bc11-80b10472c1cd
+# ╠═38d1e196-f375-48ac-bc11-80b10472c1cd
 # ╟─762c877d-3f41-49de-a7ea-0eef1456ac11
 # ╟─07a7e45a-d73e-4a83-9323-700d3e2a88cc
 # ╟─ae424251-f4f7-48aa-a72b-3be85a193705
@@ -2837,7 +2837,7 @@ version = "1.4.1+0"
 # ╟─c0f0b955-6791-401f-8252-745332c4210f
 # ╟─b6c2ad4d-6fc5-4700-80e3-f616c0b9aa91
 # ╟─9178967d-26dc-43be-b6e4-f35bbd0b0b04
-# ╟─3ac77a9e-e23c-424a-acc2-d24c4d76ee5e
+# ╠═3ac77a9e-e23c-424a-acc2-d24c4d76ee5e
 # ╟─46fab3fe-cf88-4cbf-b1cc-a232bb7520db
 # ╟─54eb0a3b-a73f-49d6-b077-2ad9a14c0ee6
 # ╟─4dde6bc4-0316-4ea3-82dd-5d3fda15c16c

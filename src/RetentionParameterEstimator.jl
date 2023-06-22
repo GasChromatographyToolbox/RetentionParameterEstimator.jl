@@ -12,6 +12,8 @@ using Interpolations
 using DataFrames
 using CSV
 using Statistics
+using Measurements
+using ForwardDiff
 #using BenchmarkTools
 
 include("Load.jl")

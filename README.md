@@ -52,7 +52,12 @@ Pluto will open your browser. In the field `Open from file` the URL of a noteboo
 
 ### Overview of notebooks
 
-
+- `estimate_retention_parameters.jl` (https://github.com/JanLeppert/RetentionParameterEstimator.jl/blob/main/notebooks/estimate_retention_parameters.jl):
+  - Notebook to estimate the retention parameters and optional the column diameter from measured chromatograms
+  - a standard error for the estimated parameters is given
+  - comparison of other measured chromatograms with predicted chromatograms using the found optimal parameters
+  - plot of the resulting retention factor ``k`` over temperature ``T``, a comparing plot with other data (e.g. isothermal measured) is possible
+  - in default, the notebook uses the data from the publication
 
 ## Contribution
 

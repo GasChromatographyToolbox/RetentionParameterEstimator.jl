@@ -17,7 +17,6 @@ end
 # ╔═╡ 09422105-a747-40ac-9666-591326850d8f
 begin 
 	# online version
-	using GasChromatographySimulator, Plots, OptimizationOptimJL, PlutoUI, CSV, DataFrames, Statistics, LaTeXStrings, StatsPlots, Measurements, UrlDownload, ForwardDiff
 	using RetentionParameterEstimator
 	md"""
 	online, Packages, estimate\_retention\_parameters\_stderr.jl, for GasChromatographySimulator v0.1.2
@@ -28,7 +27,6 @@ begin
 	import Pkg
 	# activate the shared project environment
 	Pkg.activate(Base.current_project())
-	using GasChromatographySimulator, Plots, OptimizationOptimJL, PlutoUI, CSV, DataFrames, Statistics, LaTeXStrings, StatsPlots, Measurements, UrlDownload, ForwardDiff
 	using RetentionParameterEstimator
 	md"""
 	local, Packages, estimate\_retention\_parameters\_stderr.jl, for GasChromatographySimulator v0.1.2
@@ -63,62 +61,13 @@ Measured chromatograms used to **estimate** the parameters by optimization:
 Load own data: $(@bind own_data CheckBox(default=false))
 """
 
-# ╔═╡ f3ffd4ce-a378-4033-88e9-bc1fb8cc4bbe
-md"""
-## Select mode
-* `m1` ... estimate the three retention parameters (``T_{char}``, ``θ_{char}`` and ``ΔC_p``).
-* `m1a` ... estimate the three retention parameters (``T_{char}``, ``θ_{char}`` and ``ΔC_p``) and select ``L`` and ``d``.
-* `m2` ... estimate the three retention parameters (``T_{char}``, ``θ_{char}`` and ``ΔC_p``) and the column diameter ``d``.
-$(@bind select_mode confirm(Select(["m1", "m1a", "m2"])))
-"""
-
-# ╔═╡ 0d61fd05-c0c6-4764-9f96-3b867a456ad3
-md"""
-## Select verification data
-
-Measured chromatograms used to **verify** the estimated parameters:
-"""
-
-# ╔═╡ ae424251-f4f7-48aa-a72b-3be85a193705
-md"""
-## Verification
-
-Using the estimated parameters (``T_{char}``, ``θ_{char}``, ``ΔC_p``) resp. (``T_{char}``, ``θ_{char}``, ``ΔC_p``, ``d``) to simulate other temperature programs. Compare the simulated retention times with measured retention times.
-"""
-
-# ╔═╡ f83b26e7-f16d-49ac-ab3b-230533ac9c82
-md"""
-## Alternative parameters
-
-Select file with alternative parameters:
-"""
-
-# ╔═╡ 903d12f1-6d6f-4a71-8095-7457cffcafc4
-md"""
-## Isothermal ``\ln{k}`` data
-
-Select file with isothermal measured ``\ln{k}`` data:
-"""
-
-# ╔═╡ 9178967d-26dc-43be-b6e4-f35bbd0b0b04
-md"""
-# End
-"""
-
-# ╔═╡ 3ac77a9e-e23c-424a-acc2-d24c4d76ee5e
-function download_data(url)
-	io = IOBuffer();
-	download = urldownload(url, save_raw=io);
-	return Dict{Any, Any}("data" => io, "name" => split(url, '/')[end])
-end
-
 # ╔═╡ 51a22a15-24f9-4280-9c91-32e48727003a
 if own_data == true
 	md"""
 	$(@bind file_meas FilePicker([MIME("text/csv")]))
 	"""
 else
-	file_meas = download_data("https://raw.githubusercontent.com/JanLeppert/RetentionParameterEstimator.jl/main/data/meas_df05_Rxi5SilMS.csv");
+	file_meas = RetentionParameterEstimator.download_data("https://raw.githubusercontent.com/JanLeppert/RetentionParameterEstimator.jl/main/data/meas_df05_Rxi5SilMS.csv");
 end
 
 # ╔═╡ eb14e619-82d4-49ac-ab2a-28e56230dbc6
@@ -137,14 +86,6 @@ begin
 	end
 end
 
-# ╔═╡ b4fc2f6e-4500-45da-852e-59fb084e365a
-md"""
-## Plot ``\ln{k}`` over ``T``
-
-Select solute for ``\ln{k}`` plot:
-$(@bind select_solute confirm(Select(meas[4]; default=meas[4][1])))
-"""
-
 # ╔═╡ d745c22b-1c96-4a96-83da-abb1df91ab87
 begin
 	if !isnothing(file_meas)
@@ -159,107 +100,17 @@ begin
 	end
 end
 
-# ╔═╡ 38d1e196-f375-48ac-bc11-80b10472c1cd
-if own_data == true
-	md"""
-	$(@bind file_comp FilePicker([MIME("text/csv")]))
-	"""
-else
-	file_comp = download_data("https://raw.githubusercontent.com/JanLeppert/RetentionParameterEstimator.jl/main/data/comp_df05_Rxi5SilMS.csv");
-end
-
-# ╔═╡ 762c877d-3f41-49de-a7ea-0eef1456ac11
-begin
-	if isnothing(file_comp)
-		md"""
-		Selected chromatograms for **verification**: _nothing_
-
-		Please select a file of chromatograms for **verification**!
-		"""
-	else
-		if file_meas == file_comp
-			md"""
-			Selected chromatograms for **verification**: $(file_comp["name"])
-	
-			_**Attention**_: The selected data for estimation and verification is the same!
-			"""
-		else
-			comp = RetentionParameterEstimator.load_chromatograms(file_comp);
-			md"""
-			Selected chromatograms for **verification**: $(file_comp["name"])
-			"""
-		end
-	end
-end
-
-# ╔═╡ 07a7e45a-d73e-4a83-9323-700d3e2a88cc
-begin
-	if !isnothing(file_comp)
-		md"""
-		Select comparison measurements:
-		$(@bind selected_comparison confirm(MultiSelect(comp[3].measurement; default=comp[3].measurement)))
-		"""
-	end
-end
-
-# ╔═╡ 62c014d5-5e57-49d7-98f8-dace2f1aaa32
-if own_data == true
-	md"""
-	$(@bind file_db FilePicker([MIME("text/csv")]))
-	"""
-else
-	file_db = download_data("https://raw.githubusercontent.com/JanLeppert/RetentionParameterEstimator.jl/main/data/database_Rxi5SilMS_beta125.csv");
-end
-
-# ╔═╡ a41148bc-03b0-4bd1-b76a-7406aab63f48
-if own_data == true
-	md"""
-	$(@bind file_isolnk FilePicker([MIME("text/csv")]))
-	"""
-else
-	file_isolnk = download_data("https://raw.githubusercontent.com/JanLeppert/RetentionParameterEstimator.jl/main/data/isothermal_lnk_df05_Rxi5SilMS.csv");
-end
-
-# ╔═╡ 66287dfc-fe77-4fa8-8892-79d2d3de6cb3
-begin
-	if isnothing(file_isolnk)
-		md"""
-		Selected isothermal measured ``\ln{k}`` data: _nothing_
-
-		Please select a file of isothermal measured ``\ln{k}`` data!
-		"""
-	else
-		isolnk = DataFrame(CSV.File(file_isolnk["data"]))
-		md"""
-		Selected isothermal measured ``\ln{k}`` data: $(file_isolnk["name"])
-
-		$(embed_display(isolnk))
-		"""
-	end
-end
-
-
-# ╔═╡ 46fab3fe-cf88-4cbf-b1cc-a232bb7520db
-# filter function for selected measurements and selected solutes
-function filter_selected_measurements(meas, selected_measurements, selected_solutes)
-	index_measurements = Array{Int}(undef, length(selected_measurements))
-	for i=1:length(selected_measurements)
-		index_measurements[i] = findfirst(selected_measurements[i].==meas[3].measurement)
-	end
-	index_solutes = Array{Int}(undef, length(selected_solutes))
-	for i=1:length(selected_solutes)
-		if isnothing(findfirst(selected_solutes[i].==names(meas[3])))
-			error("The names of selected analytes are different from the measurement file.")
-		else
-			index_solutes[i] = findfirst(selected_solutes[i].==names(meas[3]))
-		end
-	end
-	meas_select = (meas[1], meas[2][index_measurements], meas[3][index_measurements, [1; index_solutes]], selected_solutes, meas[5], meas[6])
-	return meas_select
-end
-
 # ╔═╡ b2c254a2-a5d6-4f18-803a-75d048fc7cdf
-meas_select = filter_selected_measurements(meas, selected_measurements, selected_solutes);
+meas_select = RetentionParameterEstimator.filter_selected_measurements(meas, selected_measurements, selected_solutes);
+
+# ╔═╡ f3ffd4ce-a378-4033-88e9-bc1fb8cc4bbe
+md"""
+## Select mode
+* `m1` ... estimate the three retention parameters (``T_{char}``, ``θ_{char}`` and ``ΔC_p``).
+* `m1a` ... estimate the three retention parameters (``T_{char}``, ``θ_{char}`` and ``ΔC_p``) and select ``L`` and ``d``.
+* `m2` ... estimate the three retention parameters (``T_{char}``, ``θ_{char}`` and ``ΔC_p``) and the column diameter ``d``.
+$(@bind select_mode confirm(Select(["m1", "m1a", "m2"])))
+"""
 
 # ╔═╡ e98f4b1b-e577-40d0-a7d8-71c53d99ee1b
 if select_mode == "m1a"
@@ -363,79 +214,67 @@ md"""
 $(DownloadButton(io.data, result_filename))
 """
 
-# ╔═╡ 54eb0a3b-a73f-49d6-b077-2ad9a14c0ee6
-# comparing predicted retention times using the optimization result `res` with the measured retention times `comp`
-function comparison(res, comp)
-	opt = GasChromatographySimulator.Options(ng=true, odesys=false)
-	#CAS_comp = GasChromatographySimulator.CAS_identification(comp[4]).CAS
-	#CAS_meas = GasChromatographySimulator.CAS_identification(meas[4]).CAS
-	i_sub = findall(x->x in res.Name, comp[4]) # indices of common elements of CAS_comp in CAS_meas (indeices relative to CAS_meas)
-	sub = Array{GasChromatographySimulator.Substance}(undef, length(i_sub))
-	for i in i_sub
-		id = GasChromatographySimulator.CAS_identification(res.Name[i])
-		#if ismissing(id)
-		#	id_C15= GasChromatographySimulator.CAS_identification("pentadecane")
-		#	Cag = GasChromatographySimulator.diffusivity(id_C15, comp[1].gas) # use C15 value
-		#	CAS = id_C15.CAS
-		#else
-			Cag = GasChromatographySimulator.diffusivity(id, comp[1].gas)
-			CAS = id.CAS
-		#end
-		if "θchar" in names(res) 
-			sub[i] = GasChromatographySimulator.Substance(res.Name[i], CAS, Measurements.value(res.Tchar[i]), Measurements.value(res.θchar[i]), Measurements.value(res.ΔCp[i]), comp[1].df/comp[1].d, "", Cag, 0.0, 0.0)
-		else
-			sub[i] = GasChromatographySimulator.Substance(res.Name[i], CAS, res.Tchar[i]+273.15, res.thetachar[i], res.DeltaCp[i], comp[1].df/comp[1].d, "", Cag, 0.0, 0.0)
-		end
-		# this is for phase ratio as set in comp
-	end
-	if comp[6] == "min"
-		a = 60.0
-	else
-		a = 1.0
-	end
+# ╔═╡ 0d61fd05-c0c6-4764-9f96-3b867a456ad3
+md"""
+## Select verification data
 
-	par = Array{GasChromatographySimulator.Parameters}(undef, length(comp[3].measurement))
-	pl = Array{DataFrame}(undef, length(comp[3].measurement))
-	loss = Array{Float64}(undef, length(comp[3].measurement))
-	for i=1:length(comp[3].measurement)
-		#ii = findfirst(solute_names[i].==solute_names_compare)
-		if "d" in names(res)
-			d = mean(Measurements.value.(res.d)) # if d was estimate use the mean value
-		elseif @isdefined col_input
-			d = col_input.d/1000.0
-		else
-			d = comp[1].d
-		end
-		col = GasChromatographySimulator.Column(comp[1].L, d, comp[1].df/comp[1].d*d, comp[1].sp, comp[1].gas)
-		par[i] = GasChromatographySimulator.Parameters(col, comp[2][i], sub, opt)
-		try
-			pl[i] = GasChromatographySimulator.simulate(par[i])[1]
-			
-		catch
-			pl[i] = DataFrame(Name=comp[4], tR=NaN.*ones(length(comp[4])), τR=NaN.*ones(length(comp[4])))
-		end
-		#CAS = GasChromatographySimulator.CAS_identification(string.(result[j].Name)).CAS
-		ΔtR = Array{Float64}(undef, length(comp[4]))
-		relΔtR = Array{Float64}(undef, length(comp[4]))
-		for k=1:length(comp[4])
-			kk = findfirst(pl[i].Name[k].==comp[4])
-			tR_compare = Array(comp[3][i, 2:(length(comp[4])+1)]).*a
-			ΔtR[k] = pl[i].tR[k] - tR_compare[kk]
-			relΔtR[k] = (pl[i].tR[k] - tR_compare[kk])/tR_compare[kk]		
-		end
-		pl[i][!, :tR] = pl[i].tR./a
-		pl[i][!, :τR] = pl[i].τR./a
-		pl[i][!, :ΔtR] = ΔtR./a
-		pl[i][!, :relΔtR] = relΔtR
-		loss[i] = sum(ΔtR.^2)/length(ΔtR)
-	end
-	return pl, loss, par
+Measured chromatograms used to **verify** the estimated parameters:
+"""
+
+# ╔═╡ 38d1e196-f375-48ac-bc11-80b10472c1cd
+if own_data == true
+	md"""
+	$(@bind file_comp FilePicker([MIME("text/csv")]))
+	"""
+else
+	file_comp = RetentionParameterEstimator.download_data("https://raw.githubusercontent.com/JanLeppert/RetentionParameterEstimator.jl/main/data/comp_df05_Rxi5SilMS.csv");
 end
+
+# ╔═╡ 762c877d-3f41-49de-a7ea-0eef1456ac11
+begin
+	if isnothing(file_comp)
+		md"""
+		Selected chromatograms for **verification**: _nothing_
+
+		Please select a file of chromatograms for **verification**!
+		"""
+	else
+		if file_meas == file_comp
+			md"""
+			Selected chromatograms for **verification**: $(file_comp["name"])
+	
+			_**Attention**_: The selected data for estimation and verification is the same!
+			"""
+		else
+			comp = RetentionParameterEstimator.load_chromatograms(file_comp);
+			md"""
+			Selected chromatograms for **verification**: $(file_comp["name"])
+			"""
+		end
+	end
+end
+
+# ╔═╡ 07a7e45a-d73e-4a83-9323-700d3e2a88cc
+begin
+	if !isnothing(file_comp)
+		md"""
+		Select comparison measurements:
+		$(@bind selected_comparison confirm(MultiSelect(comp[3].measurement; default=comp[3].measurement)))
+		"""
+	end
+end
+
+# ╔═╡ ae424251-f4f7-48aa-a72b-3be85a193705
+md"""
+## Verification
+
+Using the estimated parameters (``T_{char}``, ``θ_{char}``, ``ΔC_p``) resp. (``T_{char}``, ``θ_{char}``, ``ΔC_p``, ``d``) to simulate other temperature programs. Compare the simulated retention times with measured retention times.
+"""
 
 # ╔═╡ 116ccf37-4a18-44ac-ae6e-98932901a8b0
 begin
-	comp_select = filter_selected_measurements(comp, selected_comparison, selected_solutes)
-	pl, loss, par = comparison(res, comp_select)
+	comp_select = RetentionParameterEstimator.filter_selected_measurements(comp, selected_comparison, selected_solutes)
+	pl, loss, par = RetentionParameterEstimator.comparison(res, comp_select)
 	meanΔtR = Array{Float64}(undef, length(pl))
 	meanrelΔtR = Array{Float64}(undef, length(pl))
 	for i=1:length(pl)
@@ -452,118 +291,23 @@ Peaklists of the simulated verification programs, including difference to measur
 $(embed_display(pl))
 """
 
-# ╔═╡ 4dde6bc4-0316-4ea3-82dd-5d3fda15c16c
-function plot_chromatogram_comparison(pl, meas, comp)
-	gr()
-	p_chrom = Array{Plots.Plot}(undef, length(pl))
-	for i=1:length(pl)
-		p_chrom[i] = plot(xlabel="time in $(meas[6])", legend=false)
-
-		max_ = maximum(GasChromatographySimulator.plot_chromatogram(pl[i], (minimum(pl[i].tR)*0.95, maximum(pl[i].tR)*1.05))[3])*1.05
-
-		min_ = - max_/20
-		
-		GasChromatographySimulator.plot_chromatogram!(p_chrom[i], pl[i], (minimum(pl[i].tR)*0.95, maximum(pl[i].tR)*1.05); annotation=false)
-		xlims!((minimum(pl[i].tR)*0.95, maximum(pl[i].tR)*1.05))
-		ylims!(min_, max_)
-		#add marker for measured retention times
-		for j=1:length(comp[4])
-			plot!(p_chrom[i], comp[3][i,j+1].*ones(2), [min_, max_], c=:orange)
-		end
-		plot!(p_chrom[i], title=comp[3].measurement[i])
-	end
-	
-	return plot(p_chrom..., layout=(length(p_chrom),1), size=(800,length(p_chrom)*200), yaxis=nothing, grid=false)
-end	
-
 # ╔═╡ ddadd79d-7b74-4b2c-ad59-a31a5692cf3b
-plot_chromatogram_comparison(pl, meas_select, comp_select)
+RetentionParameterEstimator.plot_chromatogram_comparison(pl, meas_select, comp_select)
 
-# ╔═╡ 3b03f424-57a4-45c6-9838-5b7635e1278a
-function plot_lnk!(p, lnk, Tmin, Tmax; lbl="")
-	Trange = Tmin:(Tmax-Tmin)/100.0:Tmax
-	lnk_calc = Array{Float64}(undef, length(Trange))
-	for i=1:length(Trange)
-		lnk_calc[i] = lnk(Trange[i])
-	end
-	plot!(p, Trange, lnk_calc, label=lbl)
-	return p
-end
+# ╔═╡ f83b26e7-f16d-49ac-ab3b-230533ac9c82
+md"""
+## Alternative parameters
 
-# ╔═╡ 4c9fc541-7947-46db-acd7-502cbda831cb
-function Tmin(meas) 	
-	Tmin_ = Array{Float64}(undef, length(meas[2]))
-	for i=1:length(meas[2])
-		Tmin_[i] = minimum(meas[2][i].temp_steps)
-	end
-	return minimum(Tmin_)
-end
+Select file with alternative parameters:
+"""
 
-# ╔═╡ 940baba7-fba9-4b31-838b-eb7a4504246f
-function add_min_max_marker!(p, Tmin, Tmax, lnk)
-	scatter!(p, (Tmin, lnk(Tmin)), markershape=:rtriangle, markersize=5, c=:black, label = "measured temperature range")
-	scatter!(p, (Tmax, lnk(Tmax)), markershape=:ltriangle, markersize=5, c=:black, label = "measured temperature range")
-	return p
-end
-
-# ╔═╡ b6c2ad4d-6fc5-4700-80e3-f616c0b9aa91
-begin
-	gr()
-	p_lnk_all = plot(xlabel=L"T \mathrm{\; in \: °C}", ylabel=L"\ln{k}", title="all", minorticks=4, minorgrid=true, legend=:none)
-
-	for i=1:length(meas[4])
-		res_f = filter([:Name] => x -> x == meas[4][i], res)
-		lnk(T) = (Measurements.value.(res_f.ΔCp[1])/8.31446261815324 + Measurements.value.(res_f.Tchar[1])/Measurements.value.(res_f.θchar[1]))*(Measurements.value.(res_f.Tchar[1])/(T+273.15)-1) + Measurements.value.(res_f.ΔCp[1])/8.31446261815324*log((T+273.15)/Measurements.value.(res_f.Tchar[1]))
-	
-		plot_lnk!(p_lnk_all, lnk, Tmin(meas)*0.925, (Telu_max[i]-273.15)*1.025, lbl=meas[4][i])
-		add_min_max_marker!(p_lnk_all, Tmin(meas), Telu_max[i]-273.15, lnk)
-	end
-	p_lnk_all
-end
-
-# ╔═╡ 76c80e90-68e6-4cdb-bb72-785d8c7df9e9
-function plotbox(df1)
-	p_box1 = boxplot(ylabel="relative difference in %", legend=false)
-	#for i=1:length(unique(df1.methode))
-	#	df1f = filter([:methode] => x -> x .== unique(df1.methode)[i], df1)
-		boxplot!(p_box1, ["Tchar"], df1.relΔTchar.*100.0)
-		dotplot!(p_box1, ["Tchar"], df1.relΔTchar.*100.0, marker=(:black, stroke(0)))
-		boxplot!(p_box1, ["θchar"], df1.relΔθchar.*100.0)
-		dotplot!(p_box1, ["θchar"], df1.relΔθchar.*100.0, marker=(:black, stroke(0)))
-		boxplot!(p_box1, ["ΔCp"], df1.relΔΔCp.*100.0)
-		dotplot!(p_box1, ["ΔCp"], df1.relΔΔCp.*100.0, marker=(:black, stroke(0)))
-	#end
-	return p_box1
-end	
-
-# ╔═╡ 792c4a8b-bd1c-4769-a907-1e562566a168
-function difference_estimation_to_alternative_data(res, db)
-	ΔTchar = Array{Float64}(undef, length(res.Name))
-	Δθchar = Array{Float64}(undef, length(res.Name))
-	ΔΔCp = Array{Float64}(undef, length(res.Name))
-	relΔTchar = Array{Float64}(undef, length(res.Name))
-	relΔθchar = Array{Float64}(undef, length(res.Name))
-	relΔΔCp = Array{Float64}(undef, length(res.Name))
-	for i=1:length(res.Name)
-		ii = findfirst(GasChromatographySimulator.CAS_identification(res.Name[i]).CAS.==db.CAS)
-		if !isnothing(ii)
-			ΔTchar[i] = Measurements.value(res.Tchar[i]) - (db.Tchar[ii] + 273.15) 
-			Δθchar[i] = Measurements.value(res.θchar[i]) - db.thetachar[ii]
-			ΔΔCp[i] = Measurements.value(res.ΔCp[i]) - db.DeltaCp[ii]
-			relΔTchar[i] = ΔTchar[i]/(db.Tchar[ii] + 273.15)
-			relΔθchar[i] = Δθchar[i]/db.thetachar[ii]
-			relΔΔCp[i] = ΔΔCp[i]/db.DeltaCp[ii]
-		else
-			ΔTchar[i] = NaN
-			Δθchar[i] = NaN
-			ΔΔCp[i] = NaN
-			relΔTchar[i] = NaN
-			relΔθchar[i] = NaN
-			relΔΔCp[i] = NaN
-		end
-	end
-	diff = DataFrame(Name=res.Name, ΔTchar=ΔTchar, Δθchar=Δθchar, ΔΔCp=ΔΔCp, relΔTchar=relΔTchar, relΔθchar=relΔθchar, relΔΔCp=relΔΔCp)
-	return diff
+# ╔═╡ 62c014d5-5e57-49d7-98f8-dace2f1aaa32
+if own_data == true
+	md"""
+	$(@bind file_db FilePicker([MIME("text/csv")]))
+	"""
+else
+	file_db = RetentionParameterEstimator.download_data("https://raw.githubusercontent.com/JanLeppert/RetentionParameterEstimator.jl/main/data/database_Rxi5SilMS_beta125.csv");
 end
 
 # ╔═╡ 5123aa1b-b899-4dd6-8909-6be3b82a80d0
@@ -576,8 +320,8 @@ begin
 		"""
 	else
 		db = DataFrame(CSV.File(file_db["data"]))
-		diff = difference_estimation_to_alternative_data(res, db)
-		pbox = plotbox(diff)
+		diff = RetentionParameterEstimator.difference_estimation_to_alternative_data(res, db)
+		pbox = RetentionParameterEstimator.plotbox(diff)
 		md"""
 		Selected file with alternative parameters: $(file_db["name"])
 
@@ -594,58 +338,100 @@ begin
 	end
 end
 
+# ╔═╡ 903d12f1-6d6f-4a71-8095-7457cffcafc4
+md"""
+## Isothermal ``\ln{k}`` data
+
+Select file with isothermal measured ``\ln{k}`` data:
+"""
+
+# ╔═╡ a41148bc-03b0-4bd1-b76a-7406aab63f48
+if own_data == true
+	md"""
+	$(@bind file_isolnk FilePicker([MIME("text/csv")]))
+	"""
+else
+	file_isolnk = RetentionParameterEstimator.download_data("https://raw.githubusercontent.com/JanLeppert/RetentionParameterEstimator.jl/main/data/isothermal_lnk_df05_Rxi5SilMS.csv");
+end
+
+# ╔═╡ 66287dfc-fe77-4fa8-8892-79d2d3de6cb3
+begin
+	if isnothing(file_isolnk)
+		md"""
+		Selected isothermal measured ``\ln{k}`` data: _nothing_
+
+		Please select a file of isothermal measured ``\ln{k}`` data!
+		"""
+	else
+		isolnk = DataFrame(CSV.File(file_isolnk["data"]))
+		md"""
+		Selected isothermal measured ``\ln{k}`` data: $(file_isolnk["name"])
+
+		$(embed_display(isolnk))
+		"""
+	end
+end
+
+
+# ╔═╡ b4fc2f6e-4500-45da-852e-59fb084e365a
+md"""
+## Plot ``\ln{k}`` over ``T``
+
+Select solute for ``\ln{k}`` plot:
+$(@bind select_solute confirm(Select(meas[4]; default=meas[4][1])))
+"""
+
 # ╔═╡ c0f0b955-6791-401f-8252-745332c4210f
 begin
 	gr()
-	p_lnk_ = plot(xlabel=L"T \mathrm{\; in \: °C}", ylabel=L"\ln{k}", title=select_solute, minorticks=4, minorgrid=true)
+	#p_lnk_ = plot(xlabel=L"T \mathrm{\; in \: °C}", ylabel=L"\ln{k}", title=select_solute, minorticks=4, minorgrid=true)
+	p_lnk_ = plot(xlabel="T in °C", ylabel="lnk", title=select_solute, minorticks=4, minorgrid=true)
 	if @isdefined isolnk
 		scatter!(p_lnk_, isolnk.T.-273.15, isolnk[!, select_solute], label="isothermal meas.")
 	end
 	if @isdefined db
-		i = findfirst(GasChromatographySimulator.CAS_identification(select_solute).CAS.==db.CAS)
+		i = findfirst(RetentionParameterEstimator.GasChromatographySimulator.CAS_identification(select_solute).CAS.==db.CAS)
 		if !isnothing(i)
 			lnk_db(T) = (db.DeltaCp[i]/8.31446261815324 + (db.Tchar[i]+273.15)/db.thetachar[i])*((db.Tchar[i]+273.15)/(T+273.15)-1) + db.DeltaCp[i]/8.31446261815324*log((T+273.15)/(db.Tchar[i]+273.15))
-			plot_lnk!(p_lnk_, lnk_db, Tmin(meas)*0.925, (Telu_max[findfirst(select_solute.==meas[4])]-273.15)*1.025, lbl="alternative database")
+			RetentionParameterEstimator.plot_lnk!(p_lnk_, lnk_db, RetentionParameterEstimator.Tmin(meas)*0.925, (Telu_max[findfirst(select_solute.==meas[4])]-273.15)*1.025, lbl="alternative database")
 		end
 	end
 	res_f = filter([:Name] => x -> x == select_solute, res)
 	lnk(T) = (Measurements.value.(res_f.ΔCp[1])/8.31446261815324 + Measurements.value.(res_f.Tchar[1])/Measurements.value.(res_f.θchar[1]))*(Measurements.value.(res_f.Tchar[1])/(T+273.15)-1) + Measurements.value.(res_f.ΔCp[1])/8.31446261815324*log((T+273.15)/Measurements.value.(res_f.Tchar[1]))
 	
-	plot_lnk!(p_lnk_, lnk, Tmin(meas)*0.925, (Telu_max[findfirst(select_solute.==meas[4])]-273.15)*1.025, lbl=select_mode)
-	add_min_max_marker!(p_lnk_, Tmin(meas), Telu_max[findfirst(select_solute.==meas[4])]-273.15, lnk)
+	RetentionParameterEstimator.plot_lnk!(p_lnk_, lnk, RetentionParameterEstimator.Tmin(meas)*0.925, (Telu_max[findfirst(select_solute.==meas[4])]-273.15)*1.025, lbl=select_mode)
+	RetentionParameterEstimator.add_min_max_marker!(p_lnk_, RetentionParameterEstimator.Tmin(meas), Telu_max[findfirst(select_solute.==meas[4])]-273.15, lnk)
 	p_lnk_
 end
+
+# ╔═╡ b6c2ad4d-6fc5-4700-80e3-f616c0b9aa91
+begin
+	gr()
+	#p_lnk_all = plot(xlabel=L"T \mathrm{\; in \: °C}", ylabel=L"\ln{k}", title="all", minorticks=4, minorgrid=true, legend=:none)
+	p_lnk_all = plot(xlabel="T in °C", ylabel="lnk", title="all", minorticks=4, minorgrid=true, legend=:none)
+
+	for i=1:length(meas[4])
+		res_ = filter([:Name] => x -> x == meas[4][i], res)
+		lnk(T) = (Measurements.value.(res_.ΔCp[1])/8.31446261815324 + Measurements.value.(res_.Tchar[1])/Measurements.value.(res_.θchar[1]))*(Measurements.value.(res_.Tchar[1])/(T+273.15)-1) + Measurements.value.(res_.ΔCp[1])/8.31446261815324*log((T+273.15)/Measurements.value.(res_.Tchar[1]))
+	
+		RetentionParameterEstimator.plot_lnk!(p_lnk_all, lnk, RetentionParameterEstimator.Tmin(meas)*0.925, (Telu_max[i]-273.15)*1.025, lbl=meas[4][i])
+		RetentionParameterEstimator.add_min_max_marker!(p_lnk_all, RetentionParameterEstimator.Tmin(meas), Telu_max[i]-273.15, lnk)
+	end
+	p_lnk_all
+end
+
+# ╔═╡ 9178967d-26dc-43be-b6e4-f35bbd0b0b04
+md"""
+# End
+"""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
-DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
-ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
-GasChromatographySimulator = "dd82b6e2-56ef-419d-b271-0be268cb65f5"
-LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
-Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
-OptimizationOptimJL = "36348300-93cb-4f02-beb5-3c3902f8871e"
-Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 RetentionParameterEstimator = "0afdae40-3141-486e-b874-33af99ac38b5"
-Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
-StatsPlots = "f3b207a7-027a-5e70-b257-86293d7955fd"
-UrlDownload = "856ac37a-3032-4c1c-9122-f86d88358c8b"
 
 [compat]
-CSV = "~0.10.11"
-DataFrames = "~1.5.0"
-ForwardDiff = "~0.10.35"
-GasChromatographySimulator = "~0.3.20"
-LaTeXStrings = "~1.3.0"
-Measurements = "~2.9.0"
-OptimizationOptimJL = "~0.1.9"
-Plots = "~1.38.16"
-PlutoUI = "~0.7.51"
-RetentionParameterEstimator = "~0.1.2"
-StatsPlots = "~0.15.5"
-UrlDownload = "~1.0.1"
+RetentionParameterEstimator = "~0.1.3"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -654,7 +440,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.9.1"
 manifest_format = "2.0"
-project_hash = "82fe354283bee9bc723d1323dbfe87bb7ac0aac8"
+project_hash = "a3e416260ed122465d9dbbebb7475538a259aff9"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "dcfdf328328f2645531c4ddebf841228aef74130"
@@ -919,9 +705,9 @@ version = "0.3.0"
 
 [[deps.Compat]]
 deps = ["UUIDs"]
-git-tree-sha1 = "7a60c856b9fa189eb34f5f8a6f6b5529b7942957"
+git-tree-sha1 = "4e88377ae7ebeaf29a047aa1ee40826e0b708a5d"
 uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "4.6.1"
+version = "4.7.0"
 weakdeps = ["Dates", "LinearAlgebra"]
 
     [deps.Compat.extensions]
@@ -1274,9 +1060,9 @@ version = "0.72.7+0"
 
 [[deps.GasChromatographySimulator]]
 deps = ["CSV", "ChemicalIdentifiers", "DataFrames", "ForwardDiff", "HypertextLiteral", "Integrals", "Interpolations", "OrdinaryDiffEq", "Plots", "PlutoUI", "Reexport", "UrlDownload"]
-git-tree-sha1 = "95a456680f4ac22034da415e050f04663cbda3b2"
+git-tree-sha1 = "46156de5d98554819ee081c8e5e9952534ff9990"
 uuid = "dd82b6e2-56ef-419d-b271-0be268cb65f5"
-version = "0.3.20"
+version = "0.4.0"
 
 [[deps.GenericSchur]]
 deps = ["LinearAlgebra", "Printf"]
@@ -1659,9 +1445,9 @@ version = "1.0.0"
 
 [[deps.LoopVectorization]]
 deps = ["ArrayInterface", "ArrayInterfaceCore", "CPUSummary", "CloseOpenIntervals", "DocStringExtensions", "HostCPUFeatures", "IfElse", "LayoutPointers", "LinearAlgebra", "OffsetArrays", "PolyesterWeave", "PrecompileTools", "SIMDTypes", "SLEEFPirates", "Static", "StaticArrayInterface", "ThreadingUtilities", "UnPack", "VectorizationBase"]
-git-tree-sha1 = "cdd207c26d86952949f1ac65b21baf078cc1937a"
+git-tree-sha1 = "e4eed22d70ac91d7a4bf9e0f6902383061d17105"
 uuid = "bdcacae8-1622-11e9-2a5c-532679323890"
-version = "0.12.161"
+version = "0.12.162"
 weakdeps = ["ChainRulesCore", "ForwardDiff", "SpecialFunctions"]
 
     [deps.LoopVectorization.extensions]
@@ -2143,10 +1929,10 @@ uuid = "ae029012-a4dd-5104-9daa-d747884805df"
 version = "1.3.0"
 
 [[deps.RetentionParameterEstimator]]
-deps = ["CSV", "DataFrames", "GasChromatographySimulator", "Interpolations", "Optimization", "OptimizationBBO", "OptimizationCMAEvolutionStrategy", "OptimizationOptimJL", "OptimizationOptimisers", "Statistics"]
-git-tree-sha1 = "eeb2f955972fe26313aed98166ec65c8621ebc51"
+deps = ["CSV", "DataFrames", "ForwardDiff", "GasChromatographySimulator", "Interpolations", "Measurements", "Optimization", "OptimizationBBO", "OptimizationCMAEvolutionStrategy", "OptimizationOptimJL", "OptimizationOptimisers", "Plots", "PlutoUI", "Reexport", "Statistics", "StatsPlots", "UrlDownload"]
+git-tree-sha1 = "c168a8d387ccc9b6edc0d2a338dc233032908c66"
 uuid = "0afdae40-3141-486e-b874-33af99ac38b5"
-version = "0.1.2"
+version = "0.1.3"
 
 [[deps.Rmath]]
 deps = ["Random", "Rmath_jll"]
@@ -2820,7 +2606,7 @@ version = "1.4.1+0"
 # ╟─0f4c35c4-32f7-4d11-874d-1f23daad7da8
 # ╟─b4f17579-9994-46e1-a3d0-6030650f0dbe
 # ╟─0d61fd05-c0c6-4764-9f96-3b867a456ad3
-# ╠═38d1e196-f375-48ac-bc11-80b10472c1cd
+# ╟─38d1e196-f375-48ac-bc11-80b10472c1cd
 # ╟─762c877d-3f41-49de-a7ea-0eef1456ac11
 # ╟─07a7e45a-d73e-4a83-9323-700d3e2a88cc
 # ╟─ae424251-f4f7-48aa-a72b-3be85a193705
@@ -2837,14 +2623,5 @@ version = "1.4.1+0"
 # ╟─c0f0b955-6791-401f-8252-745332c4210f
 # ╟─b6c2ad4d-6fc5-4700-80e3-f616c0b9aa91
 # ╟─9178967d-26dc-43be-b6e4-f35bbd0b0b04
-# ╠═3ac77a9e-e23c-424a-acc2-d24c4d76ee5e
-# ╟─46fab3fe-cf88-4cbf-b1cc-a232bb7520db
-# ╟─54eb0a3b-a73f-49d6-b077-2ad9a14c0ee6
-# ╟─4dde6bc4-0316-4ea3-82dd-5d3fda15c16c
-# ╟─3b03f424-57a4-45c6-9838-5b7635e1278a
-# ╟─4c9fc541-7947-46db-acd7-502cbda831cb
-# ╟─940baba7-fba9-4b31-838b-eb7a4504246f
-# ╟─76c80e90-68e6-4cdb-bb72-785d8c7df9e9
-# ╟─792c4a8b-bd1c-4769-a907-1e562566a168
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

@@ -72,7 +72,7 @@ algorithms, which do not need lower/upper bounds. If a method is used, which nee
 beeing the initial guess, the second column (`[2,:]`) the lower bound and the third column (`[3,:]`) the upper bound.
 """
 function optimize_Kcentric(tR, col, prog, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number
-    p = [tR, col.L, col.d, prog, opt, col.gas, metric]
+    p = (tR, col.L, col.d, prog, opt, col.gas, metric)
 	x0 = [Tchar_e; θchar_e; ΔCp_e]
 	optf = OptimizationFunction(opt_Kcentric, Optimization.AutoForwardDiff())
 	prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
@@ -81,7 +81,7 @@ function optimize_Kcentric(tR, col, prog, Tchar_e::Vector{T}, θchar_e::Vector{T
 end
 
 function optimize_Kcentric(tR, col, prog, Tchar_e::Matrix{T}, θchar_e::Matrix{T}, ΔCp_e::Matrix{T}; method=BBO_adaptive_de_rand_1_bin_radiuslimited(), opt=std_opt, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number # here default method should be one which needs bounds
-    p = [tR, col.L, col.d, prog, opt, col.gas, metric]
+    p = (tR, col.L, col.d, prog, opt, col.gas, metric)
 	x0 = [Tchar_e[1,:]; θchar_e[1,:]; ΔCp_e[1,:]]
     lb = [Tchar_e[2,:]; θchar_e[2,:]; ΔCp_e[2,:]]
     ub = [Tchar_e[3,:]; θchar_e[3,:]; ΔCp_e[3,:]]
@@ -92,7 +92,7 @@ function optimize_Kcentric(tR, col, prog, Tchar_e::Matrix{T}, θchar_e::Matrix{T
 end
 
 function optimize_Kcentric_(tR, col, prog, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number
-    p = [tR, col.df/col.d, col.L, col.d, col.df, prog, opt, col.gas, metric]
+    p = (tR, col.df/col.d, col.L, col.d, col.df, prog, opt, col.gas, metric)
 	x0 = [Tchar_e; θchar_e; ΔCp_e]
 	optf = OptimizationFunction(opt_Kcentric_, Optimization.AutoForwardDiff())
 	prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
@@ -168,7 +168,7 @@ algorithms, which do not need lower/upper bounds. If a method is used, which nee
 beeing the initial guess, the second element/column the lower bound and the third element/column the upper bound.
 """
 function optimize_dKcentric(tR, col, prog, d_e::Number, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number
-    p = [tR, col.L, prog, opt, col.gas, metric]
+    p = (tR, col.L, prog, opt, col.gas, metric)
 	x0 = [d_e; Tchar_e; θchar_e; ΔCp_e]
 	optf = OptimizationFunction(opt_dKcentric, Optimization.AutoForwardDiff())
 	prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
@@ -178,7 +178,7 @@ end
 
 
 function optimize_dKcentric(tR, col, prog, d_e::Vector{T}, Tchar_e::Matrix{T}, θchar_e::Matrix{T}, ΔCp_e::Matrix{T}; method=BBO_adaptive_de_rand_1_bin_radiuslimited(), opt=opt_std, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number  # here default method should be one which needs bounds  
-    p = [tR, col.L, prog, opt, col.gas, metric]
+    p = (tR, col.L, prog, opt, col.gas, metric)
 	x0 = [d_e[1]; Tchar_e[1,:]; θchar_e[1,:]; ΔCp_e[1,:]]
     lb = [d_e[2]; Tchar_e[2,:]; θchar_e[2,:]; ΔCp_e[2,:]]
     ub = [d_e[3]; Tchar_e[3,:]; θchar_e[3,:]; ΔCp_e[3,:]]
@@ -189,7 +189,7 @@ function optimize_dKcentric(tR, col, prog, d_e::Vector{T}, Tchar_e::Matrix{T}, �
 end
 
 function optimize_dKcentric_(tR, col, prog, d_e::Number, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number
-    p = [tR, col.df/col.d, col.L, col.df, prog, opt, col.gas, metric]
+    p = (tR, col.df/col.d, col.L, col.df, prog, opt, col.gas, metric)
 	x0 = [d_e; Tchar_e; θchar_e; ΔCp_e]
 	optf = OptimizationFunction(opt_dKcentric_, Optimization.AutoForwardDiff())
 	prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
@@ -490,7 +490,7 @@ function method_m2(meas)
 	# solute names, use only the solutes, which have non-missing retention time entrys
 	solute_names = meas[4][findall((collect(any(ismissing, c) for c in eachcol(meas[3]))).==false)[2:end].-1]
 	# calculate start parameters	
-	Tchar_est, θchar_est, ΔCp_est, Telu_max = Restimate_start_parameter(tRs, meas[1], meas[2]; time_unit=meas[6])
+	Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter(tRs, meas[1], meas[2]; time_unit=meas[6])
 	# optimize every solute separatly for the 4 parameters `Tchar`, `θchar`, `ΔCp` and `d`	
 	res_dKcentric_single = estimate_parameters(tRs, solute_names, meas[1], meas[2], Tchar_est, θchar_est, ΔCp_est; pout=meas[5], time_unit=meas[6], mode="dKcentric_single")[1]
 	# define a new column with the mean value of the estimated `d` over all solutes
@@ -498,14 +498,14 @@ function method_m2(meas)
 	# optimize every solute separatly for the 3 remaining parameters `Tchar`, `θchar`, `ΔCp`
 	res_ = estimate_parameters(tRs, solute_names, new_col, meas[2], res_dKcentric_single.Tchar, res_dKcentric_single.θchar, res_dKcentric_single.ΔCp; pout=meas[5], time_unit=meas[6], mode="Kcentric_single")[1]
 
-	res_[!, :d] = mean(res_dKcentric_single.d).*ones(length(res.Name))
+	res_[!, :d] = mean(res_dKcentric_single.d).*ones(length(res_.Name))
 	
-	res_[!, :d_std] = std(res_dKcentric_single.d).*ones(length(res.Name))
+	res_[!, :d_std] = std(res_dKcentric_single.d).*ones(length(res_.Name))
 	# calculate the standard errors of the 3 parameters using the hessian matrix
 	stderrors = stderror(meas, res_)[1]
 	# output dataframe
 	#res_ = DataFrame(Name=res.Name, min=res.min, Tchar=res.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res.ΔCp, ΔCp_std=stderrors.sd_ΔCp, d=res.d, d_std=res.d_std)
-	res = DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±stderrors.sd_Tchar, θchar=res_.θchar.±stderrors.sd_θchar, ΔCp=res_.ΔCp.±stderrors.sd_ΔCp, d=res_.d.±res.d_std)
+	res = DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±stderrors.sd_Tchar, θchar=res_.θchar.±stderrors.sd_θchar, ΔCp=res_.ΔCp.±stderrors.sd_ΔCp, d=res_.d.±res_.d_std)
 	return res, Telu_max
 end
 

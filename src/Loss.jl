@@ -15,7 +15,7 @@ function tR_calc(Tchar, θchar, ΔCp, L, d, prog, gas; opt=std_opt)
 	
 	t₀ = 0.0
 	xspan = (0.0, L)
-	p = [Tchar, θchar, ΔCp, L, d]
+	p = (Tchar, θchar, ΔCp, L, d)
 	prob = ODEProblem(r, t₀, xspan, p)
 	solution = solve(prob, alg=opt.alg, abstol=opt.abstol, reltol=opt.reltol)
 	tR = solution.u[end]
@@ -111,7 +111,7 @@ function tR_calc_(A, B, C, L, d, β, prog, gas; opt=std_opt)
 	r(t,p,x) = (1+k(x,t,p[1],p[2],p[3], p[6]))*rM(x,t,p[4],p[5])
 	t₀ = 0.0
 	xspan = (0.0, L)
-	p = [A, B, C, L, d, β]
+	p = (A, B, C, L, d, β)
 	prob = ODEProblem(r, t₀, xspan, p)
 	solution = solve(prob, alg=opt.alg, abstol=opt.abstol, reltol=opt.reltol)
 	tR = solution.u[end]

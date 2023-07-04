@@ -52,9 +52,33 @@ time_unit = "min"
     # lowest difference for opt__ and opt___ to tR ≈ 1e-5
 
 # Load.jl
-
+file = "/Users/janleppert/Documents/GitHub/RetentionParameterEstimator/test/data/meas_test.csv"
+meas = RetentionParameterEstimator.load_chromatograms(file; filter_missing=true)
+@test meas[4][1] == "2-Octanone"
 # Loss.jl
 
 # Estimate_Start_Values.jl
 
 # Optimization.jl
+#df, sol = RetentionParameterEstimator.estimate_parameters(meas; mode="Kcentric_single")
+#@test isapprox(df.Tchar[1], 400.15; atol = 0.01)
+#@test isapprox(sol[2].minimum, 0.009; atol = 0.0001)
+
+col_input = (L = meas[1].L, d = meas[1].d*1000)
+check, msg, df_flag, index_flag, res, Telu_max = RetentionParameterEstimator.check_measurement(meas, col_input; min_th=0.1, loss_th=1.0)
+@test check == true
+@test isapprox(res.Tchar[1], 400.15; atol = 0.01)
+@test isapprox(res.min[2], 0.009; atol = 0.0001)
+
+col_input_ = (L = meas[1].L, d = meas[1].d*1000*1.1)
+check_, msg_, df_flag_, index_flag_, res_, Telu_max_ = RetentionParameterEstimator.check_measurement(meas, col_input_; min_th=0.1, loss_th=1.0)
+@test msg_ == "discrapancy of retention times detected"
+@test isapprox(res_.Tchar[1], 415.5; atol = 0.1)
+@test isapprox(res_.min[2], 0.212; atol = 0.001)
+
+res_m1, Telu_max_m1 = RetentionParameterEstimator.method_m1(meas, col_input)
+@test res_m1.Tchar == res.Tchar
+@test Telu_max_m1 == Telu_max
+
+res_m2, Telu_max_m2 = RetentionParameterEstimator.method_m2(meas)
+@test isapprox(res_m2.d[1], 0.0002489, atol=0.0000001) 

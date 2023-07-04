@@ -52,7 +52,7 @@ time_unit = "min"
     # lowest difference for opt__ and opt___ to tR ≈ 1e-5
 
 # Load.jl
-file = "/Users/janleppert/Documents/GitHub/RetentionParameterEstimator/test/data/meas_test.csv"
+file = "./data/meas_test.csv"
 meas = RetentionParameterEstimator.load_chromatograms(file; filter_missing=true)
 @test meas[4][1] == "2-Octanone"
 # Loss.jl

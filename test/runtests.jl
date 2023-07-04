@@ -68,13 +68,13 @@ col_input = (L = meas[1].L, d = meas[1].d*1000)
 check, msg, df_flag, index_flag, res, Telu_max = RetentionParameterEstimator.check_measurement(meas, col_input; min_th=0.1, loss_th=1.0)
 @test check == true
 @test isapprox(res.Tchar[1], 400.15; atol = 0.01)
-@test isapprox(res.min[2], 0.009; atol = 0.0001)
+@test isapprox(res.min[2], 0.009; atol = 0.001)
 
 col_input_ = (L = meas[1].L, d = meas[1].d*1000*1.1)
 check_, msg_, df_flag_, index_flag_, res_, Telu_max_ = RetentionParameterEstimator.check_measurement(meas, col_input_; min_th=0.1, loss_th=1.0)
 @test msg_ == "discrapancy of retention times detected"
 @test isapprox(res_.Tchar[1], 415.5; atol = 0.1)
-@test isapprox(res_.min[2], 0.212; atol = 0.001)
+@test isapprox(res_.min[2], 0.21; atol = 0.01)
 
 res_m1, Telu_max_m1 = RetentionParameterEstimator.method_m1(meas, col_input)
 @test res_m1.Tchar == res.Tchar

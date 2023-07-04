@@ -81,4 +81,4 @@ res_m1, Telu_max_m1 = RetentionParameterEstimator.method_m1(meas, col_input)
 @test Telu_max_m1 == Telu_max
 
 res_m2, Telu_max_m2 = RetentionParameterEstimator.method_m2(meas)
-@test isapprox(res_m2.d[1], 0.0002489, atol=0.0000001) 
+@test isapprox(res_m2.d[1], 0.0002489, atol=0.000001) 

@@ -28,7 +28,7 @@ julia> using RetentionParameterEstimator
 
 ## Documentation
 
-Please read the [documentation page](...) for more information.
+Please read the [documentation page](https://janleppert.github.io/RetentionParameterEstimator.jl/stable/) for more information.
 
 ## Notebooks
 

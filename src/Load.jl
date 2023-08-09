@@ -107,17 +107,17 @@ A tuple of the following quantities:
 * `pout` ... outlet pressure (detector pressure), "vacuum" or "atmospheric". 
 * `time_unit` ... unit of time scale used in the retention times and GC programs, "min" or "s".
 """
-function load_chromatograms(file; filter_missing=true) # new version
+function load_chromatograms(file; filter_missing=true, delim=";") # new version
     n = open(f->countlines(f), file)
-    col_df = DataFrame(CSV.File(file, header=1, limit=1, stringtype=String, silencewarnings=true))
+    col_df = DataFrame(CSV.File(file, header=1, limit=1, stringtype=String, silencewarnings=true, delim=delim))
 	col = GasChromatographySimulator.Column(col_df.L[1], col_df.d[1], col_df.df[1], col_df.sp[1], col_df.gas[1])
     pout = col_df.pout[1]
 	time_unit = col_df.time_unit[1]
 
     n_meas = Int((n - 2 - 2)/2) 
-    TPprog = DataFrame(CSV.File(file, header=3, limit=n_meas, stringtype=String, silencewarnings=true))
+    TPprog = DataFrame(CSV.File(file, header=3, limit=n_meas, stringtype=String, silencewarnings=true, delim=delim))
     #PP = DataFrame(CSV.File(file, header=3+n_meas+1, limit=n_meas, stringtype=String)) # convert pressures from Pa(g) to Pa(a), add p_atm to this data set
-    tRs_ = DataFrame(CSV.File(file, header=n-n_meas, stringtype=String, silencewarnings=true))
+    tRs_ = DataFrame(CSV.File(file, header=n-n_meas, stringtype=String, silencewarnings=true, delim=delim))
     solute_names_ = names(tRs_)[2:end] # filter non-solute names out (columnx)
     filter!(x -> !occursin.("Column", x), solute_names_)
     if names(TPprog)[2] == "filename"
@@ -168,17 +168,17 @@ A tuple of the following quantities:
 * `pout` ... outlet pressure (detector pressure), "vacuum" or "atmospheric". 
 * `time_unit` ... unit of time scale used in the retention times and GC programs, "min" or "s".
 """
-function load_chromatograms(file::Dict{Any, Any}; filter_missing=true, path=joinpath(dirname(pwd()), "data", "exp_pro")) # if file is the output of FilePicker()
+function load_chromatograms(file::Dict{Any, Any}; filter_missing=true, path=joinpath(dirname(pwd()), "data", "exp_pro"), delim=";") # if file is the output of FilePicker()
     n = length(CSV.File(file["data"]; silencewarnings=true, comment=";;"))+1
-    col_df = DataFrame(CSV.File(file["data"], header=1, limit=1, stringtype=String, silencewarnings=true))
+    col_df = DataFrame(CSV.File(file["data"], header=1, limit=1, stringtype=String, silencewarnings=true, delim=delim))
 	col = GasChromatographySimulator.Column(col_df.L[1], col_df.d[1], col_df.df[1], col_df.sp[1], col_df.gas[1])
     pout = col_df.pout[1]
 	time_unit = col_df.time_unit[1]
  
     n_meas = Int((n - 2 - 2)/2) 
-    TPprog = DataFrame(CSV.File(file["data"], header=3, limit=n_meas, stringtype=String, silencewarnings=true))
+    TPprog = DataFrame(CSV.File(file["data"], header=3, limit=n_meas, stringtype=String, silencewarnings=true, delim=delim))
     #PP = DataFrame(CSV.File(file, header=3+n_meas+1, limit=n_meas, stringtype=String)) # convert pressures from Pa(g) to Pa(a), add p_atm to this data set
-    tRs_ = DataFrame(CSV.File(file["data"], header=n-n_meas, stringtype=String, silencewarnings=true, comment=";;"))
+    tRs_ = DataFrame(CSV.File(file["data"], header=n-n_meas, stringtype=String, silencewarnings=true, comment=";;", delim=delim))
     solute_names_ = names(tRs_)[2:end] # filter non-solute names out (columnx)
     filter!(x -> !occursin.("Column", x), solute_names_)
     if names(TPprog)[2] == "filename"

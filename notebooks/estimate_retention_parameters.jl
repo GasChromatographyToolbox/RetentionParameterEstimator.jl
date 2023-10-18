@@ -172,6 +172,9 @@ begin
 end
 # d = $(1000.0 * (res.d[1] ± res.d_std[1])) mm
 
+# ╔═╡ f87036c8-6665-410b-ae38-e5a32b3ce307
+res
+
 # ╔═╡ 8cc151a6-a60a-4aba-a813-1a142a073948
 begin
 	if check == false
@@ -291,6 +294,12 @@ Peaklists of the simulated verification programs, including difference to measur
 $(embed_display(pl))
 """
 
+# ╔═╡ fa9609a8-24df-4072-9d44-0f7984224b75
+pl
+
+# ╔═╡ 3ea7b604-ffb6-4021-bde0-f76b40d5a616
+comp_select[3]
+
 # ╔═╡ ddadd79d-7b74-4b2c-ad59-a31a5692cf3b
 md"""
 
@@ -384,7 +393,7 @@ md"""
 ## Plot ``\ln{k}`` over ``T``
 
 Select solute for ``\ln{k}`` plot:
-$(@bind select_solute confirm(Select(meas[4]; default=meas[4][1])))
+$(@bind select_solute confirm(Select(meas_select[4]; default=meas_select[4][1])))
 """
 
 # ╔═╡ c0f0b955-6791-401f-8252-745332c4210f
@@ -416,12 +425,12 @@ begin
 	#p_lnk_all = plot(xlabel=L"T \mathrm{\; in \: °C}", ylabel=L"\ln{k}", title="all", minorticks=4, minorgrid=true, legend=:none)
 	p_lnk_all = plot(xlabel="T in °C", ylabel="lnk", title="all", minorticks=4, minorgrid=true, legend=:none)
 
-	for i=1:length(meas[4])
-		res_ = filter([:Name] => x -> x == meas[4][i], res)
+	for i=1:length(meas_select[4])
+		res_ = filter([:Name] => x -> x == meas_select[4][i], res)
 		lnk(T) = (Measurements.value.(res_.ΔCp[1])/8.31446261815324 + Measurements.value.(res_.Tchar[1])/Measurements.value.(res_.θchar[1]))*(Measurements.value.(res_.Tchar[1])/(T+273.15)-1) + Measurements.value.(res_.ΔCp[1])/8.31446261815324*log((T+273.15)/Measurements.value.(res_.Tchar[1]))
 	
-		RetentionParameterEstimator.plot_lnk!(p_lnk_all, lnk, RetentionParameterEstimator.Tmin(meas)*0.925, (Telu_max[i]-273.15)*1.025, lbl=meas[4][i])
-		RetentionParameterEstimator.add_min_max_marker!(p_lnk_all, RetentionParameterEstimator.Tmin(meas), Telu_max[i]-273.15, lnk)
+		RetentionParameterEstimator.plot_lnk!(p_lnk_all, lnk, RetentionParameterEstimator.Tmin(meas_select)*0.925, (Telu_max[i]-273.15)*1.025, lbl=meas_select[4][i])
+		RetentionParameterEstimator.add_min_max_marker!(p_lnk_all, RetentionParameterEstimator.Tmin(meas_select), Telu_max[i]-273.15, lnk)
 	end
 	p_lnk_all
 end
@@ -893,6 +902,12 @@ git-tree-sha1 = "bdb1942cd4c45e3c678fd11569d5cccd80976237"
 uuid = "4e289a0a-7415-4d19-859d-a7e5c4648b56"
 version = "1.0.4"
 
+[[deps.EpollShim_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "8e9441ee83492030ace98f9789a654a6d0b1f643"
+uuid = "2702e6a9-849d-5ed8-8c21-79e8b8f9ee43"
+version = "0.0.20230411+0"
+
 [[deps.ExceptionUnwrapping]]
 deps = ["Test"]
 git-tree-sha1 = "e90caa41f5a86296e014e148ee061bd6c3edec96"
@@ -1075,9 +1090,9 @@ version = "0.72.9+1"
 
 [[deps.GasChromatographySimulator]]
 deps = ["CSV", "ChemicalIdentifiers", "DataFrames", "ForwardDiff", "HypertextLiteral", "Integrals", "Interpolations", "OrdinaryDiffEq", "Plots", "PlutoUI", "Reexport", "UrlDownload"]
-git-tree-sha1 = "ec4eb87c65be550dcb1576216015ab608c5d2181"
+git-tree-sha1 = "503fa0bf291f3f1ad609c8e0b5d583f39cd8ceff"
 uuid = "dd82b6e2-56ef-419d-b271-0be268cb65f5"
-version = "0.4.1"
+version = "0.4.3"
 
 [[deps.GenericSchur]]
 deps = ["LinearAlgebra", "Printf"]
@@ -2360,7 +2375,7 @@ uuid = "19fa3120-7c27-5ec5-8db8-b0b0aa330d6f"
 version = "0.2.0"
 
 [[deps.Wayland_jll]]
-deps = ["Artifacts", "Expat_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Pkg", "XML2_jll"]
+deps = ["Artifacts", "EpollShim_jll", "Expat_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Pkg", "XML2_jll"]
 git-tree-sha1 = "ed8d92d9774b077c53e1da50fd81a36af3744c1c"
 uuid = "a2964d1f-97da-50d4-b82a-358c7fce9d89"
 version = "1.21.0+0"
@@ -2637,6 +2652,7 @@ version = "1.4.1+0"
 # ╟─f3ffd4ce-a378-4033-88e9-bc1fb8cc4bbe
 # ╟─e98f4b1b-e577-40d0-a7d8-71c53d99ee1b
 # ╟─3b40b0b1-7007-48c7-b47b-dbeaf501b73d
+# ╠═f87036c8-6665-410b-ae38-e5a32b3ce307
 # ╟─8cc151a6-a60a-4aba-a813-1a142a073948
 # ╟─0f4c35c4-32f7-4d11-874d-1f23daad7da8
 # ╟─b4f17579-9994-46e1-a3d0-6030650f0dbe
@@ -2646,7 +2662,9 @@ version = "1.4.1+0"
 # ╟─07a7e45a-d73e-4a83-9323-700d3e2a88cc
 # ╟─ae424251-f4f7-48aa-a72b-3be85a193705
 # ╟─116ccf37-4a18-44ac-ae6e-98932901a8b0
-# ╟─157f24e6-1664-41c8-9079-b9dd0a2c98a9
+# ╠═157f24e6-1664-41c8-9079-b9dd0a2c98a9
+# ╠═fa9609a8-24df-4072-9d44-0f7984224b75
+# ╠═3ea7b604-ffb6-4021-bde0-f76b40d5a616
 # ╟─ddadd79d-7b74-4b2c-ad59-a31a5692cf3b
 # ╟─f83b26e7-f16d-49ac-ab3b-230533ac9c82
 # ╟─62c014d5-5e57-49d7-98f8-dace2f1aaa32

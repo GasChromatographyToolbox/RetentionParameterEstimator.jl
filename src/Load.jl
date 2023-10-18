@@ -171,7 +171,7 @@ A tuple of the following quantities:
 function load_chromatograms(file::Dict{Any, Any}; filter_missing=true, path=joinpath(dirname(pwd()), "data", "exp_pro"), delim=";") # if file is the output of FilePicker()
     n = length(CSV.File(file["data"]; silencewarnings=true, comment=";;"))+1
     col_df = DataFrame(CSV.File(file["data"], header=1, limit=1, stringtype=String, silencewarnings=true, delim=delim))
-	col = GasChromatographySimulator.Column(col_df.L[1], col_df.d[1], col_df.df[1], col_df.sp[1], col_df.gas[1])
+	col = GasChromatographySimulator.Column(convert(Float64, col_df.L[1]), col_df.d[1], col_df.df[1], col_df.sp[1], col_df.gas[1])
     pout = col_df.pout[1]
 	time_unit = col_df.time_unit[1]
  

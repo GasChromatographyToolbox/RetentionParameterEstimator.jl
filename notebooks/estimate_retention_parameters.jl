@@ -243,6 +243,7 @@ begin
 		"""
 	else
 		if file_meas == file_comp
+			comp = RetentionParameterEstimator.load_chromatograms(file_comp);
 			md"""
 			Selected chromatograms for **verification**: $(file_comp["name"])
 	
@@ -2654,7 +2655,7 @@ version = "1.4.1+0"
 # ╟─3b40b0b1-7007-48c7-b47b-dbeaf501b73d
 # ╠═f87036c8-6665-410b-ae38-e5a32b3ce307
 # ╟─8cc151a6-a60a-4aba-a813-1a142a073948
-# ╟─0f4c35c4-32f7-4d11-874d-1f23daad7da8
+# ╠═0f4c35c4-32f7-4d11-874d-1f23daad7da8
 # ╟─b4f17579-9994-46e1-a3d0-6030650f0dbe
 # ╟─0d61fd05-c0c6-4764-9f96-3b867a456ad3
 # ╟─38d1e196-f375-48ac-bc11-80b10472c1cd
@@ -2662,7 +2663,7 @@ version = "1.4.1+0"
 # ╟─07a7e45a-d73e-4a83-9323-700d3e2a88cc
 # ╟─ae424251-f4f7-48aa-a72b-3be85a193705
 # ╟─116ccf37-4a18-44ac-ae6e-98932901a8b0
-# ╠═157f24e6-1664-41c8-9079-b9dd0a2c98a9
+# ╟─157f24e6-1664-41c8-9079-b9dd0a2c98a9
 # ╠═fa9609a8-24df-4072-9d44-0f7984224b75
 # ╠═3ea7b604-ffb6-4021-bde0-f76b40d5a616
 # ╟─ddadd79d-7b74-4b2c-ad59-a31a5692cf3b

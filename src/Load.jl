@@ -189,10 +189,10 @@ function load_chromatograms(file::Dict{Any, Any}; filter_missing=true, path=join
 
         prog = Array{GasChromatographySimulator.Program}(undef, length(TPs.measurement))
         for i=1:length(TPs.measurement)
-            if pout == "atmospheric"
-                pout_ = PPs[i, end]
-            else
+            if pout == "vacuum"
                 pout_ = "vacuum"
+            else # pout="atmospheric"
+                pout_ = PPs[i, end]
             end
             prog[i] = Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:(end-1)])), col.L; pout=pout_, time_unit=time_unit)
         end

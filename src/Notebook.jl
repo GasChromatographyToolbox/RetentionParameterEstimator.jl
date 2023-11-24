@@ -68,13 +68,13 @@ function comparison(res, comp)
 		end
 		col = GasChromatographySimulator.Column(comp[1].L, d, comp[1].df/comp[1].d*d, comp[1].sp, comp[1].gas)
 		par[i] = GasChromatographySimulator.Parameters(col, comp[2][i], sub, opt)
-		try
+		#try
 			#pl[i] = GasChromatographySimulator.simulate(par[i])[1]
 			sol, peak = GasChromatographySimulator.solve_multithreads(par[i])
 			pl[i] = peaklist(sol, peak, par[i])
-		catch
-			pl[i] = DataFrame(Name=comp[4], tR=NaN.*ones(length(comp[4])), τR=NaN.*ones(length(comp[4])))
-		end
+		#catch
+		#	pl[i] = DataFrame(Name=comp[4], tR=NaN.*ones(length(comp[4])), τR=NaN.*ones(length(comp[4])))
+		#end
 		#CAS = GasChromatographySimulator.CAS_identification(string.(result[j].Name)).CAS
 		ΔtR = Array{Float64}(undef, length(comp[4]))
 		relΔtR = Array{Float64}(undef, length(comp[4]))

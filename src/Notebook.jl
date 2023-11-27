@@ -150,7 +150,7 @@ function peaklist(sol, peak, par)
     return select(df, [:No, :Name, :CAS, :tR, :τR, :TR, :σR, :uR, :kR, :Res, :Δs, :Annotations])
 end
 
-function plot_chromatogram_comparison(pl, meas, comp)
+function plot_chromatogram_comparison(pl, meas, comp; lines=true, annotation=true)
 	gr()
 	p_chrom = Array{Plots.Plot}(undef, length(pl))
 	for i=1:length(pl)
@@ -166,6 +166,15 @@ function plot_chromatogram_comparison(pl, meas, comp)
 		#add marker for measured retention times
 		for j=1:length(comp[4])
 			plot!(p_chrom[i], comp[3][i,j+1].*ones(2), [min_, max_], c=:orange)
+			# add lines between measured and calculated retention times
+			jj = findfirst(comp[4][j].==pl[i].Name)
+			apex = GasChromatographySimulator.chromatogram([pl[i].tR[jj]], [pl[i].tR[jj]], [pl[i].τR[jj]])[1]
+			if lines == true
+				plot!(p_chrom[i], [comp[3][i,j+1], pl[i].tR[jj]], [max_, apex], c=:grey, linestyle=:dash)
+				if annotation==true
+					plot!(p_chrom[i], annotations = (pl[i].tR[jj], apex, text(j, 10, rotation=0, :center)))
+				end
+			end
 		end
 		plot!(p_chrom[i], title=comp[3].measurement[i])
 	end

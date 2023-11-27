@@ -68,12 +68,13 @@ function comparison(res, comp)
 		end
 		col = GasChromatographySimulator.Column(comp[1].L, d, comp[1].df/comp[1].d*d, comp[1].sp, comp[1].gas)
 		par[i] = GasChromatographySimulator.Parameters(col, comp[2][i], sub, opt)
-		try
-			pl[i] = GasChromatographySimulator.simulate(par[i])[1]
-			
-		catch
-			pl[i] = DataFrame(Name=comp[4], tR=NaN.*ones(length(comp[4])), τR=NaN.*ones(length(comp[4])))
-		end
+		#try
+			#pl[i] = GasChromatographySimulator.simulate(par[i])[1]
+			sol, peak = GasChromatographySimulator.solve_multithreads(par[i])
+			pl[i] = peaklist(sol, peak, par[i])
+		#catch
+		#	pl[i] = DataFrame(Name=comp[4], tR=NaN.*ones(length(comp[4])), τR=NaN.*ones(length(comp[4])))
+		#end
 		#CAS = GasChromatographySimulator.CAS_identification(string.(result[j].Name)).CAS
 		ΔtR = Array{Float64}(undef, length(comp[4]))
 		relΔtR = Array{Float64}(undef, length(comp[4]))
@@ -92,7 +93,64 @@ function comparison(res, comp)
 	return pl, loss, par
 end
 
-function plot_chromatogram_comparison(pl, meas, comp)
+# from GasChromatographySimulator
+function peaklist(sol, peak, par)
+	n = length(par.sub)
+    No = Array{Union{Missing, Int64}}(undef, n)
+    Name = Array{String}(undef, n)
+    CAS = Array{String}(undef, n)
+    tR = Array{Float64}(undef, n)
+    TR = Array{Float64}(undef, n)
+    σR = Array{Float64}(undef, n)
+    uR = Array{Float64}(undef, n)
+    τR = Array{Float64}(undef, n)
+    kR = Array{Float64}(undef, n)
+    Res = fill(NaN, n)
+    Δs = fill(NaN, n)
+    Annotations = Array{String}(undef, n)
+    #Threads.@threads for i=1:n
+    for i=1:n
+        Name[i] = par.sub[i].name
+        CAS[i] = par.sub[i].CAS
+        if sol[i].t[end]==par.col.L
+            tR[i] = sol[i].u[end]
+            TR[i] = par.prog.T_itp(par.col.L, tR[i]) - 273.15 
+            uR[i] = 1/GasChromatographySimulator.residency(par.col.L, tR[i], par.prog.T_itp, par.prog.Fpin_itp, par.prog.pout_itp, par.col.L, par.col.d, par.col.df, par.col.gas, par.sub[i].Tchar, par.sub[i].θchar, par.sub[i].ΔCp, par.sub[i].φ₀; ng=par.opt.ng, vis=par.opt.vis, control=par.opt.control, k_th=par.opt.k_th)
+            τR[i] = sqrt(peak[i].u[end])
+            σR[i] = τR[i]*uR[i]
+            kR[i] = GasChromatographySimulator.retention_factor(par.col.L, tR[i], par.prog.T_itp, par.col.d, par.col.df, par.sub[i].Tchar, par.sub[i].θchar, par.sub[i].ΔCp, par.sub[i].φ₀; k_th=par.opt.k_th)
+        else
+            tR[i] = NaN
+            TR[i] = NaN
+            uR[i] = NaN
+            τR[i] = NaN
+            σR[i] = NaN
+            kR[i] = NaN
+        end
+        No[i] = try
+            parse(Int,split(par.sub[i].ann, ", ")[end])
+        catch
+            missing
+        end
+        if ismissing(No[i])
+            Annotations[i] = par.sub[i].ann
+        else
+            Annotations[i] = join(split(par.sub[i].ann, ", ")[1:end-1], ", ")
+        end
+    end  
+    df = sort!(DataFrame(No = No, Name = Name, CAS = CAS, tR = tR, τR = τR, TR=TR, σR = σR, uR = uR, kR = kR, Annotations = Annotations, ), [:tR])
+    #Threads.@threads for i=1:n-1
+    for i=1:n-1
+        Res[i] = (df.tR[i+1] - df.tR[i])/(2*(df.τR[i+1] + df.τR[i]))
+        Δs[i] = (df.tR[i+1] - df.tR[i])/(df.τR[i+1] - df.τR[i]) * log(df.τR[i+1]/df.τR[i])
+    end
+    df[!, :Res] = Res 
+    df[!, :Δs] = Δs   
+    
+    return select(df, [:No, :Name, :CAS, :tR, :τR, :TR, :σR, :uR, :kR, :Res, :Δs, :Annotations])
+end
+
+function plot_chromatogram_comparison(pl, meas, comp; lines=true, annotation=true)
 	gr()
 	p_chrom = Array{Plots.Plot}(undef, length(pl))
 	for i=1:length(pl)
@@ -108,6 +166,15 @@ function plot_chromatogram_comparison(pl, meas, comp)
 		#add marker for measured retention times
 		for j=1:length(comp[4])
 			plot!(p_chrom[i], comp[3][i,j+1].*ones(2), [min_, max_], c=:orange)
+			# add lines between measured and calculated retention times
+			jj = findfirst(comp[4][j].==pl[i].Name)
+			apex = GasChromatographySimulator.chromatogram([pl[i].tR[jj]], [pl[i].tR[jj]], [pl[i].τR[jj]])[1]
+			if lines == true
+				plot!(p_chrom[i], [comp[3][i,j+1], pl[i].tR[jj]], [max_, apex], c=:grey, linestyle=:dash)
+				if annotation==true
+					plot!(p_chrom[i], annotations = (pl[i].tR[jj], apex, text(j, 10, rotation=0, :center)))
+				end
+			end
 		end
 		plot!(p_chrom[i], title=comp[3].measurement[i])
 	end

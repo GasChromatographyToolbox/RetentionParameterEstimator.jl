@@ -5,7 +5,7 @@
 """
     Program(TP, FpinP, L; pout="vacuum", time_unit="min")
 
-Construct the structure `Program` with conventional formulation (see [`conventional_program`](@ref)) of programs for the case
+Construct the structure `Program` with conventional formulation (see function `conventional_program` in `GasChromatographySimulator.jl`) of programs for the case
 without a thermal gradient. 
 
 # Arguments

@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.31
+# v0.19.36
 
 using Markdown
 using InteractiveUtils
@@ -18,14 +18,14 @@ end
 begin 
 	# online version
 	import Pkg
-	version = "0.1.7"
+	version = "0.1.8"
 	Pkg.activate(mktempdir())
 	Pkg.add([
 		Pkg.PackageSpec(name="RetentionParameterEstimator", version=version)
 		])
 	using RetentionParameterEstimator
 	md"""
-	online, Packages, estimate\_retention\_parameters, for GasChromatographySimulator v$(version)
+	online, Packages, estimate\_retention\_parameters, for RetentionParameterEstimator v$(version)
 	"""
 
 #=	# local version (database is still downloaded from github)
@@ -36,7 +36,7 @@ begin
 	using RetentionParameterEstimator
 	
 	md"""
-	local, Packages, estimate\_retention\_parameters.jl, for GasChromatographySimulator v0.1.6
+	local, Packages, estimate\_retention\_parameters.jl, for RetentionParameterEstimator v0.1.6
 	"""
 =#
 end

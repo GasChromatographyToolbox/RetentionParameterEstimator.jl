@@ -1,7 +1,3 @@
-```@docs
-RetentionParameterEstimator
-```
-
 ## Module Index
 
 ```@index

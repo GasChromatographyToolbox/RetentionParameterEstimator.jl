@@ -2,4 +2,4 @@
 
 Documentation for RetentionParameterEstimator.jl
 
-[RetentionParameterEstimator.jl](github.com/GasChromatographyToolbox/RetentionParameterEstimator)
+[RetentionParameterEstimator.jl](https://github.com/GasChromatographyToolbox/RetentionParameterEstimator.jl)

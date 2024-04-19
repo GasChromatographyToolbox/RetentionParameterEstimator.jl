@@ -470,7 +470,7 @@ function method_m1(meas, col_input; se_col=true)
 	stderrors = stderror(meas, res_, col_input)[1]
 	# output dataframe
     res = if se_col == true
-	    DataFrame(Name=res.Name, min=res.min, Tchar=res.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res.ΔCp, ΔCp_std=stderrors.sd_ΔCp)
+	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res_.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=stderrors.sd_ΔCp)
     else
 	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±stderrors.sd_Tchar, θchar=res_.θchar.±stderrors.sd_θchar, ΔCp=res_.ΔCp.±stderrors.sd_ΔCp)
 	end
@@ -514,7 +514,7 @@ function method_m2(meas; se_col=true)
 	stderrors = stderror(meas, res_)[1]
 	# output dataframe
     res = if se_col == true
-	    DataFrame(Name=res.Name, min=res.min, Tchar=res.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res.ΔCp, ΔCp_std=stderrors.sd_ΔCp, d=res.d, d_std=res.d_std)
+	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res_.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=stderrors.sd_ΔCp, d=res_.d, d_std=res_.d_std)
     else
 	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±stderrors.sd_Tchar, θchar=res_.θchar.±stderrors.sd_θchar, ΔCp=res_.ΔCp.±stderrors.sd_ΔCp, d=res_.d.±res_.d_std)
     end

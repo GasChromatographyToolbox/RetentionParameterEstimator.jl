@@ -148,7 +148,7 @@ begin
 	min_th = 0.1
 	loss_th = 1.0
 	if select_mode == "m1"
-		check, msg, df_flag, index_flag, res, Telu_max = RetentionParameterEstimator.check_measurement(meas_select, (L = meas_select[1].L, d = meas_select[1].d*1000); min_th=min_th, loss_th=loss_th)
+		check, msg, df_flag, index_flag, res, Telu_max = RetentionParameterEstimator.check_measurement(meas_select, (L = meas_select[1].L, d = meas_select[1].d*1000); min_th=min_th, loss_th=loss_th, se_col=false)
 		md"""
 		## Results
 
@@ -157,7 +157,7 @@ begin
 		$(res)
 		"""
 	elseif select_mode == "m1a"
-		check, msg, df_flag, index_flag, res, Telu_max = RetentionParameterEstimator.check_measurement(meas_select, col_input; min_th=min_th, loss_th=loss_th)
+		check, msg, df_flag, index_flag, res, Telu_max = RetentionParameterEstimator.check_measurement(meas_select, col_input; min_th=min_th, loss_th=loss_th, se_col=false)
 		md"""
 		## Results
 
@@ -166,7 +166,7 @@ begin
 		$(res)
 		"""
 	elseif select_mode == "m2"
-		res, Telu_max = RetentionParameterEstimator.method_m2(meas_select)
+		res, Telu_max = RetentionParameterEstimator.method_m2(meas_select; se_col=false)
 		check = true
 		md"""
 		## Results

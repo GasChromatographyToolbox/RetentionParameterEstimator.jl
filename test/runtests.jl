@@ -55,6 +55,10 @@ time_unit = "min"
 file = "./data/meas_test.csv"
 meas = RetentionParameterEstimator.load_chromatograms(file; filter_missing=true)
 @test meas[4][1] == "2-Octanone"
+
+file = "./data/meas_test_2.csv" # from Email from mathijs.ruiter@go-jsb.com -> Issue #29
+meas = RetentionParameterEstimator.load_chromatograms(file; filter_missing=true)
+@test meas[2][1].Fpin_steps[3] == meas[2][1].Fpin_steps[3]
 # Loss.jl
 
 # Estimate_Start_Values.jl

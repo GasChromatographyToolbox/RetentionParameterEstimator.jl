@@ -423,7 +423,7 @@ function check_measurement(meas, col_input; min_th=0.1, loss_th=1.0, se_col=true
     res = if se_col == true
 	    DataFrame(Name=df.Name, min=df.min, Tchar=df.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=df.θchar, θchar_std=stderrors.sd_θchar, ΔCp=df.ΔCp, ΔCp_std=stderrors.sd_ΔCp)
     else
-	    res = DataFrame(Name=df.Name, min=df.min, Tchar=df.Tchar.±stderrors.sd_Tchar, θchar=df.θchar.±stderrors.sd_θchar, ΔCp=df.ΔCp.±stderrors.sd_ΔCp)
+	    DataFrame(Name=df.Name, min=df.min, Tchar=df.Tchar.±stderrors.sd_Tchar, θchar=df.θchar.±stderrors.sd_θchar, ΔCp=df.ΔCp.±stderrors.sd_ΔCp)
     end
 	return check, msg, df_flag, index_flag, res, Telu_max
 end
@@ -516,7 +516,7 @@ function method_m2(meas; se_col=true)
     res = if se_col == true
 	    DataFrame(Name=res.Name, min=res.min, Tchar=res.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res.ΔCp, ΔCp_std=stderrors.sd_ΔCp, d=res.d, d_std=res.d_std)
     else
-	    res = DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±stderrors.sd_Tchar, θchar=res_.θchar.±stderrors.sd_θchar, ΔCp=res_.ΔCp.±stderrors.sd_ΔCp, d=res_.d.±res_.d_std)
+	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±stderrors.sd_Tchar, θchar=res_.θchar.±stderrors.sd_θchar, ΔCp=res_.ΔCp.±stderrors.sd_ΔCp, d=res_.d.±res_.d_std)
     end
 	return res, Telu_max
 end

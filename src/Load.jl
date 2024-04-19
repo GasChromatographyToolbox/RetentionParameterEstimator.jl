@@ -67,7 +67,7 @@ function extract_temperature_and_pressure_programs(TPprog)
     pressurerates = Array{Array{Union{Missing, Float64}}}(undef, length(iTrate))
     for i=1:length(iTrate)
         pressurerates[i] = (TPprog[!,iP[i+1]] .- TPprog[!,iP[i]]) .* heatingrates[i] ./ Tdiff[i]
-        if pressurerates[i] != zeros(length(pressurerates[i]))
+        if !ismissing(pressurerates[i] != zeros(length(pressurerates[i])))
             PPs[!,"RP$(i)"] = pressurerates[i]
             PPs[!,"p$(i+1)"] = TPprog[!, iP[i+1]].+pamb
             PPs[!,"t$(i+1)"] = TPs[!,"t$(i+1)"]

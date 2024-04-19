@@ -372,7 +372,7 @@ end
 # full methods
 
 """
-    check_measurement(meas, col_input; min_th=0.1, loss_th=1.0)
+    check_measurement(meas, col_input; min_th=0.1, loss_th=1.0, se_col=true)
 
 Similar to `method_m1` ([`method_m1`](@ref)) estimate the three retention parameters ``T_{char}``, ``θ_{char}`` and ``ΔC_p`` including standard errors, see [`stderror`](@ref).
 In addition, if the found optimized minima is above a threshold `min_th`, it is flagged and the squared differences of single measured retention times and calculated retention times above
@@ -381,6 +381,7 @@ another threshold `loss_th` are recorded.
 # Arguments
 * `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
 * `col_input` ... Named tuple with `col_input.L` the column length in m and `col_input.d` the column diameter in mm. If this parameter is not gicen, than these parameters are taken from `meas`. 
+* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
 
 # Output 
 * `check` ... Boolean. `true` if all values are below the thresholds, `false` if not.
@@ -390,7 +391,7 @@ another threshold `loss_th` are recorded.
 * `res` ... Dataframe with the optimized parameters and the found minima.
 * `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
 """  
-function check_measurement(meas, col_input; min_th=0.1, loss_th=1.0)
+function check_measurement(meas, col_input; min_th=0.1, loss_th=1.0, se_col=true)
 	col = GasChromatographySimulator.Column(col_input.L, col_input.d*1e-3, meas[1].df, meas[1].sp, meas[1].gas)
 	Tchar_est, θchar_est, ΔCp_est, Telu_max = RetentionParameterEstimator.estimate_start_parameter(meas[3], col, meas[2]; time_unit=meas[6])
 	df = estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6])[1]
@@ -419,8 +420,11 @@ function check_measurement(meas, col_input; min_th=0.1, loss_th=1.0)
 	# calculate the standard errors of the 3 parameters using the hessian matrix
 	stderrors = stderror(meas, df, col_input)[1]
 	# output dataframe
-	#df_ = DataFrame(Name=df.Name, min=df.min, Tchar=df.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=df.θchar, θchar_std=stderrors.sd_θchar, ΔCp=df.ΔCp, ΔCp_std=stderrors.sd_ΔCp)
-	res = DataFrame(Name=df.Name, min=df.min, Tchar=df.Tchar.±stderrors.sd_Tchar, θchar=df.θchar.±stderrors.sd_θchar, ΔCp=df.ΔCp.±stderrors.sd_ΔCp)
+    res = if se_col == true
+	    DataFrame(Name=df.Name, min=df.min, Tchar=df.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=df.θchar, θchar_std=stderrors.sd_θchar, ΔCp=df.ΔCp, ΔCp_std=stderrors.sd_ΔCp)
+    else
+	    DataFrame(Name=df.Name, min=df.min, Tchar=df.Tchar.±stderrors.sd_Tchar, θchar=df.θchar.±stderrors.sd_θchar, ΔCp=df.ΔCp.±stderrors.sd_ΔCp)
+    end
 	return check, msg, df_flag, index_flag, res, Telu_max
 end
 
@@ -442,19 +446,20 @@ function flagged_loss(meas, df, index_flag)
 end
 
 """
-    method_m1(meas, col_input)
+    method_m1(meas, col_input; se_col=true)
 
 Estimation of the three retention parameters ``T_{char}``, ``θ_{char}`` and ``ΔC_p`` including standard errors, see [`stderror`](@ref).
 
 # Arguments
 * `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
 * `col_input` ... Named tuple with `col_input.L` the column length in m and `col_input.d` the column diameter in mm. If this parameter is not gicen, than these parameters are taken from `meas`. 
+* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
 
 # Output 
 * `res` ... Dataframe with the optimized parameters and the found minima.
 * `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
 """   
-function method_m1(meas, col_input)
+function method_m1(meas, col_input; se_col=true)
 	# definition of the column
 	col = GasChromatographySimulator.Column(col_input.L, col_input.d*1e-3, meas[1].df, meas[1].sp, meas[1].gas)
 	# calculate start parameters	
@@ -464,13 +469,16 @@ function method_m1(meas, col_input)
 	# calculate the standard errors of the 3 parameters using the hessian matrix
 	stderrors = stderror(meas, res_, col_input)[1]
 	# output dataframe
-	#res_ = DataFrame(Name=res.Name, min=res.min, Tchar=res.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res.ΔCp, ΔCp_std=stderrors.sd_ΔCp, d=res.d, d_std=res.d_std)
-	res = DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±stderrors.sd_Tchar, θchar=res_.θchar.±stderrors.sd_θchar, ΔCp=res_.ΔCp.±stderrors.sd_ΔCp)
-	return res, Telu_max
+    res = if se_col == true
+	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res_.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=stderrors.sd_ΔCp)
+    else
+	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±stderrors.sd_Tchar, θchar=res_.θchar.±stderrors.sd_θchar, ΔCp=res_.ΔCp.±stderrors.sd_ΔCp)
+	end
+    return res, Telu_max
 end
 
 """
-    method_m2(meas)
+    method_m2(meas; se_col=true)
 
 Estimation of the column diameter ``d`` and three retention parameters ``T_{char}``, ``θ_{char}`` and ``Δ C_p`` including standard errors, see [`stderror`](@ref).
 In a first run all four parameters are estimated for every substance separatly, resulting in different optimized column diameters. The mean value of the column diameter is used for 
@@ -479,12 +487,13 @@ a second optimization using this mean diameter and optimize the remainig thre re
 # Arguments
 * `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
 * `col_input` ... Named tuple with `col_input.L` the column length in m and `col_input.d` the column diameter in mm. If this parameter is not gicen, than these parameters are taken from `meas`. 
+* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
 
 # Output 
 * `res` ... Dataframe with the optimized parameters and the found minima.
 * `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
 """   
-function method_m2(meas)
+function method_m2(meas; se_col=true)
 	# retention times, use only the solutes, which have non-missing retention time entrys
 	tRs = meas[3][!,findall((collect(any(ismissing, c) for c in eachcol(meas[3]))).==false)]
 	# solute names, use only the solutes, which have non-missing retention time entrys
@@ -504,8 +513,11 @@ function method_m2(meas)
 	# calculate the standard errors of the 3 parameters using the hessian matrix
 	stderrors = stderror(meas, res_)[1]
 	# output dataframe
-	#res_ = DataFrame(Name=res.Name, min=res.min, Tchar=res.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res.ΔCp, ΔCp_std=stderrors.sd_ΔCp, d=res.d, d_std=res.d_std)
-	res = DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±stderrors.sd_Tchar, θchar=res_.θchar.±stderrors.sd_θchar, ΔCp=res_.ΔCp.±stderrors.sd_ΔCp, d=res_.d.±res_.d_std)
+    res = if se_col == true
+	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res_.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=stderrors.sd_ΔCp, d=res_.d, d_std=res_.d_std)
+    else
+	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±stderrors.sd_Tchar, θchar=res_.θchar.±stderrors.sd_θchar, ΔCp=res_.ΔCp.±stderrors.sd_ΔCp, d=res_.d.±res_.d_std)
+    end
 	return res, Telu_max
 end
 

@@ -71,7 +71,7 @@ meas_ = RetentionParameterEstimator.load_chromatograms(file; filter_missing=true
 #@test isapprox(sol[2].minimum, 0.009; atol = 0.0001)
 
 col_input = (L = meas_select[1].L, d = meas_select[1].d*1000)
-check, msg, df_flag, index_flag, res, Telu_max = RetentionParameterEstimator.check_measurement(meas_select, col_input; min_th=0.1, loss_th=1.0)
+check, msg, df_flag, index_flag, res, Telu_max = RetentionParameterEstimator.check_measurement(meas_select, col_input; min_th=0.1, loss_th=1.0, se_col=false)
 @test check == true
 @test isapprox(res.Tchar[1], 400.0; atol = 1.0)
 #@test isapprox(res.min[2], 0.009; atol = 0.001)
@@ -82,9 +82,9 @@ check, msg, df_flag, index_flag, res, Telu_max = RetentionParameterEstimator.che
 #@test isapprox(res_.Tchar[1], 415.5; atol = 0.1)
 #@test isapprox(res_.min[2], 0.21; atol = 0.01)
 
-res_m1, Telu_max_m1 = RetentionParameterEstimator.method_m1(meas_select, col_input)
+res_m1, Telu_max_m1 = RetentionParameterEstimator.method_m1(meas_select, col_input, se_col=false)
 @test res_m1.Tchar == res.Tchar
 @test Telu_max_m1 == Telu_max
 
-res_m2, Telu_max_m2 = RetentionParameterEstimator.method_m2(meas_select)
+res_m2, Telu_max_m2 = RetentionParameterEstimator.method_m2(meas_select, se_col=true)
 @test isapprox(res_m2.d[1], 0.00024, atol=0.00001)  

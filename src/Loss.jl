@@ -8,6 +8,10 @@ For this calculation only the ODE for the migration of a solute in a GC column i
 """
 function tR_calc(Tchar, θchar, ΔCp, L, d, prog, gas; opt=std_opt)
 	# df has no influence on the result (is hidden in Tchar, θchar, ΔCp)
+	
+	# replace the following using GasChromatographySimulator.solving_migration or GasChromatographySimulator.solving_odesystem_r (but reworked for autodiffablity)
+	# also add possibility of quantities with uncertainties!!!
+	# can Optimization.jl work with uncertainties???
 	k(x,t,Tchar_,θchar_,ΔCp_) = exp((ΔCp_/R + Tchar_/θchar_)*(Tchar_/prog.T_itp(x,t)-1) + ΔCp_/R*real(log(Complex(prog.T_itp(x,t)/Tchar_))))
 	rM(x,t,L_,d_) = GasChromatographySimulator.mobile_phase_residency(x,t, prog.T_itp, prog.Fpin_itp, prog.pout_itp, L_, d_, gas; ng=opt.ng, vis=opt.vis, control=opt.control)
 	
@@ -22,12 +26,26 @@ function tR_calc(Tchar, θchar, ΔCp, L, d, prog, gas; opt=std_opt)
 	return tR
 end
 
-
-function tR_calc(Tchar, θchar, ΔCp, φ₀, L, d, df, prog, gas; opt=std_opt)
+# use this as the main function
+function tR_calc(Tchar, θchar, ΔCp, L, d, df, prog, gas; opt=std_opt)
 	# df has no influence on the result (is hidden in Tchar, θchar, ΔCp)
-	solution = GasChromatographySimulator.solving_migration(Tchar, θchar, ΔCp, φ₀, L, d, df, prog, opt, gas)
+	solution = GasChromatographySimulator.solving_migration(prog.T_itp, prog.Fpin_itp, prog.pout_itp, L, d, df, Tchar, θchar, ΔCp, d/df, gas, opt; kwargs...)
 	tR = solution.u[end]
 	return tR
+end
+
+"""
+    tR_τR_calc(Tchar, θchar, ΔCp, L, d, df, prog, Cag, t₀, τ₀, gas; opt=std_opt)
+
+Calculates the retention time tR for a solute with the K-centric parameters `Tchar` `θchar` and `ΔCp` for a column with length `L`, internal diameter `d`, film thickness `df`, the (conventional) program `prog`, diffusirivity coefficient `Cag`, start time `t₀`, initial peak width `τ₀`, options `opt` and mobile phase `gas`.
+For this calculation the ODE-system for the migration of a solute and peak width in a GC column is solved, using the function `GasChromatographySimulator.solving_odesystem_r`.
+The result is a tuple of retention time `tR` and peak width `τR`.
+"""
+function tR_τR_calc(Tchar, θchar, ΔCp, L, d, df, prog, Cag, t₀, τ₀, gas; opt=std_opt)
+	solution = GasChromatographySimulator.solving_odesystem_r(L, d, df, gas, prog.T_itp, prog.Fpin_itp, prog.pout_itp, Tchar, θchar, ΔCp, df/d, Cag, t₀, τ₀, opt)
+	tR = solution.u[end][1]
+	τR = sqrt(solution.u[end][2])
+	return tR, τR
 end
 
 

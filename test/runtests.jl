@@ -88,3 +88,6 @@ res_m1, Telu_max_m1 = RetentionParameterEstimator.method_m1(meas_select, col_inp
 
 res_m2, Telu_max_m2 = RetentionParameterEstimator.method_m2(meas_select, se_col=true)
 @test isapprox(res_m2.d[1], 0.00024, atol=0.00001)  
+
+# ToDo:
+# add test for missing measuremet values

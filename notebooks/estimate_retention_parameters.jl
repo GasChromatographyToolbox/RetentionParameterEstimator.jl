@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.36
+# v0.19.41
 
 using Markdown
 using InteractiveUtils
@@ -34,6 +34,9 @@ begin
 	# activate the shared project environment
 	Pkg.activate(Base.current_project())
 	using RetentionParameterEstimator
+	#Pkg.add([
+	#	Pkg.PackageSpec(name="RetentionParameterEstimator", rev="minor_fix_jsb")
+	#])
 	
 	md"""
 	local, Packages, estimate\_retention\_parameters.jl, for RetentionParameterEstimator v0.1.6
@@ -208,9 +211,10 @@ begin
 		"selected measurements:", join(selected_measurements, " "),
 		"mode:", select_mode
 	]
+	res_export = RetentionParameterEstimator.separate_error_columns(res)
 	io = IOBuffer()
 	CSV.write(io, DataFrame[], header=head)
-	CSV.write(io, res, append=true, writeheader=true)
+	CSV.write(io, res_export, append=true, writeheader=true)
 	#export_str_ = export_str(opt_values, col_values, prog_values, peaklist)
 	md"""
 	## Export Results
@@ -462,14 +466,8 @@ md"""
 # End
 """
 
-# ╔═╡ e4481e8b-2327-41fd-b583-6a5859ba0ae0
-RetentionParameterEstimator.GasChromatographySimulator.flow(0.0, par[1])*60e6 #
-
-# ╔═╡ d82aca12-a9f3-43c5-9931-e98467effd6e
-RetentionParameterEstimator.GasChromatographySimulator.flow(sum(par[1].prog.time_steps), par[1])*60e6 #
-
 # ╔═╡ Cell order:
-# ╟─09422105-a747-40ac-9666-591326850d8f
+# ╠═09422105-a747-40ac-9666-591326850d8f
 # ╟─eb5fc23c-2151-47fa-b56c-5771a4f8b9c5
 # ╟─f46b165e-67d9-402f-a225-72d1082007be
 # ╟─6d4ec54b-01b2-4208-9b9e-fcb70d236c3e
@@ -503,5 +501,3 @@ RetentionParameterEstimator.GasChromatographySimulator.flow(sum(par[1].prog.time
 # ╟─c0f0b955-6791-401f-8252-745332c4210f
 # ╟─b6c2ad4d-6fc5-4700-80e3-f616c0b9aa91
 # ╟─9178967d-26dc-43be-b6e4-f35bbd0b0b04
-# ╠═e4481e8b-2327-41fd-b583-6a5859ba0ae0
-# ╠═d82aca12-a9f3-43c5-9931-e98467effd6e

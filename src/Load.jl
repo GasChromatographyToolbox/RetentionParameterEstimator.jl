@@ -107,9 +107,10 @@ A tuple of the following quantities:
 * `pout` ... outlet pressure (detector pressure), "vacuum" or "atmospheric". 
 * `time_unit` ... unit of time scale used in the retention times and GC programs, "min" or "s".
 """
-function load_chromatograms(file; filter_missing=true, delim=";") # new version
+function load_chromatograms(file; filter_missing=true, delim=";") # new version -> check case for `filter_missing=false` and missing values in further functions!!!!
     n = open(f->countlines(f), file)
-    col_df = DataFrame(CSV.File(file, header=1, limit=1, stringtype=String, silencewarnings=true, delim=delim))
+    #col_df = DataFrame(CSV.File(file, header=1, limit=1, stringtype=String, silencewarnings=true, delim=delim, types=[Float64, Float64, Float64, String, String, String, String]))
+    col_df = DataFrame(CSV.File(file, header=1, limit=1, stringtype=String, silencewarnings=true, delim=delim, types=Dict("L" => Float64, "d" => Float64, "df" => Float64)))
 	col = GasChromatographySimulator.Column(col_df.L[1], col_df.d[1], col_df.df[1], col_df.sp[1], col_df.gas[1])
     pout = col_df.pout[1]
 	time_unit = col_df.time_unit[1]
@@ -142,7 +143,7 @@ function load_chromatograms(file; filter_missing=true, delim=";") # new version
 		solute_names = solute_names_[findall((collect(any(ismissing, c) for c in eachcol(tRs_))).==false)[2:end].-1]
 		tRs = tRs_[!,findall((collect(any(ismissing, c) for c in eachcol(tRs_))).==false)]
 	else
-		solute_names = solute_names_
+		solute_names = solute_names_ # what to do with missing entries for the optimization????
 		tRs = tRs_
 	end
 	

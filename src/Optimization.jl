@@ -25,6 +25,8 @@ Function used for optimization of the loss-function in regards to the three K-ce
 * `sum((tR.-tRcalc).^2)` ... sum of the squared residuals over m GC-programs and n solutes.
 """
 function opt_Kcentric(x, p)
+    # for 2-parameter version `x` is shorter, the part for `ΔCp = x[2*ns+1+1:3*ns+1]` will be missing
+    # instead set `ΔCp = zeros(ns)`
 	tR = p[1]
 	L = p[2]
 	d = p[3]
@@ -44,6 +46,8 @@ function opt_Kcentric(x, p)
 end
 
 function opt_Kcentric_(x, p)
+    # for 2-parameter version `x` is shorter, the part for `ΔCp = x[2*ns+1+1:3*ns+1]` will be missing
+    # instead set `ΔCp = zeros(ns)`
 	tR = p[1]
     φ₀ = p[2]
 	L = p[3]
@@ -119,6 +123,8 @@ Function used for optimization of the loss-function in regards to the three K-ce
 * `sum((tR.-tRcalc).^2)` ... sum of the squared residuals over m GC-programs and n solutes.
 """
 function opt_dKcentric(x, p)
+    # for 2-parameter version `x` is shorter, the part for `ΔCp = x[2*ns+1+1:3*ns+1]` will be missing
+    # instead set `ΔCp = zeros(ns)`
     tR = p[1]
     L = p[2]
     prog = p[3]
@@ -139,6 +145,8 @@ function opt_dKcentric(x, p)
 end
 
 function opt_dKcentric_(x, p)
+    # for 2-parameter version `x` is shorter, the part for `ΔCp = x[2*ns+1+1:3*ns+1]` will be missing
+    # instead set `ΔCp = zeros(ns)`
     tR = p[1]
     φ₀ = p[2]
     L = p[3]
@@ -199,6 +207,10 @@ end
 
 function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, mode="dKcentric", metric="squared", pout="vacuum", time_unit="min")
     # mode = "Kcentric", "Kcentric_single", "dKcentric", "dKcentric_single"
+    
+    # add the case for 2-parameter model, where rp3 === 0.0 always
+    # -> alternative versions of the different `optimize_` functions (without the third retention parameter)
+    # -> similar, alternative versions for `opt_` functions needed
     if time_unit == "min"
         a = 60.0
     else
@@ -391,10 +403,10 @@ another threshold `loss_th` are recorded.
 * `res` ... Dataframe with the optimized parameters and the found minima.
 * `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
 """  
-function check_measurement(meas, col_input; min_th=0.1, loss_th=1.0, se_col=true)
+function check_measurement(meas, col_input; min_th=0.1, loss_th=1.0, se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0)
 	col = GasChromatographySimulator.Column(col_input.L, col_input.d*1e-3, meas[1].df, meas[1].sp, meas[1].gas)
 	Tchar_est, θchar_est, ΔCp_est, Telu_max = RetentionParameterEstimator.estimate_start_parameter(meas[3], col, meas[2]; time_unit=meas[6])
-	df = estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6])[1]
+	df = estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6], method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime)[1]
 	index_flag = findall(df.min.>min_th)
 	if length(index_flag) == 0
 		check = true
@@ -417,8 +429,8 @@ function check_measurement(meas, col_input; min_th=0.1, loss_th=1.0, se_col=true
 		end
 		df_flag = DataFrame(measurement=flag_meas, solute=flag_sub, tRmeas=tRmeas_, tRcalc=tRcalc_)
 	end
-	# calculate the standard errors of the 3 parameters using the hessian matrix
-	stderrors = stderror(meas, df, col_input)[1]
+    # calculate the standard errors of the 3 parameters using the hessian matrix
+    stderrors = stderror(meas, df, col_input)[1]
 	# output dataframe
     res = if se_col == true
 	    DataFrame(Name=df.Name, min=df.min, Tchar=df.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=df.θchar, θchar_std=stderrors.sd_θchar, ΔCp=df.ΔCp, ΔCp_std=stderrors.sd_ΔCp)
@@ -459,13 +471,13 @@ Estimation of the three retention parameters ``T_{char}``, ``θ_{char}`` and ``�
 * `res` ... Dataframe with the optimized parameters and the found minima.
 * `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
 """   
-function method_m1(meas, col_input; se_col=true)
+function method_m1(meas, col_input; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0)
 	# definition of the column
 	col = GasChromatographySimulator.Column(col_input.L, col_input.d*1e-3, meas[1].df, meas[1].sp, meas[1].gas)
 	# calculate start parameters	
 	Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter(meas[3], col, meas[2]; time_unit=meas[6])
 	# optimize every solute separatly for the 3 remaining parameters `Tchar`, `θchar`, `ΔCp`
-	res_ = estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6])[1]
+	res_ = estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6], method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime)[1]
 	# calculate the standard errors of the 3 parameters using the hessian matrix
 	stderrors = stderror(meas, res_, col_input)[1]
 	# output dataframe
@@ -493,7 +505,7 @@ a second optimization using this mean diameter and optimize the remainig thre re
 * `res` ... Dataframe with the optimized parameters and the found minima.
 * `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
 """   
-function method_m2(meas; se_col=true)
+function method_m2(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0)
 	# retention times, use only the solutes, which have non-missing retention time entrys
 	tRs = meas[3][!,findall((collect(any(ismissing, c) for c in eachcol(meas[3]))).==false)]
 	# solute names, use only the solutes, which have non-missing retention time entrys
@@ -501,11 +513,11 @@ function method_m2(meas; se_col=true)
 	# calculate start parameters	
 	Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter(tRs, meas[1], meas[2]; time_unit=meas[6])
 	# optimize every solute separatly for the 4 parameters `Tchar`, `θchar`, `ΔCp` and `d`	
-	res_dKcentric_single = estimate_parameters(tRs, solute_names, meas[1], meas[2], Tchar_est, θchar_est, ΔCp_est; pout=meas[5], time_unit=meas[6], mode="dKcentric_single")[1]
+	res_dKcentric_single = estimate_parameters(tRs, solute_names, meas[1], meas[2], Tchar_est, θchar_est, ΔCp_est; pout=meas[5], time_unit=meas[6], mode="dKcentric_single", method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime)[1]
 	# define a new column with the mean value of the estimated `d` over all solutes
 	new_col = GasChromatographySimulator.Column(meas[1].L, mean(res_dKcentric_single.d), meas[1].df, meas[1].sp, meas[1].gas)
 	# optimize every solute separatly for the 3 remaining parameters `Tchar`, `θchar`, `ΔCp`
-	res_ = estimate_parameters(tRs, solute_names, new_col, meas[2], res_dKcentric_single.Tchar, res_dKcentric_single.θchar, res_dKcentric_single.ΔCp; pout=meas[5], time_unit=meas[6], mode="Kcentric_single")[1]
+	res_ = estimate_parameters(tRs, solute_names, new_col, meas[2], res_dKcentric_single.Tchar, res_dKcentric_single.θchar, res_dKcentric_single.ΔCp; pout=meas[5], time_unit=meas[6], mode="Kcentric_single", method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime)[1]
 
 	res_[!, :d] = mean(res_dKcentric_single.d).*ones(length(res_.Name))
 	

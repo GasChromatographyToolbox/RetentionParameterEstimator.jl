@@ -70,7 +70,7 @@ function comparison(res, comp)
 		par[i] = GasChromatographySimulator.Parameters(col, comp[2][i], sub, opt)
 		#try
 			#pl[i] = GasChromatographySimulator.simulate(par[i])[1]
-			sol, peak = GasChromatographySimulator.solve_multithreads(par[i])
+			sol, peak = GasChromatographySimulator.solve_separate_multithreads(par[i])
 			pl[i] = peaklist(sol, peak, par[i])
 		#catch
 		#	pl[i] = DataFrame(Name=comp[4], tR=NaN.*ones(length(comp[4])), τR=NaN.*ones(length(comp[4])))
@@ -160,7 +160,7 @@ function plot_chromatogram_comparison(pl, meas, comp; lines=true, annotation=tru
 
 		min_ = - max_/20
 		
-		GasChromatographySimulator.plot_chromatogram!(p_chrom[i], pl[i], (minimum(pl[i].tR)*0.95, maximum(pl[i].tR)*1.05); annotation=false)
+		GasChromatographySimulator.plot_chromatogram!(p_chrom[i], pl[i], (minimum(pl[i].tR)*0.95, maximum(pl[i].tR)*1.05); annotation=false, mirror=false)
 		xlims!((minimum(pl[i].tR)*0.95, maximum(pl[i].tR)*1.05))
 		ylims!(min_, max_)
 		#add marker for measured retention times

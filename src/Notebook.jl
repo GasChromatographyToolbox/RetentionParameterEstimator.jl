@@ -70,7 +70,7 @@ function comparison(res, comp)
 		par[i] = GasChromatographySimulator.Parameters(col, comp[2][i], sub, opt)
 		#try
 			#pl[i] = GasChromatographySimulator.simulate(par[i])[1]
-			sol, peak = GasChromatographySimulator.solve_multithreads(par[i])
+			sol, peak = GasChromatographySimulator.solve_separate_multithreads(par[i])
 			pl[i] = peaklist(sol, peak, par[i])
 		#catch
 		#	pl[i] = DataFrame(Name=comp[4], tR=NaN.*ones(length(comp[4])), τR=NaN.*ones(length(comp[4])))

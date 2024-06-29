@@ -160,7 +160,7 @@ function plot_chromatogram_comparison(pl, meas, comp; lines=true, annotation=tru
 
 		min_ = - max_/20
 		
-		GasChromatographySimulator.plot_chromatogram!(p_chrom[i], pl[i], (minimum(pl[i].tR)*0.95, maximum(pl[i].tR)*1.05); annotation=false)
+		GasChromatographySimulator.plot_chromatogram!(p_chrom[i], pl[i], (minimum(pl[i].tR)*0.95, maximum(pl[i].tR)*1.05); annotation=false, mirror=false)
 		xlims!((minimum(pl[i].tR)*0.95, maximum(pl[i].tR)*1.05))
 		ylims!(min_, max_)
 		#add marker for measured retention times

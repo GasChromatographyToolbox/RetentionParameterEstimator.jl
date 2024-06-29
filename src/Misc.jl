@@ -94,3 +94,21 @@ function simulate_measurements(compare, meas, result::DataFrame; opt=std_opt)
 	end
 	return pl, loss, par
 end
+
+"""
+	separate_error_columns(res)
+
+If the result dataframe `res` contains columns with `Measurements` typed values, these columns will be split in two. The first column contains the value and uses the original column name. The second column contains the uncertainty and the name of the column is the original name with an added "_uncertainty". If the column is not of the `Measurements` type, it will be copied as is for the new dataframe.
+"""
+function separate_error_columns(res)
+	new_res = DataFrame()
+	for i=1:size(res)[2]
+		if typeof(res[!,i]) == Array{Measurement{Float64}, 1}
+			new_res[!, names(res)[i]] = Measurements.value.(res[!,i])
+			new_res[!, names(res)[i]*"_uncertainty"] = Measurements.uncertainty.(res[!,i])
+		else
+			new_res[!, names(res)[i]] = res[!,i]
+		end
+	end
+	return new_res
+end

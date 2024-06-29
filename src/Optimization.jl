@@ -429,13 +429,13 @@ function check_measurement(meas, col_input; min_th=0.1, loss_th=1.0, se_col=true
 		end
 		df_flag = DataFrame(measurement=flag_meas, solute=flag_sub, tRmeas=tRmeas_, tRcalc=tRcalc_)
 	end
+    # calculate the standard errors of the 3 parameters using the hessian matrix
+    stderrors = stderror(meas, df, col_input)[1]
 	# output dataframe
     res = if se_col == true
-        # calculate the standard errors of the 3 parameters using the hessian matrix
-	    stderrors = stderror(meas, df, col_input)[1]
 	    DataFrame(Name=df.Name, min=df.min, Tchar=df.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=df.θchar, θchar_std=stderrors.sd_θchar, ΔCp=df.ΔCp, ΔCp_std=stderrors.sd_ΔCp)
     else
-	    DataFrame(Name=df.Name, min=df.min, Tchar=df.Tchar, θchar=df.θchar, ΔCp=df.ΔCp)
+	    DataFrame(Name=df.Name, min=df.min, Tchar=df.Tchar.±stderrors.sd_Tchar, θchar=df.θchar.±stderrors.sd_θchar, ΔCp=df.ΔCp.±stderrors.sd_ΔCp)
     end
 	return check, msg, df_flag, index_flag, res, Telu_max
 end
@@ -484,7 +484,7 @@ function method_m1(meas, col_input; se_col=true, method=NewtonTrustRegion(), opt
     res = if se_col == true
 	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res_.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=stderrors.sd_ΔCp)
     else
-	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, θchar=res_.θchar, ΔCp=res_.ΔCp)
+	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±stderrors.sd_Tchar, θchar=res_.θchar.±stderrors.sd_θchar, ΔCp=res_.ΔCp.±stderrors.sd_ΔCp)
 	end
     return res, Telu_max
 end

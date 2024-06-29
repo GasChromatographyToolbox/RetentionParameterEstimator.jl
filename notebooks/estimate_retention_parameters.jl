@@ -18,7 +18,7 @@ end
 begin 
 	# online version
 	import Pkg
-	version = "0.1.8"
+	version = "0.1.10"
 	Pkg.activate(mktempdir())
 	Pkg.add([
 		Pkg.PackageSpec(name="RetentionParameterEstimator", version=version)
@@ -467,7 +467,7 @@ md"""
 """
 
 # ╔═╡ Cell order:
-# ╠═09422105-a747-40ac-9666-591326850d8f
+# ╟─09422105-a747-40ac-9666-591326850d8f
 # ╟─eb5fc23c-2151-47fa-b56c-5771a4f8b9c5
 # ╟─f46b165e-67d9-402f-a225-72d1082007be
 # ╟─6d4ec54b-01b2-4208-9b9e-fcb70d236c3e

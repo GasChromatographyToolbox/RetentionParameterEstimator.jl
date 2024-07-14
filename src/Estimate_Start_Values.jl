@@ -81,9 +81,10 @@ function estimate_start_parameter_single_ramp(tRs::DataFrame, col, prog; time_un
     θchar_est = Array{Float64}(undef, ns)
     ΔCp_est = Array{Float64}(undef, ns)
     for i=1:ns
-        knots = Interpolations.deduplicate_knots!(Telu_meas[:,i]; move_knots=true)
-        interp = interpolate((rT .- rT_nom, ), knots, Gridded(Linear()))
-        Telu_max[i] = maximum(Telu_meas[:,i])
+		indexExistingRT = Not(findall(ismissing.(tR_meas[:,i])))
+        knots = Interpolations.deduplicate_knots!(Telu_meas[indexExistingRT,i]; move_knots=true)
+        interp = interpolate((rT[indexExistingRT] .- rT_nom, ), knots, Gridded(Linear()))
+        Telu_max[i] = maximum(Telu_meas[indexExistingRT,i])
         Tchar_est[i] = interp(0.0)
         θchar_est[i] = 22.0*(Tchar_est[i]/Tst)^0.7*(1000*col.df/col.d)^0.09
         ΔCp_est[i] = -52.0 + 0.34*Tchar_est[i]
@@ -120,19 +121,20 @@ function estimate_start_parameter_mean_elu_temp(tRs::DataFrame, col, prog; time_
     tR_meas = Array(tRs[:,2:end]).*a
     
     nt, ns = size(tR_meas)
+	Telu_meas = Array{Float64}(undef, nt, ns)
+    for i=1:nt
+        Telu_meas[i,:] = elution_temperature(tR_meas[i,:], prog[i])
+    end
 	Telu_max = Array{Float64}(undef, ns)
 	Tchar_est = Array{Float64}(undef, ns)
 	θchar_est = Array{Float64}(undef, ns)
     ΔCp_est = Array{Float64}(undef, ns)
-	for j=1:ns
-		Telu = Array{Float64}(undef, nt)
-		for i=1:nt
-			Telu[i] = elution_temperature(tR_meas[i,j], prog[i])[1]
-		end
-		Telu_max[j] = maximum(Telu)
-		Tchar_est[j] = mean(Telu)
-		θchar_est[j] = 22.0*(Tchar_est[j]/273.15)^0.7*(1000*col.df/col.d)^0.09
-        ΔCp_est[j] = -52.0 + 0.34*Tchar_est[j]
+	for i=1:ns
+		indexExistingRT = Not(findall(ismissing.(tR_meas[:,i])))
+		Telu_max[i] = maximum(Telu_meas[indexExistingRT,i])
+		Tchar_est[i] = mean(Telu_meas[indexExistingRT,i])
+		θchar_est[i] = 22.0*(Tchar_est[i]/273.15)^0.7*(1000*col.df/col.d)^0.09
+        ΔCp_est[i] = -52.0 + 0.34*Tchar_est[i]
 	end
 	return Tchar_est, θchar_est, ΔCp_est, Telu_max
 end

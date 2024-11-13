@@ -53,14 +53,18 @@ time_unit = "min"
 
 # Load.jl
 file = "./data/meas_test.csv"
-meas = RetentionParameterEstimator.load_chromatograms(file; filter_missing=true)
+meas = RetentionParameterEstimator.load_chromatograms(file)
 @test meas[4][1] == "2-Octanone"
 
 meas_select = RetentionParameterEstimator.filter_selected_measurements(meas, ["meas3", "meas4", "meas5"], ["2-Octanone"]);
+@test length(meas_select[4]) == 1
 
 file = "./data/meas_test_2.csv" # from Email from mathijs.ruiter@go-jsb.com -> Issue #29
-meas_ = RetentionParameterEstimator.load_chromatograms(file; filter_missing=true)
+meas_ = RetentionParameterEstimator.load_chromatograms(file)
 @test meas_[2][1].Fpin_steps[3] == meas_[2][1].Fpin_steps[3]
+
+file = "./data/meas_test_missing.csv" # from some tR are missing
+meas_missing = RetentionParameterEstimator.load_chromatograms(file)
 # Loss.jl
 
 # Estimate_Start_Values.jl
@@ -86,8 +90,26 @@ res_m1, Telu_max_m1 = RetentionParameterEstimator.method_m1(meas_select, col_inp
 @test res_m1.Tchar == res.Tchar
 @test Telu_max_m1 == Telu_max
 
-res_m2, Telu_max_m2 = RetentionParameterEstimator.method_m2(meas_select, se_col=true)
-@test isapprox(res_m2.d[1], 0.00024, atol=0.00001)  
+res_m2, Telu_max_m2 = RetentionParameterEstimator.method_m2(meas, se_col=true)
+@test isapprox(res_m2.d[1], 0.00025, atol=1e-5)  
 
+res_m3, Telu_missing_m3 = RetentionParameterEstimator.method_m3(meas)
+@test isapprox(res_m3.d[1], res_m2.d[1], atol=1e-5)
+
+# missing values:
+df_missing, sol_missing = RetentionParameterEstimator.estimate_parameters(meas_missing; method=RetentionParameterEstimator.NewtonTrustRegion(), opt=RetentionParameterEstimator.std_opt, maxiters=10000, maxtime=600.0, mode="dKcentric", metric="squared")
+@test isapprox(df_missing.Tchar[1], res.Tchar[1]; atol = 1.0)
+
+check_missing, msg_missing, df_flag_missing, index_flag_missing, res_missing, Telu_max_missing = RetentionParameterEstimator.check_measurement(meas_missing, col_input; min_th=0.1, loss_th=1.0, se_col=false)
+@test isapprox(res_missing.θchar[1], df_missing.θchar[1]; atol = 0.5)
+
+res_missing_m1, Telu_max_missing_m1 = RetentionParameterEstimator.method_m1(meas_missing, col_input, se_col=false)
+@test isapprox(res_missing_m1.Tchar[2], df_missing.Tchar[2], atol=1.0)
+
+res_missing_m2, Telu_max_missing_m2 = RetentionParameterEstimator.method_m2(meas_missing, se_col=false)
+@test isapprox(res_missing_m2.Tchar[2], res_missing_m1.Tchar[2], atol=1.0)
+
+res_missing_m3, Telu_max_missing_m3 = RetentionParameterEstimator.method_m3(meas_missing)
+@test isapprox(res_missing_m3.d[1], res_missing_m2.d[1], atol=1e-5)
 # ToDo:
 # add test for missing measuremet values

@@ -112,3 +112,47 @@ function separate_error_columns(res)
 	end
 	return new_res
 end
+
+"""
+    substance_list(substance_names, tRs)
+
+Generate a vector of substance names, excluding rows with missing values in `tRs`.
+
+# Arguments
+- `substance_names`: A vector of substance names.
+- `tRs`: A 2D array where each row corresponds to a set of retention times and columns to different substances.
+
+# Returns
+- A vector of substance names corresponding to non-missing rows in `tRs`.
+"""
+function substance_list(substance_names, tRs)
+	substance_list_2d = Array{String}(undef, size(tRs))
+	for i=1:size(tRs)[1]
+		substance_list_2d[i,:] = substance_names
+	end
+	index_notmissing = Not(findall(ismissing.(tRs[:,:])))
+	substance_list = substance_list_2d[index_notmissing]
+	return substance_list
+end
+
+"""
+    prog_list(prog, tRs)
+
+Generate a vector of program conditions, excluding rows with missing values in `tRs`.
+
+# Arguments
+- `prog`: A program condition to be repeated.
+- `tRs`: A 2D array where each row corresponds to a set of retention times and columns to different substances.
+
+# Returns
+- A vector of program conditions corresponding to non-missing rows in `tRs`.
+"""
+function prog_list(prog, tRs)
+	prog_list_2d = Array{GasChromatographySimulator.Program}(undef, size(tRs))
+	for j=1:size(tRs)[2]
+		prog_list_2d[:,j] = prog
+	end
+	index_notmissing = Not(findall(ismissing.(tRs[:,:])))
+	prog_list = prog_list_2d[index_notmissing]
+	return prog_list
+end

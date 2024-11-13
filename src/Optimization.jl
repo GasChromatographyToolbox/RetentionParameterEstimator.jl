@@ -667,7 +667,7 @@ Estimation of the three retention parameters ``T_{char}``, ``θ_{char}`` and ``�
 
 # Arguments
 * `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
-* `col_input` ... Named tuple with `col_input.L` the column length in m and `col_input.d` the column diameter in mm. If this parameter is not gicen, than these parameters are taken from `meas`. 
+* `col_input` ... Named tuple with `col_input.L` the column length in m and `col_input.d` the column diameter in mm. 
 * `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
 
 # Output 
@@ -701,7 +701,6 @@ a second optimization using this mean diameter and optimize the remainig thre re
 
 # Arguments
 * `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
-* `col_input` ... Named tuple with `col_input.L` the column length in m and `col_input.d` the column diameter in mm. If this parameter is not gicen, than these parameters are taken from `meas`. 
 * `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
 
 # Output 
@@ -709,24 +708,21 @@ a second optimization using this mean diameter and optimize the remainig thre re
 * `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
 """   
 function method_m2(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0)
-	# retention times, use only the solutes, which have non-missing retention time entrys
-	tRs = meas[3][!,findall((collect(any(ismissing, c) for c in eachcol(meas[3]))).==false)]
-	# solute names, use only the solutes, which have non-missing retention time entrys
-	solute_names = meas[4][findall((collect(any(ismissing, c) for c in eachcol(meas[3]))).==false)[2:end].-1]
 	# calculate start parameters	
-	Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter(tRs, meas[1], meas[2]; time_unit=meas[6])
+	Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter(meas[3], meas[1], meas[2]; time_unit=meas[6])
 	# optimize every solute separatly for the 4 parameters `Tchar`, `θchar`, `ΔCp` and `d`	
-	res_dKcentric_single = estimate_parameters(tRs, solute_names, meas[1], meas[2], Tchar_est, θchar_est, ΔCp_est; pout=meas[5], time_unit=meas[6], mode="dKcentric_single", method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime)[1]
+	res_dKcentric_single = estimate_parameters(meas[3], meas[4], meas[1], meas[2], Tchar_est, θchar_est, ΔCp_est; pout=meas[5], time_unit=meas[6], mode="dKcentric_single", method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime)[1]
 	# define a new column with the mean value of the estimated `d` over all solutes
 	new_col = GasChromatographySimulator.Column(meas[1].L, mean(res_dKcentric_single.d), meas[1].df, meas[1].sp, meas[1].gas)
 	# optimize every solute separatly for the 3 remaining parameters `Tchar`, `θchar`, `ΔCp`
-	res_ = estimate_parameters(tRs, solute_names, new_col, meas[2], res_dKcentric_single.Tchar, res_dKcentric_single.θchar, res_dKcentric_single.ΔCp; pout=meas[5], time_unit=meas[6], mode="Kcentric_single", method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime)[1]
+	res_ = estimate_parameters(meas[3], meas[4], new_col, meas[2], res_dKcentric_single.Tchar, res_dKcentric_single.θchar, res_dKcentric_single.ΔCp; pout=meas[5], time_unit=meas[6], mode="Kcentric_single", method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime)[1]
 
 	res_[!, :d] = mean(res_dKcentric_single.d).*ones(length(res_.Name))
 	
 	res_[!, :d_std] = std(res_dKcentric_single.d).*ones(length(res_.Name))
 	# calculate the standard errors of the 3 parameters using the hessian matrix
-	stderrors = stderror(meas, res_; opt=opt)[1]
+    res_col = (L=new_col.L, d=res_.d[1])
+	stderrors = stderror(meas, res_, res_col; opt=opt)[1]
 	# output dataframe
     res = if se_col == true
 	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res_.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=stderrors.sd_ΔCp, d=res_.d, d_std=res_.d_std)
@@ -734,6 +730,40 @@ function method_m2(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±stderrors.sd_Tchar, θchar=res_.θchar.±stderrors.sd_θchar, ΔCp=res_.ΔCp.±stderrors.sd_ΔCp, d=res_.d.±res_.d_std)
     end
 	return res, Telu_max
+end
+
+"""
+    method_m3(meas; se_col=true)
+
+Estimation of the column diameter ``d`` and three retention parameters ``T_{char}``, ``θ_{char}`` and ``Δ C_p`` including standard errors, see [`stderror`](@ref).
+Brute-force method, where all parameters (`3n+1` for `n` substances) are estimate in one optimization. 
+
+ATTENTION: This method can take long time to finish. The more substances, the longer it takes.
+
+# Arguments
+* `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
+* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
+
+# Output 
+* `res` ... Dataframe with the optimized parameters and the found minima.
+* `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
+"""  
+function method_m3(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0)
+	# definition of the column, the given diameter is used as start value
+	col = meas[1]
+	# calculate start parameters	
+	Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter(meas[3], col, meas[2]; time_unit=meas[6])
+	# optimize every solute separatly for the 3 remaining parameters `Tchar`, `θchar`, `ΔCp`
+	res_ = estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="dKcentric", pout=meas[5], time_unit=meas[6], method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime)[1]
+	# calculate the standard errors of the 3 parameters using the hessian matrix
+	stderrors, hessian = stderror_m3(meas, res_; opt=opt)
+	# output dataframe
+    res = if se_col == true
+	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res_.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=stderrors.sd_ΔCp, d=res_.d, d_std=stderrors.sd_d)
+    else
+	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±stderrors.sd_Tchar, θchar=res_.θchar.±stderrors.sd_θchar, ΔCp=res_.ΔCp.±stderrors.sd_ΔCp, d=res_.d.±stderrors.sd_d)
+	end
+    return res, Telu_max
 end
 
 """
@@ -813,5 +843,43 @@ function stderror(meas, res, col_input; opt=std_opt, metric="squared")
 		sdΔCp[i] = sqrt.(abs.(inv(Hessian[i])))[3,3]
 	end
 	stderrors = DataFrame(Name=res.Name, sd_Tchar=sdTchar, sd_θchar=sdθchar, sd_ΔCp=sdΔCp)
+	return stderrors, Hessian
+end
+
+function stderror_m3(meas, res; opt=std_opt, metric="squared")
+	sd_d = Array{Float64}(undef, size(res)[1])
+    sdTchar = Array{Float64}(undef, size(res)[1])
+	sdθchar = Array{Float64}(undef, size(res)[1])
+	sdΔCp = Array{Float64}(undef, size(res)[1])
+	Hessian = Array{Any}(undef, size(res)[1])
+
+    if meas[6] == "min"
+        a = 60.0
+    else
+        a = 1.0
+    end
+	for i=1:size(res)[1]
+		
+        # filter-out missing values:
+        tR_meas = meas[3][!,i+1].*a
+        index_notmissing = Not(findall(ismissing.(tR_meas[:])))
+        tRs_ = collect(skipmissing(tR_meas[:]))
+        prog_ = meas[2][index_notmissing]
+        subst_list_ = fill(meas[4][i], length(tRs_))
+        
+		p = (tRs_, subst_list_, meas[1].L, prog_, opt, meas[1].gas, metric) 
+        # the loss-function used in the optimization !!! HAS TO BE CHANGED !!!
+		LF(x) = opt_dKcentric(x, p)
+		# the hessian matrix of the loss-function, calculated with ForwardDiff.jl
+		H(x) = ForwardDiff.hessian(LF, x)
+		# the hessian matrix at the found optima
+		Hessian[i] = H([res.d[i], res.Tchar[i], res.θchar[i], res.ΔCp[i]])
+		# the calculated standard errors of the parameters
+        sd_d[i] = sqrt.(abs.(inv(Hessian[i])))[1,1]
+		sdTchar[i] = sqrt.(abs.(inv(Hessian[i])))[2,2]
+		sdθchar[i] = sqrt.(abs.(inv(Hessian[i])))[3,3]
+		sdΔCp[i] = sqrt.(abs.(inv(Hessian[i])))[4,4]
+	end
+	stderrors = DataFrame(Name=res.Name, sd_d=sd_d, sd_Tchar=sdTchar, sd_θchar=sdθchar, sd_ΔCp=sdΔCp)
 	return stderrors, Hessian
 end

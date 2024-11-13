@@ -108,6 +108,11 @@ A tuple of the following quantities:
 * `time_unit` ... unit of time scale used in the retention times and GC programs, "min" or "s".
 """
 function load_chromatograms(file; delim=";") # new version -> check case for `filter_missing=false` and missing values in further functions!!!!
+    # Check if file exists
+    if !isfile(file)
+        throw(ArgumentError("File not found: $file"))
+    end
+
     n = open(f->countlines(f), file)
     #col_df = DataFrame(CSV.File(file, header=1, limit=1, stringtype=String, silencewarnings=true, delim=delim, types=[Float64, Float64, Float64, String, String, String, String]))
     col_df = DataFrame(CSV.File(file, header=1, limit=1, stringtype=String, silencewarnings=true, delim=delim, types=Dict("L" => Float64, "d" => Float64, "df" => Float64)))
@@ -118,7 +123,7 @@ function load_chromatograms(file; delim=";") # new version -> check case for `fi
     n_meas = Int((n - 2 - 2)/2) 
     TPprog = DataFrame(CSV.File(file, header=3, limit=n_meas, stringtype=String, silencewarnings=true, delim=delim))
     #PP = DataFrame(CSV.File(file, header=3+n_meas+1, limit=n_meas, stringtype=String)) # convert pressures from Pa(g) to Pa(a), add p_atm to this data set
-    tRs_ = DataFrame(CSV.File(file, header=n-n_meas, stringtype=String, silencewarnings=true, delim=delim))
+    tRs = DataFrame(CSV.File(file, header=n-n_meas, stringtype=String, silencewarnings=true, delim=delim))
     solute_names_ = names(tRs_)[2:end] # filter non-solute names out (columnx)
     filter!(x -> !occursin.("Column", x), solute_names_)
     if names(TPprog)[2] == "filename"
@@ -169,6 +174,11 @@ A tuple of the following quantities:
 * `time_unit` ... unit of time scale used in the retention times and GC programs, "min" or "s".
 """
 function load_chromatograms(file::Dict{Any, Any}; path=joinpath(dirname(pwd()), "data", "exp_pro"), delim=";") # if file is the output of FilePicker()
+    # Check if file data exists
+    if !haskey(file, "data") || isempty(file["data"])
+        throw(ArgumentError("No valid file data found in the provided dictionary"))
+    end
+    
     n = length(CSV.File(file["data"]; silencewarnings=true, comment=";;"))+1
     col_df = DataFrame(CSV.File(file["data"], header=1, limit=1, stringtype=String, silencewarnings=true, delim=delim))
 	col = GasChromatographySimulator.Column(convert(Float64, col_df.L[1]), col_df.d[1], col_df.df[1], col_df.sp[1], col_df.gas[1])
@@ -178,7 +188,7 @@ function load_chromatograms(file::Dict{Any, Any}; path=joinpath(dirname(pwd()), 
     n_meas = Int((n - 2 - 2)/2) 
     TPprog = DataFrame(CSV.File(file["data"], header=3, limit=n_meas, stringtype=String, silencewarnings=true, delim=delim))
     #PP = DataFrame(CSV.File(file, header=3+n_meas+1, limit=n_meas, stringtype=String)) # convert pressures from Pa(g) to Pa(a), add p_atm to this data set
-    tRs_ = DataFrame(CSV.File(file["data"], header=n-n_meas, stringtype=String, silencewarnings=true, comment=";;", delim=delim))
+    tRs = DataFrame(CSV.File(file["data"], header=n-n_meas, stringtype=String, silencewarnings=true, comment=";;", delim=delim))
     solute_names_ = names(tRs_)[2:end] # filter non-solute names out (columnx)
     filter!(x -> !occursin.("Column", x), solute_names_)
     if names(TPprog)[2] == "filename"

@@ -13,13 +13,14 @@ Function used for optimization of the loss-function in regards to the three K-ce
 # Arguments
 * `x` ... 3n-vector of the three K-centric parameters of n solutes. Elements 1:n are Tchar, n+1:2n are θchar and 2n+1:3n are ΔCp values.
 * `p` ... vector containing the fixed parameters:
-    * `tR = p[1]` ... mxn-array of the measured retention times in seconds.
-    * `L = p[2]` ... number of the length of the column in m.
-    * `d = p[3]` ... number of the diameters of the column in m.
-    * `prog = p[4]` ... m-array of structure GasChromatographySimulator.Programs containing the definition of the GC-programs.
-    * `opt = p[5]` ... struture GasChromatographySimulator.Options containing the settings for options for the simulation.
-    * `gas = p[6]` ... string of name of the mobile phase gas. 
-    * `metric = p[7]` ... string of the metric used for the loss function (`squared` or `abs`). 
+    * `tR = p[1]` ... vector of the measured retention times in seconds.
+    * `substance_list = p[2]` ... vector of the names of the solutes related to `tR` and `prog`.
+    * `L = p[3]` ... number of the length of the column in m.
+    * `d = p[4]` ... number of the diameters of the column in m.
+    * `prog = p[5]` ... vector of structure GasChromatographySimulator.Programs containing the definition of the GC-programs.
+    * `opt = p[6]` ... struture GasChromatographySimulator.Options containing the settings for options for the simulation.
+    * `gas = p[7]` ... string of name of the mobile phase gas. 
+    * `metric = p[8]` ... string of the metric used for the loss function (`squared` or `abs`). 
 
 # Output
 * `sum((tR.-tRcalc).^2)` ... sum of the squared residuals over m GC-programs and n solutes.
@@ -28,24 +29,23 @@ function opt_Kcentric(x, p)
     # for 2-parameter version `x` is shorter, the part for `ΔCp = x[2*ns+1+1:3*ns+1]` will be missing
     # instead set `ΔCp = zeros(ns)`
 	tR = p[1]
-	L = p[2]
-	d = p[3]
-	prog = p[4]
-	opt = p[5]
-    gas = p[6]
-    metric = p[7]
-    if length(size(tR)) == 1
-		ns = 1
-	else
-		ns = size(tR)[2]
-	end
+	substance_list = p[2]
+	L = p[3]
+	d = p[4]
+	prog = p[5]
+	opt = p[6]
+    gas = p[7]
+    metric = p[8]
+
+	ns = length(unique(substance_list))
+		
 	Tchar = x[1:ns] # Array length = number solutes
 	θchar = x[ns+1:2*ns] # Array length = number solutes
 	ΔCp = x[2*ns+1:3*ns] # Array length = number solutes
-    return loss(tR, Tchar, θchar, ΔCp, L, d, prog, gas; opt=opt, metric=metric)[1]
+    return loss(tR, Tchar, θchar, ΔCp, substance_list, L, d, prog, gas; opt=opt, metric=metric)[1]
 end
 
-function opt_Kcentric_(x, p)
+#=function opt_Kcentric_(x, p)
     # for 2-parameter version `x` is shorter, the part for `ΔCp = x[2*ns+1+1:3*ns+1]` will be missing
     # instead set `ΔCp = zeros(ns)`
 	tR = p[1]
@@ -66,9 +66,9 @@ function opt_Kcentric_(x, p)
 	θchar = x[ns+1:2*ns] # Array length = number solutes
 	ΔCp = x[2*ns+1:3*ns] # Array length = number solutes
     return loss(tR, Tchar, θchar, ΔCp, φ₀, L, d, df, prog, gas; opt=opt, metric=metric)[1]
-end
+end=#
 
-"""
+#="""
     optimize_Kcentric(tR, col, prog, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, metric="squared") 
 
 Optimization regarding the estimization of the retention parameters `Tchar`, `θchar` and `ΔCp`. The initial guess is a vector (`Tchar_e`, `θchar_e` and `ΔCp_e`) for optimization
@@ -82,9 +82,40 @@ function optimize_Kcentric(tR, col, prog, Tchar_e::Vector{T}, θchar_e::Vector{T
 	prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
     opt_sol = solve(prob, method, maxiters=maxiters, maxtime=maxtime)
 	return opt_sol
+end=#
+
+"""
+    optimize_Kcentric(tR::Vector{T}, substance_list, col, prog, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=RetentionParameterEstimator.NewtonTrustRegion(), opt=RetentionParameterEstimator.std_opt, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number
+
+Optimize the K-centric retention parameters for a given set of substances, measured retention times and used programs.
+
+# Arguments
+- `tR::Vector{T}`: Vector of retention times.
+- `substance_list`: List of substances to be optimized.
+- `col`: Column characteristics including length `L`, diameter `d`, and gas type `gas`.
+- `prog`: Program conditions.
+- `Tchar_e::Vector{T}`: Initial estimates for characteristic temperatures.
+- `θchar_e::Vector{T}`: Initial estimates for characteristic phase ratios.
+- `ΔCp_e::Vector{T}`: Initial estimates for heat capacity changes.
+- `method`: Optimization method to be used (default: `RetentionParameterEstimator.NewtonTrustRegion()`).
+- `opt`: Optimization options (default: `RetentionParameterEstimator.std_opt`).
+- `maxiters`: Maximum number of iterations (default: 10000).
+- `maxtime`: Maximum time allowed for optimization in seconds (default: 600.0).
+- `metric`: Metric to be used for optimization (default: "squared").
+
+# Returns
+- `opt_sol`: The solution of the optimization problem.
+"""
+function optimize_Kcentric(tR::Vector{T}, substance_list, col, prog, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=RetentionParameterEstimator.NewtonTrustRegion(), opt=RetentionParameterEstimator.std_opt, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number
+    p = (tR, substance_list, col.L, col.d, prog, opt, col.gas, metric)
+	x0 = [Tchar_e; θchar_e; ΔCp_e]
+	optf = OptimizationFunction(opt_Kcentric, RetentionParameterEstimator.Optimization.AutoForwardDiff())
+	prob = RetentionParameterEstimator.Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+    opt_sol = solve(prob, method, maxiters=maxiters, maxtime=maxtime)
+	return opt_sol
 end
 
-function optimize_Kcentric(tR, col, prog, Tchar_e::Matrix{T}, θchar_e::Matrix{T}, ΔCp_e::Matrix{T}; method=BBO_adaptive_de_rand_1_bin_radiuslimited(), opt=std_opt, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number # here default method should be one which needs bounds
+#=function optimize_Kcentric(tR, col, prog, Tchar_e::Matrix{T}, θchar_e::Matrix{T}, ΔCp_e::Matrix{T}; method=BBO_adaptive_de_rand_1_bin_radiuslimited(), opt=std_opt, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number # here default method should be one which needs bounds
     p = (tR, col.L, col.d, prog, opt, col.gas, metric)
 	x0 = [Tchar_e[1,:]; θchar_e[1,:]; ΔCp_e[1,:]]
     lb = [Tchar_e[2,:]; θchar_e[2,:]; ΔCp_e[2,:]]
@@ -102,9 +133,9 @@ function optimize_Kcentric_(tR, col, prog, Tchar_e::Vector{T}, θchar_e::Vector{
 	prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
     opt_sol = solve(prob, method, maxiters=maxiters, maxtime=maxtime)
 	return opt_sol
-end
+end=#
 
-"""
+#="""
     opt_dKcentric(x, p)
 
 Function used for optimization of the loss-function in regards to the three K-centric parameters and the column diameter.
@@ -142,9 +173,49 @@ function opt_dKcentric(x, p)
     ΔCp = x[2*ns+1+1:3*ns+1] # Array length = number solutes
 
     return loss(tR, Tchar, θchar, ΔCp, L, d, prog, gas; opt=opt, metric=metric)
+end=#
+
+"""
+    opt_dKcentric(x, p)
+
+Function used for optimization of the loss-function in regards to the colum diameter and the three K-centric parameters.
+
+# Arguments
+* `x` ... 1+3n-vector of column diameter and the three K-centric parameters of n solutes. Element 1 is the diameter, 2:n+1 are Tchar, n+2:2n+1 are θchar and 2n+2:3n+1 are ΔCp values.
+* `p` ... vector containing the fixed parameters:
+    * `tR = p[1]` ... vector of the measured retention times in seconds.
+    * `substance_list = p[2]` ... vector of the names of the solutes related to `tR` and `prog`.
+    * `L = p[3]` ... number of the length of the column in m.
+    * `prog = p[4]` ... vector of structure GasChromatographySimulator.Programs containing the definition of the GC-programs.
+    * `opt = p[5]` ... struture GasChromatographySimulator.Options containing the settings for options for the simulation.
+    * `gas = p[6]` ... string of name of the mobile phase gas. 
+    * `metric = p[7]` ... string of the metric used for the loss function (`squared` or `abs`). 
+
+# Output
+* `sum((tR.-tRcalc).^2)` ... sum of the squared residuals over m GC-programs and n solutes.
+"""
+function opt_dKcentric(x, p)
+    # for 2-parameter version `x` is shorter, the part for `ΔCp = x[2*ns+1+1:3*ns+1]` will be missing
+    # instead set `ΔCp = zeros(ns)`
+    tR = p[1]
+	substance_list = p[2]
+    L = p[3]
+    prog = p[4]
+    opt = p[5]
+    gas = p[6]
+    metric = p[7]
+	
+    ns = length(unique(substance_list))
+	
+    d = x[1]
+    Tchar = x[2:ns+1] # Array length = number solutes
+    θchar = x[ns+1+1:2*ns+1] # Array length = number solutes
+    ΔCp = x[2*ns+1+1:3*ns+1] # Array length = number solutes
+
+    return loss(tR, Tchar, θchar, ΔCp, substance_list, L, d, prog, gas; opt=opt, metric=metric)
 end
 
-function opt_dKcentric_(x, p)
+#=function opt_dKcentric_(x, p)
     # for 2-parameter version `x` is shorter, the part for `ΔCp = x[2*ns+1+1:3*ns+1]` will be missing
     # instead set `ΔCp = zeros(ns)`
     tR = p[1]
@@ -166,9 +237,9 @@ function opt_dKcentric_(x, p)
     ΔCp = x[2*ns+1+1:3*ns+1] # Array length = number solutes
 
     return loss(tR, Tchar, θchar, ΔCp, φ₀, L, d, df, prog, gas; opt=opt, metric=metric)
-end
+end=#
 
-"""
+#="""
     optimize_dKcentric(tR, col, prog, d_e, Tchar_e, θchar_e, ΔCp_e; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, metric="squared") 
 
 Optimization regarding the estimization of the column diameter `d` and the retention parameters `Tchar`, `θchar` and `ΔCp`. The initial guess is a number (`d_e`) or a vector (`Tchar_e`, `θchar_e` and `ΔCp_e`) for optimization
@@ -182,10 +253,41 @@ function optimize_dKcentric(tR, col, prog, d_e::Number, Tchar_e::Vector{T}, θch
 	prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
     opt_sol = solve(prob, method, maxiters=maxiters, maxtime=maxtime)
 	return opt_sol
+end=#
+
+"""
+    optimize_dKcentric(tR::Vector{T}, substance_list, col, prog, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=RetentionParameterEstimator.NewtonTrustRegion(), opt=RetentionParameterEstimator.std_opt, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number
+
+Optimize the column diameter and K-centric retention parameters for a given set of substances, measured retention times and used programs.
+
+# Arguments
+- `tR::Vector{T}`: Vector of retention times.
+- `substance_list`: List of substances to be optimized.
+- `col`: Column characteristics including length `L` and gas type `gas`.
+- `prog`: Program conditions.
+- `Tchar_e::Vector{T}`: Initial estimates for characteristic temperatures.
+- `θchar_e::Vector{T}`: Initial estimates for characteristic phase ratios.
+- `ΔCp_e::Vector{T}`: Initial estimates for heat capacity changes.
+- `method`: Optimization method to be used (default: `RetentionParameterEstimator.NewtonTrustRegion()`).
+- `opt`: Optimization options (default: `RetentionParameterEstimator.std_opt`).
+- `maxiters`: Maximum number of iterations (default: 10000).
+- `maxtime`: Maximum time allowed for optimization in seconds (default: 600.0).
+- `metric`: Metric to be used for optimization (default: "squared").
+
+# Returns
+- `opt_sol`: The solution of the optimization problem.
+"""
+function optimize_dKcentric(tR::Vector{T}, substance_list, col, prog, d_e::Number, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number
+    p = (tR, substance_list, col.L, prog, opt, col.gas, metric)
+	x0 = [d_e; Tchar_e; θchar_e; ΔCp_e]
+	optf = OptimizationFunction(opt_dKcentric, RetentionParameterEstimator.Optimization.AutoForwardDiff())
+	prob = RetentionParameterEstimator.Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+    opt_sol = solve(prob, method, maxiters=maxiters, maxtime=maxtime)
+	return opt_sol
 end
 
 
-function optimize_dKcentric(tR, col, prog, d_e::Vector{T}, Tchar_e::Matrix{T}, θchar_e::Matrix{T}, ΔCp_e::Matrix{T}; method=BBO_adaptive_de_rand_1_bin_radiuslimited(), opt=opt_std, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number  # here default method should be one which needs bounds  
+#=function optimize_dKcentric(tR, col, prog, d_e::Vector{T}, Tchar_e::Matrix{T}, θchar_e::Matrix{T}, ΔCp_e::Matrix{T}; method=BBO_adaptive_de_rand_1_bin_radiuslimited(), opt=opt_std, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number  # here default method should be one which needs bounds  
     p = (tR, col.L, prog, opt, col.gas, metric)
 	x0 = [d_e[1]; Tchar_e[1,:]; θchar_e[1,:]; ΔCp_e[1,:]]
     lb = [d_e[2]; Tchar_e[2,:]; θchar_e[2,:]; ΔCp_e[2,:]]
@@ -203,9 +305,9 @@ function optimize_dKcentric_(tR, col, prog, d_e::Number, Tchar_e::Vector{T}, θc
 	prob = Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
     opt_sol = solve(prob, method, maxiters=maxiters, maxtime=maxtime)
 	return opt_sol
-end
+end=#
 
-function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, mode="dKcentric", metric="squared", pout="vacuum", time_unit="min")
+#=function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, mode="dKcentric", metric="squared", pout="vacuum", time_unit="min")
     # mode = "Kcentric", "Kcentric_single", "dKcentric", "dKcentric_single"
     
     # add the case for 2-parameter model, where rp3 === 0.0 always
@@ -278,6 +380,107 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
     end
 	
 	return df, sol
+end=#
+
+function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, mode="dKcentric", metric="squared", pout="vacuum", time_unit="min")
+    # mode = "Kcentric", "Kcentric_single", "dKcentric", "dKcentric_single"
+    
+    # add the case for 2-parameter model, where rp3 === 0.0 always
+    # -> alternative versions of the different `optimize_` functions (without the third retention parameter)
+    # -> similar, alternative versions for `opt_` functions needed
+	if time_unit == "min"
+        a = 60.0
+    else
+        a = 1.0
+    end
+	tR_meas = Array(tRs[:,2:end]).*a
+	
+    if length(size(tR_meas)) == 1
+        ns = 1
+    else
+        ns = size(tR_meas)[2]
+    end
+    
+    d_e = col.d
+
+    rp1 = Array{Float64}(undef, ns)
+	rp2 = Array{Float64}(undef, ns)
+	rp3 = Array{Float64}(undef, ns)
+    min = Array{Float64}(undef, ns)
+    #retcode = Array{Any}(undef, ns)
+    if mode == "Kcentric_single" #-> new version for missing values ok -> check with no missing		
+        sol = Array{SciMLBase.OptimizationSolution}(undef, ns)
+        for j=1:ns
+			# filter-out missing values:
+            index_notmissing = Not(findall(ismissing.(tR_meas[:,j])))
+			tRs_ = collect(skipmissing(tR_meas[:,j]))
+			prog_ = prog[index_notmissing]
+            subst_list_ = fill(solute_names[j], length(tRs_))
+				
+            sol[j] = optimize_Kcentric(tRs_, subst_list_, col, prog_, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+			
+            rp1[j] = sol[j][1]
+            rp2[j] = sol[j][2]
+            rp3[j] = sol[j][3]
+            min[j] = sol[j].objective
+            #retcode[j] = sol[j].retcode
+        end
+        df = DataFrame(Name=solute_names, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min)#, retcode=retcode)
+    elseif mode == "Kcentric" #-> new version for missing values ok -> check with no missing
+		# vectorizing and filter-out missing values:
+        index_notmissing = Not(findall(ismissing.(tR_meas[:,:])))
+		tRs_ = collect(skipmissing(tR_meas[:,:]))
+		prog_ = prog_list(prog, tR_meas)
+		subst_list_ = substance_list(solute_names, tR_meas)
+		
+        sol = optimize_Kcentric(tRs_, subst_list_, col, prog_, rp1_e, rp2_e, rp3_e; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+        rp1 = sol[1:ns] # Array length = number solutes
+        rp2 = sol[ns+1:2*ns] # Array length = number solutes
+        rp3 = sol[2*ns+1:3*ns] # Array length = number solutes
+        for j=1:ns
+            min[j] = sol.objective
+            #retcode[j] = sol.retcode
+        end
+        df = DataFrame(Name=solute_names, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min)#, retcode=retcode)
+    elseif mode == "dKcentric"
+		# vectorizing and filter-out missing values:
+        index_notmissing = Not(findall(ismissing.(tR_meas[:,:])))
+		tRs_ = collect(skipmissing(tR_meas[:,:]))
+		prog_ = prog_list(prog, tR_meas)
+		subst_list_ = substance_list(solute_names, tR_meas)
+		
+        sol = optimize_dKcentric(tRs_, subst_list_, col, prog_, d_e, rp1_e, rp2_e, rp3_e; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+        d = sol[1].*ones(ns)
+        rp1 = sol[2:ns+1] # Array length = number solutes
+        rp2 = sol[ns+1+1:2*ns+1] # Array length = number solutes
+        rp3 = sol[2*ns+1+1:3*ns+1] # Array length = number solutes
+        for j=1:ns
+            min[j] = sol.objective
+            #retcode[j] = sol.retcode
+        end
+        df = DataFrame(Name=solute_names, d=d, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min)#, retcode=retcode)
+    elseif mode == "dKcentric_single"#-> new version for missing values ok -> check with no missing
+        sol = Array{SciMLBase.OptimizationSolution}(undef, ns)
+        d = Array{Float64}(undef, ns)
+        for j=1:ns
+			# filter-out missing values:
+            index_notmissing = Not(findall(ismissing.(tR_meas[:,j])))
+			tRs_ = collect(skipmissing(tR_meas[:,j]))
+			prog_ = prog[index_notmissing]
+            subst_list_ = fill(solute_names[j], length(tRs_))
+			
+            sol[j] = optimize_dKcentric(tRs_, subst_list_, col, prog_, d_e, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+            d[j] = sol[j][1]
+            rp1[j] = sol[j][2]
+            rp2[j] = sol[j][3]
+            rp3[j] = sol[j][4]
+            min[j] = sol[j].objective
+            #retcode[j] = sol[j].retcode
+        end
+        df = DataFrame(Name=solute_names, d=d, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min)#, retcode=retcode)
+    end
+	
+	return df, sol
 end
 
 """
@@ -338,7 +541,7 @@ function estimate_parameters_(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e;
             rp1[j] = sol[j][1]
             rp2[j] = sol[j][2]
             rp3[j] = sol[j][3]
-            min[j] = sol[j].minimum
+            min[j] = sol[j].objective
             #retcode[j] = sol[j].retcode
         end
         df = DataFrame(Name=solute_names, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min)#, retcode=retcode)
@@ -348,7 +551,7 @@ function estimate_parameters_(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e;
         rp2 = sol[ns+1:2*ns] # Array length = number solutes
         rp3 = sol[2*ns+1:3*ns] # Array length = number solutes
         for j=1:ns
-            min[j] = sol.minimum
+            min[j] = sol.objective
             #retcode[j] = sol.retcode
         end
         df = DataFrame(Name=solute_names, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min)#, retcode=retcode)
@@ -359,7 +562,7 @@ function estimate_parameters_(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e;
         rp2 = sol[ns+1+1:2*ns+1] # Array length = number solutes
         rp3 = sol[2*ns+1+1:3*ns+1] # Array length = number solutes
         for j=1:ns
-            min[j] = sol.minimum
+            min[j] = sol.objective
             #retcode[j] = sol.retcode
         end
         df = DataFrame(Name=solute_names, d=d, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min)#, retcode=retcode)
@@ -372,7 +575,7 @@ function estimate_parameters_(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e;
             rp1[j] = sol[j][2]
             rp2[j] = sol[j][3]
             rp3[j] = sol[j][4]
-            min[j] = sol[j].minimum
+            min[j] = sol[j].objective
             #retcode[j] = sol[j].retcode
         end
         df = DataFrame(Name=solute_names, d=d, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min)#, retcode=retcode)
@@ -479,7 +682,7 @@ function method_m1(meas, col_input; se_col=true, method=NewtonTrustRegion(), opt
 	# optimize every solute separatly for the 3 remaining parameters `Tchar`, `θchar`, `ΔCp`
 	res_ = estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6], method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime)[1]
 	# calculate the standard errors of the 3 parameters using the hessian matrix
-	stderrors = stderror(meas, res_, col_input)[1]
+	stderrors = stderror(meas, res_, col_input; opt=opt)[1]
 	# output dataframe
     res = if se_col == true
 	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res_.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=stderrors.sd_ΔCp)
@@ -523,7 +726,7 @@ function method_m2(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 	
 	res_[!, :d_std] = std(res_dKcentric_single.d).*ones(length(res_.Name))
 	# calculate the standard errors of the 3 parameters using the hessian matrix
-	stderrors = stderror(meas, res_)[1]
+	stderrors = stderror(meas, res_; opt=opt)[1]
 	# output dataframe
     res = if se_col == true
 	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res_.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=stderrors.sd_ΔCp, d=res_.d, d_std=res_.d_std)
@@ -538,6 +741,9 @@ end
 
 Calculation of the standard error of the found optimized parameters using the hessian matrix at the optima.
 
+# Attention
+The used loss-function is hard coded in the function `opt_Kcentric` and has to be changed if another loss-function is used.
+
 # Arguments
 * `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
 * `res` ... Dataframe with the result of the optimization, see [`estimate_parameters`](@ref).
@@ -550,14 +756,16 @@ Optional parameters
 * `stderrors` ... Dataframe with the standard errors of the optimized parameters.
 * `Hessian` ... The hessian matrix at the found optims. 
 """
-function stderror(meas, res)
+function stderror(meas, res; opt=std_opt)
 	sdTchar = Array{Float64}(undef, size(res)[1])
 	sdθchar = Array{Float64}(undef, size(res)[1])
 	sdΔCp = Array{Float64}(undef, size(res)[1])
 	Hessian = Array{Any}(undef, size(res)[1])
 	for i=1:size(res)[1]
-		# the loss-function used in the optimization
-		p = [meas[3][!,i+1].*60.0, meas[1].L, meas[1].d, meas[2], std_opt, meas[1].gas, "squared"]
+		
+        substs = fill(meas[4][i], length(meas[3][!,i+1]))
+		p = [meas[3][!,i+1].*60.0, substs, meas[1].L, meas[1].d, meas[2], opt, meas[1].gas, "squared"]
+        # the loss-function used in the optimization !!! HAS TO BE CHANGED !!!
 		LF(x) = opt_Kcentric(x, p)
 		# the hessian matrix of the loss-function, calculated with ForwardDiff.jl
 		H(x) = ForwardDiff.hessian(LF, x)
@@ -572,14 +780,28 @@ function stderror(meas, res)
 	return stderrors, Hessian
 end
 
-function stderror(meas, res, col_input)
+function stderror(meas, res, col_input; opt=std_opt, metric="squared")
 	sdTchar = Array{Float64}(undef, size(res)[1])
 	sdθchar = Array{Float64}(undef, size(res)[1])
 	sdΔCp = Array{Float64}(undef, size(res)[1])
 	Hessian = Array{Any}(undef, size(res)[1])
+
+    if meas[6] == "min"
+        a = 60.0
+    else
+        a = 1.0
+    end
 	for i=1:size(res)[1]
-		# the loss-function used in the optimization
-		p = [meas[3][!,i+1].*60.0, col_input.L, col_input.d, meas[2], std_opt, meas[1].gas, "squared"]
+		
+        # filter-out missing values:
+        tR_meas = meas[3][!,i+1].*a
+        index_notmissing = Not(findall(ismissing.(tR_meas[:])))
+        tRs_ = collect(skipmissing(tR_meas[:]))
+        prog_ = meas[2][index_notmissing]
+        subst_list_ = fill(meas[4][i], length(tRs_))
+        
+		p = (tRs_, subst_list_, col_input.L, col_input.d, prog_, opt, meas[1].gas, metric) 
+        # the loss-function used in the optimization !!! HAS TO BE CHANGED !!!
 		LF(x) = opt_Kcentric(x, p)
 		# the hessian matrix of the loss-function, calculated with ForwardDiff.jl
 		H(x) = ForwardDiff.hessian(LF, x)

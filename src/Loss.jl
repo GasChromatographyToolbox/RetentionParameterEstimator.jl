@@ -95,6 +95,49 @@ function loss(tR, Tchar, θchar, ΔCp, L, d, prog, gas; opt=std_opt, metric="squ
 	return l
 end
 
+"""
+    loss(tR::Array{T, 1}, Tchar, θchar, ΔCp, substance_list::Array{String, 1}, L, d, prog::Array{GasChromatographySimulator.Program, 1}, gas; opt=std_opt, metric="squared") where T<:Number
+
+Calculates the loss between the measured retention times `tR` and the calculated retention times `tRcalc` for a list (vector) of substances.
+
+# Arguments
+- `tR::Array{T, 1}`: Array of measured retention times.
+- `Tchar`: Array of characteristic temperatures for each substance.
+- `θchar`: Array of characteristic parameters for each substance.
+- `ΔCp`: Array of heat capacity changes for each substance.
+- `substance_list::Array{String, 1}`: List of substances.
+- `L`: Length of the column.
+- `d`: Diameter of the column.
+- `prog::Array{GasChromatographySimulator.Program, 1}`: Array of programs for gas chromatography.
+- `gas`: The gas used.
+- `opt=std_opt`: (Optional) Options for calculating retention times.
+- `metric="squared"`: (Optional) The loss metric to use. Can be "abs" for absolute loss or "squared" for squared loss.
+
+# Return Value
+- `l`: The calculated loss value.
+
+# Errors
+- Throws an error if the lengths of `tR`, `substance_list`, and `prog` do not match.
+"""
+function loss(tR::Array{T, 1}, Tchar, θchar, ΔCp, substance_list::Array{String, 1}, L, d, prog::Array{GasChromatographySimulator.Program, 1}, gas; opt=std_opt, metric="squared") where T<:Number
+	if length(tR) != length(substance_list) || length(tR) != length(prog)
+		error("Lengths of tR = $(length(tR)), substance_list = $(length(substance_list)), and prog = $(length(prog)) do not match.")
+	end
+	tRcalc = Array{Any}(undef, length(tR))
+	for i=1:length(tR)
+		j = findfirst(substance_list[i] .== unique(substance_list))
+		tRcalc[i] = RetentionParameterEstimator.tR_calc(Tchar[j], θchar[j], ΔCp[j], L, d, prog[i], gas; opt=opt)
+	end
+	if metric == "abs"
+		l = sum(abs.(tR.-tRcalc))/(length(tR))
+	elseif metric == "squared"
+		l = sum((tR.-tRcalc).^2)/(length(tR))
+	else
+		l = sum((tR.-tRcalc).^2)/(length(tR))
+	end
+	return l
+end
+
 function loss(tR, Tchar, θchar, ΔCp, φ₀, L, d, df, prog, gas; opt=std_opt, metric="squared")
 	if length(size(tR)) == 1
 		ns = 1 # number of solutes

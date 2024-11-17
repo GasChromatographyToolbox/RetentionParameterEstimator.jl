@@ -90,13 +90,13 @@ function extract_measured_program(TPprog, path, L)
 end
 
 """
-    load_chromatograms(file; filter_missing=true)
+    load_chromatograms(file; delim=";")
 
 Loading of the chromatographic data (column information, GC program information, retention time information, see also "Structure of input data") from a file.
 
 # Arguments
 * `file` ... path to the file.
-* `filter_missing` ... option to ignore solutes, where some retention times are not given. (`default = true`).
+* `delim=";"` ... Delimiter for the imported .csv file.
 
 # Output
 A tuple of the following quantities:
@@ -107,7 +107,12 @@ A tuple of the following quantities:
 * `pout` ... outlet pressure (detector pressure), "vacuum" or "atmospheric". 
 * `time_unit` ... unit of time scale used in the retention times and GC programs, "min" or "s".
 """
-function load_chromatograms(file; filter_missing=true, delim=";") # new version -> check case for `filter_missing=false` and missing values in further functions!!!!
+function load_chromatograms(file; delim=";") # new version -> check case for `filter_missing=false` and missing values in further functions!!!!
+    # Check if file exists
+    if !isfile(file)
+        throw(ArgumentError("File not found: $file"))
+    end
+
     n = open(f->countlines(f), file)
     #col_df = DataFrame(CSV.File(file, header=1, limit=1, stringtype=String, silencewarnings=true, delim=delim, types=[Float64, Float64, Float64, String, String, String, String]))
     col_df = DataFrame(CSV.File(file, header=1, limit=1, stringtype=String, silencewarnings=true, delim=delim, types=Dict("L" => Float64, "d" => Float64, "df" => Float64)))
@@ -118,9 +123,9 @@ function load_chromatograms(file; filter_missing=true, delim=";") # new version 
     n_meas = Int((n - 2 - 2)/2) 
     TPprog = DataFrame(CSV.File(file, header=3, limit=n_meas, stringtype=String, silencewarnings=true, delim=delim))
     #PP = DataFrame(CSV.File(file, header=3+n_meas+1, limit=n_meas, stringtype=String)) # convert pressures from Pa(g) to Pa(a), add p_atm to this data set
-    tRs_ = DataFrame(CSV.File(file, header=n-n_meas, stringtype=String, silencewarnings=true, delim=delim))
-    solute_names_ = names(tRs_)[2:end] # filter non-solute names out (columnx)
-    filter!(x -> !occursin.("Column", x), solute_names_)
+    tRs = DataFrame(CSV.File(file, header=n-n_meas, stringtype=String, silencewarnings=true, delim=delim))
+    solute_names = names(tRs)[2:end] # filter non-solute names out (columnx)
+    filter!(x -> !occursin.("Column", x), solute_names)
     if names(TPprog)[2] == "filename"
         path = dirname(file)
         prog = extract_measured_program(TPprog, path, col.L)
@@ -137,27 +142,17 @@ function load_chromatograms(file; filter_missing=true, delim=";") # new version 
             prog[i] = Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:(end-1)])), col.L; pout=pout_, time_unit=time_unit)
         end
     end
-
-	# filter out substances with retention times missing
-	if filter_missing == true
-		solute_names = solute_names_[findall((collect(any(ismissing, c) for c in eachcol(tRs_))).==false)[2:end].-1]
-		tRs = tRs_[!,findall((collect(any(ismissing, c) for c in eachcol(tRs_))).==false)]
-	else
-		solute_names = solute_names_ # what to do with missing entries for the optimization????
-		tRs = tRs_
-	end
 	
     return col, prog, tRs[!,1:(length(solute_names)+1)], solute_names, pout, time_unit#, TPs, PPs
 end
 
 """
-    load_chromatograms(file::Dict{Any, Any}; filter_missing=true, path=joinpath(dirname(pwd()), "data", "exp_pro"))
+    load_chromatograms(file::Dict{Any, Any}; path=joinpath(dirname(pwd()), "data", "exp_pro"))
 
 Loading of the chromatographic data (column information, GC program information, retention time information, see also "Structure of input data") from a file selected by the FilePicker in a Pluto notebook.
 
 # Arguments
 * `file` ... file dictionary from the FilePicker.
-* `filter_missing` ... option to ignore solutes, where some retention times are not given. (`default = true`).
 * `path` ... if the temperature programs are defined by measured temperatures over time, define the path to these files.
 
 # Output
@@ -169,7 +164,12 @@ A tuple of the following quantities:
 * `pout` ... outlet pressure (detector pressure), "vacuum" or "atmospheric". 
 * `time_unit` ... unit of time scale used in the retention times and GC programs, "min" or "s".
 """
-function load_chromatograms(file::Dict{Any, Any}; filter_missing=true, path=joinpath(dirname(pwd()), "data", "exp_pro"), delim=";") # if file is the output of FilePicker()
+function load_chromatograms(file::Dict{Any, Any}; path=joinpath(dirname(pwd()), "data", "exp_pro"), delim=";") # if file is the output of FilePicker()
+    # Check if file data exists
+    if !haskey(file, "data") || isempty(file["data"])
+        throw(ArgumentError("No valid file data found in the provided dictionary"))
+    end
+
     n = length(CSV.File(file["data"]; silencewarnings=true, comment=";;"))+1
     col_df = DataFrame(CSV.File(file["data"], header=1, limit=1, stringtype=String, silencewarnings=true, delim=delim))
 	col = GasChromatographySimulator.Column(convert(Float64, col_df.L[1]), col_df.d[1], col_df.df[1], col_df.sp[1], col_df.gas[1])
@@ -179,9 +179,9 @@ function load_chromatograms(file::Dict{Any, Any}; filter_missing=true, path=join
     n_meas = Int((n - 2 - 2)/2) 
     TPprog = DataFrame(CSV.File(file["data"], header=3, limit=n_meas, stringtype=String, silencewarnings=true, delim=delim))
     #PP = DataFrame(CSV.File(file, header=3+n_meas+1, limit=n_meas, stringtype=String)) # convert pressures from Pa(g) to Pa(a), add p_atm to this data set
-    tRs_ = DataFrame(CSV.File(file["data"], header=n-n_meas, stringtype=String, silencewarnings=true, comment=";;", delim=delim))
-    solute_names_ = names(tRs_)[2:end] # filter non-solute names out (columnx)
-    filter!(x -> !occursin.("Column", x), solute_names_)
+    tRs = DataFrame(CSV.File(file["data"], header=n-n_meas, stringtype=String, silencewarnings=true, comment=";;", delim=delim))
+    solute_names = names(tRs)[2:end] # filter non-solute names out (columnx)
+    filter!(x -> !occursin.("Column", x), solute_names)
     if names(TPprog)[2] == "filename"
         #path = dirname(file)
         prog = extract_measured_program(TPprog, path, col.L)
@@ -198,15 +198,6 @@ function load_chromatograms(file::Dict{Any, Any}; filter_missing=true, path=join
             prog[i] = Program(collect(skipmissing(TPs[i, 2:end])), collect(skipmissing(PPs[i, 2:(end-1)])), col.L; pout=pout_, time_unit=time_unit)
         end
     end
-
-	# filter out substances with retention times missing
-	if filter_missing == true
-		solute_names = solute_names_[findall((collect(any(ismissing, c) for c in eachcol(tRs_))).==false)[2:end].-1]
-		tRs = tRs_[!,findall((collect(any(ismissing, c) for c in eachcol(tRs_))).==false)]
-	else
-		solute_names = solute_names_
-		tRs = tRs_
-	end
 	
     return col, prog, tRs[!,1:(length(solute_names)+1)], solute_names, pout, time_unit#, TPs, PPs
 end

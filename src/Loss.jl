@@ -27,12 +27,24 @@ function tR_calc(Tchar, θchar, ΔCp, L, d, prog, gas; opt=std_opt)
 end
 
 # use this as the main function
-function tR_calc(Tchar, θchar, ΔCp, L, d, df, prog, gas; opt=std_opt)
+# NOTE: This function is commented out because df has no influence on the result (is hidden in Tchar, θchar, ΔCp)
+# and it's not used anywhere in the codebase. Use tR_calc(Tchar, θchar, ΔCp, L, d, prog, gas; opt=opt) instead.
+#=function tR_calc(Tchar, θchar, ΔCp, L, d, df, prog, gas; opt=std_opt)
 	# df has no influence on the result (is hidden in Tchar, θchar, ΔCp)
-	solution = GasChromatographySimulator.solving_migration(prog.T_itp, prog.Fpin_itp, prog.pout_itp, L, d, df, Tchar, θchar, ΔCp, d/df, gas, opt; kwargs...)
+	# Use the same ODE approach as the version without df
+	k(x,t,Tchar_,θchar_,ΔCp_) = exp((ΔCp_/R + Tchar_/θchar_)*(Tchar_/prog.T_itp(x,t)-1) + ΔCp_/R*real(log(Complex(prog.T_itp(x,t)/Tchar_))))
+	rM(x,t,L_,d_) = GasChromatographySimulator.mobile_phase_residency(x,t, prog.T_itp, prog.Fpin_itp, prog.pout_itp, L_, d_, gas; ng=opt.ng, vis=opt.vis, control=opt.control)
+	
+	r(t,p,x) = (1+k(x,t,p[1],p[2],p[3]))*rM(x,t,p[4],p[5])
+	
+	t₀ = 0.0
+	xspan = (0.0, L)
+	p = (Tchar, θchar, ΔCp, L, d)
+	prob = ODEProblem(r, t₀, xspan, p)
+	solution = solve(prob, alg=opt.alg, abstol=opt.abstol, reltol=opt.reltol)
 	tR = solution.u[end]
 	return tR
-end
+end=#
 
 """
     tR_τR_calc(Tchar, θchar, ΔCp, L, d, df, prog, Cag, t₀, τ₀, gas; opt=std_opt)
@@ -119,7 +131,7 @@ Calculates the loss between the measured retention times `tR` and the calculated
 # Errors
 - Throws an error if the lengths of `tR`, `substance_list`, and `prog` do not match.
 """
-function loss(tR::Array{T, 1}, Tchar, θchar, ΔCp, substance_list::Array{String, 1}, L, d, prog::Array{GasChromatographySimulator.Program, 1}, gas; opt=std_opt, metric="squared") where T<:Number
+function loss(tR::Array{T, 1}, Tchar, θchar, ΔCp, substance_list::Array{String, 1}, L, d, prog::Array{<:GasChromatographySimulator.Program, 1}, gas; opt=std_opt, metric="squared") where T<:Number
 	if length(tR) != length(substance_list) || length(tR) != length(prog)
 		error("Lengths of tR = $(length(tR)), substance_list = $(length(substance_list)), and prog = $(length(prog)) do not match.")
 	end
@@ -138,7 +150,9 @@ function loss(tR::Array{T, 1}, Tchar, θchar, ΔCp, substance_list::Array{String
 	return l
 end
 
-function loss(tR, Tchar, θchar, ΔCp, φ₀, L, d, df, prog, gas; opt=std_opt, metric="squared")
+# NOTE: This function is commented out because it's dead code - it was only used by opt_Kcentric_ and opt_dKcentric_ 
+# which are already commented out in Optimization.jl
+#=function loss(tR, Tchar, θchar, ΔCp, φ₀, L, d, df, prog, gas; opt=std_opt, metric="squared")
 	if length(size(tR)) == 1
 		ns = 1 # number of solutes
 		np = size(tR)[1] # number of programs
@@ -163,7 +177,7 @@ function loss(tR, Tchar, θchar, ΔCp, φ₀, L, d, df, prog, gas; opt=std_opt, 
 		l = sum((tR.-tRcalc).^2)/(ns*np)
 	end
 	return l
-end
+end=#
 
 function tR_calc_(A, B, C, L, d, β, prog, gas; opt=std_opt)
 	k(x,t,A_,B_,C_,β_) = exp(A_ + B_/prog.T_itp(x,t) + C_*log(prog.T_itp(x,t)) - log(β_))

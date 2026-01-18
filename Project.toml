@@ -1,14 +1,13 @@
 name = "RetentionParameterEstimator"
 uuid = "0afdae40-3141-486e-b874-33af99ac38b5"
-authors = ["Jan Leppert <jleppert@uni-bonn.de>"]
 version = "0.2.0"
+authors = ["Jan Leppert <jleppert@uni-bonn.de>"]
 
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 GasChromatographySimulator = "dd82b6e2-56ef-419d-b271-0be268cb65f5"
-Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
 Optimization = "7f7a1694-90dd-40f0-9382-eb1efda571ba"
 OptimizationBBO = "3e6eede4-6085-4f62-9a71-46d9bc1eb92b"
@@ -27,7 +26,6 @@ CSV = "0.10"
 DataFrames = "1"
 ForwardDiff = "0.10"
 GasChromatographySimulator = "0.4, 0.5"
-Interpolations = "0.14, 0.15"
 Measurements = "2"
 Optimization = "3"
 OptimizationBBO = "0.3"

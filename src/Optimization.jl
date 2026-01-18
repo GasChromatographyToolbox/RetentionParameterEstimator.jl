@@ -484,7 +484,7 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
 end
 
 """
-    estimate_parameters()
+    estimate_parameters(chrom; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, mode="dKcentric", metric="squared")
 
 Calculate the estimates for the K-centric parameters and (optional) the column diameter.
 

@@ -10,9 +10,13 @@ function reference_holdup_time(col, prog; control="Pressure")
     # estimate the time of the temperature program for T=Tref
     t_ = prog.time_steps
     T_ = prog.temp_steps
-    knots = Interpolations.deduplicate_knots!(T_ .- Tref; move_knots=true)
-    interp = interpolate((knots, ), cumsum(t_), Gridded(Linear()))
-	tref = interp(0.0)
+    T_diff = T_ .- Tref
+    unique_indices = GasChromatographySimulator.deduplicate_knots!(T_diff; move_knots=true)
+    T_diff_unique = T_diff[unique_indices]
+    t_cumsum_unique = cumsum(t_)[unique_indices]
+    # Use GasChromatographySimulator's linear_interpolation
+    interp = GasChromatographySimulator.linear_interpolation((T_diff_unique,), t_cumsum_unique)
+    tref = interp(0.0)
     # inlet and outlet pressure at time tref
     Fpin_ref = prog.Fpin_itp(tref)
     pout_ref = prog.pout_itp(tref)
@@ -82,9 +86,18 @@ function estimate_start_parameter_single_ramp(tRs::DataFrame, col, prog; time_un
     ΔCp_est = Array{Float64}(undef, ns)
     for i=1:ns
 		indexExistingRT = Not(findall(ismissing.(tR_meas[:,i])))
-        knots = Interpolations.deduplicate_knots!(Telu_meas[indexExistingRT,i]; move_knots=true)
-        interp = interpolate((rT[indexExistingRT] .- rT_nom, ), knots, Gridded(Linear()))
+        rT_values = rT[indexExistingRT] .- rT_nom
+        Telu_values = Telu_meas[indexExistingRT,i]
+        # Sort by rT_values for interpolation (GasChromatographySimulator requires sorted x-values)
+        sort_indices = sortperm(rT_values)
+        rT_sorted = rT_values[sort_indices]
+        Telu_sorted = Telu_values[sort_indices]
+        # Deduplicate y-values (Telu) to match original Interpolations.jl behavior
+        # This modifies Telu_sorted in place, similar to original: knots = Interpolations.deduplicate_knots!(Telu_meas[...])
+        unique_indices = GasChromatographySimulator.deduplicate_knots!(Telu_sorted; move_knots=true)
         Telu_max[i] = maximum(Telu_meas[indexExistingRT,i])
+        # Use GasChromatographySimulator's linear_interpolation
+        interp = GasChromatographySimulator.linear_interpolation((rT_sorted,), Telu_sorted)
         Tchar_est[i] = interp(0.0)
         θchar_est[i] = 22.0*(Tchar_est[i]/Tst)^0.7*(1000*col.df/col.d)^0.09
         ΔCp_est[i] = -52.0 + 0.34*Tchar_est[i]

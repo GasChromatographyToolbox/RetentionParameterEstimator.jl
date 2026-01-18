@@ -6,7 +6,6 @@ using Reexport
 @reexport using DataFrames
 using ForwardDiff
 using GasChromatographySimulator
-using Interpolations
 @reexport using Measurements
 using Optimization
 using OptimizationBBO

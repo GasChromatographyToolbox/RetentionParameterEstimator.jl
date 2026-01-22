@@ -63,11 +63,7 @@ and
 * `Telu_max` ... the maximum of the calculated elution temperatures of the solutes
 """    
 function estimate_start_parameter_single_ramp(tRs::DataFrame, col, prog; time_unit="min", control="Pressure")
-    if time_unit == "min"
-		a = 60.0
-	else
-		a = 1.0
-	end
+    a = time_unit_conversion_factor(time_unit)
     tR_meas = Array(tRs[:,2:end]).*a
     nt, ns = size(tR_meas)
     tMref = Array{Float64}(undef, nt)
@@ -126,11 +122,7 @@ and
 * `Telu_max` ... the maximum of the calculated elution temperatures of the solutes
 """ 
 function estimate_start_parameter_mean_elu_temp(tRs::DataFrame, col, prog; time_unit="min")
-	if time_unit == "min"
-		a = 60.0
-	else
-		a = 1.0
-	end
+	a = time_unit_conversion_factor(time_unit)
     tR_meas = Array(tRs[:,2:end]).*a
     
     nt, ns = size(tR_meas)

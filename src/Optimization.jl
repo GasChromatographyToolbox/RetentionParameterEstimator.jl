@@ -384,11 +384,7 @@ end=#
     # add the case for 2-parameter model, where rp3 === 0.0 always
     # -> alternative versions of the different `optimize_` functions (without the third retention parameter)
     # -> similar, alternative versions for `opt_` functions needed
-    if time_unit == "min"
-        a = 60.0
-    else
-        a = 1.0
-    end
+    a = time_unit_conversion_factor(time_unit)
 	tR_meas = Array(tRs[:,2:end]).*a
     if length(size(tR_meas)) == 1
         ns = 1
@@ -459,11 +455,7 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
     # add the case for 2-parameter model, where rp3 === 0.0 always
     # -> alternative versions of the different `optimize_` functions (without the third retention parameter)
     # -> similar, alternative versions for `opt_` functions needed
-	if time_unit == "min"
-        a = 60.0
-    else
-        a = 1.0
-    end
+	a = time_unit_conversion_factor(time_unit)
 	tR_meas = Array(tRs[:,2:end]).*a
 	
     if length(size(tR_meas)) == 1
@@ -483,10 +475,7 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
         sol = Array{SciMLBase.OptimizationSolution}(undef, ns)
         for j=1:ns
 			# filter-out missing values:
-            index_notmissing = Not(findall(ismissing.(tR_meas[:,j])))
-			tRs_ = collect(skipmissing(tR_meas[:,j]))
-			prog_ = prog[index_notmissing]
-            subst_list_ = fill(solute_names[j], length(tRs_))
+			tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas[:,j], prog, solute_names[j])
 				
             sol[j] = optimize_Kcentric(tRs_, subst_list_, col, prog_, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
 			
@@ -499,10 +488,7 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
         df = DataFrame(Name=solute_names, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min)#, retcode=retcode)
     elseif mode == "Kcentric" #-> new version for missing values ok -> check with no missing
 		# vectorizing and filter-out missing values:
-        index_notmissing = Not(findall(ismissing.(tR_meas[:,:])))
-		tRs_ = collect(skipmissing(tR_meas[:,:]))
-		prog_ = prog_list(prog, tR_meas)
-		subst_list_ = substance_list(solute_names, tR_meas)
+		tRs_, prog_, subst_list_ = prepare_optimization_data(tRs, solute_names, prog, time_unit)
 		
         sol = optimize_Kcentric(tRs_, subst_list_, col, prog_, rp1_e, rp2_e, rp3_e; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
         rp1 = sol[1:ns] # Array length = number solutes
@@ -515,10 +501,7 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
         df = DataFrame(Name=solute_names, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min)#, retcode=retcode)
     elseif mode == "dKcentric"
 		# vectorizing and filter-out missing values:
-        index_notmissing = Not(findall(ismissing.(tR_meas[:,:])))
-		tRs_ = collect(skipmissing(tR_meas[:,:]))
-		prog_ = prog_list(prog, tR_meas)
-		subst_list_ = substance_list(solute_names, tR_meas)
+		tRs_, prog_, subst_list_ = prepare_optimization_data(tRs, solute_names, prog, time_unit)
 		
         sol = optimize_dKcentric(tRs_, subst_list_, col, prog_, d_e, rp1_e, rp2_e, rp3_e; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
         d = sol[1].*ones(ns)
@@ -535,10 +518,7 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
         d = Array{Float64}(undef, ns)
         for j=1:ns
 			# filter-out missing values:
-            index_notmissing = Not(findall(ismissing.(tR_meas[:,j])))
-			tRs_ = collect(skipmissing(tR_meas[:,j]))
-			prog_ = prog[index_notmissing]
-            subst_list_ = fill(solute_names[j], length(tRs_))
+			tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas[:,j], prog, solute_names[j])
 			
             sol[j] = optimize_dKcentric(tRs_, subst_list_, col, prog_, d_e, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
             d[j] = sol[j][1]
@@ -586,11 +566,7 @@ end
 
 function estimate_parameters_(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, mode="dKcentric", metric="squared", pout="vacuum", time_unit="min")
     # mode = "Kcentric", "Kcentric_single", "dKcentric", "dKcentric_single"
-    if time_unit == "min"
-        a = 60.0
-    else
-        a = 1.0
-    end
+    a = time_unit_conversion_factor(time_unit)
 	tR_meas = Array(tRs[:,2:end]).*a
     if length(size(tR_meas)) == 1
         ns = 1
@@ -715,11 +691,7 @@ function check_measurement(meas, col_input; min_th=0.1, loss_th=1.0, se_col=true
 end
 
 function flagged_loss(meas, df, index_flag)
-	if meas[6] == "min"
-		a = 60.0
-	else
-		a = 1.0
-	end
+	a = time_unit_conversion_factor(meas[6])
 	tRcalc = Array{Float64}(undef, length(meas[3].measurement), length(index_flag))
 	tRmeas = Array{Float64}(undef, length(meas[3].measurement), length(index_flag))
 	for j=1:length(index_flag)
@@ -889,22 +861,7 @@ function method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 		
 		# Block 1: Optimize d while fixing substance parameters
 		# Vectorize data (filter out missing values)
-		if meas[6] == "min"
-			a = 60.0
-		else
-			a = 1.0
-		end
-		tR_meas = Array(meas[3][:,2:end]).*a
-		index_notmissing = Not(findall(ismissing.(tR_meas[:,:])))
-		tRs_ = collect(skipmissing(tR_meas[:,:]))
-		# Create prog_list: expand programs to match 2D structure and filter missing
-		prog_list_2d = Array{GasChromatographySimulator.Program}(undef, size(tR_meas))
-		for j=1:size(tR_meas)[2]
-			prog_list_2d[:,j] = meas[2]
-		end
-		prog_ = prog_list_2d[index_notmissing]
-		# substance_list expects tR_meas (without measurement name column), not meas[3]
-		subst_list_ = substance_list(meas[4], tR_meas)
+		tRs_, prog_, subst_list_ = prepare_optimization_data(meas[3], meas[4], meas[2], meas[6])
 		
 		# Optimize d (1D optimization)
 		d_current = optimize_d_only(tRs_, subst_list_, Tchar_current, θchar_current, ΔCp_current, 
@@ -984,7 +941,8 @@ function stderror(meas, res; opt=std_opt)
 	for i=1:size(res)[1]
 		
         substs = fill(meas[4][i], length(meas[3][!,i+1]))
-		p = [meas[3][!,i+1].*60.0, substs, meas[1].L, meas[1].d, meas[2], opt, meas[1].gas, "squared"]
+		a = time_unit_conversion_factor(meas[6])
+		p = [meas[3][!,i+1].*a, substs, meas[1].L, meas[1].d, meas[2], opt, meas[1].gas, "squared"]
         # the loss-function used in the optimization !!! HAS TO BE CHANGED !!!
 		LF(x) = opt_Kcentric(x, p)
 		# the hessian matrix of the loss-function, calculated with ForwardDiff.jl
@@ -1006,19 +964,12 @@ function stderror(meas, res, col_input; opt=std_opt, metric="squared")
 	sdΔCp = Array{Float64}(undef, size(res)[1])
 	Hessian = Array{Any}(undef, size(res)[1])
 
-    if meas[6] == "min"
-        a = 60.0
-    else
-        a = 1.0
-    end
+    a = time_unit_conversion_factor(meas[6])
 	for i=1:size(res)[1]
 		
         # filter-out missing values:
         tR_meas = meas[3][!,i+1].*a
-        index_notmissing = Not(findall(ismissing.(tR_meas[:])))
-        tRs_ = collect(skipmissing(tR_meas[:]))
-        prog_ = meas[2][index_notmissing]
-        subst_list_ = fill(meas[4][i], length(tRs_))
+        tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas, meas[2], meas[4][i])
         
 		p = (tRs_, subst_list_, col_input.L, col_input.d, prog_, opt, meas[1].gas, metric) 
         # the loss-function used in the optimization !!! HAS TO BE CHANGED !!!
@@ -1043,19 +994,12 @@ function stderror_m3(meas, res; opt=std_opt, metric="squared")
 	sdΔCp = Array{Float64}(undef, size(res)[1])
 	Hessian = Array{Any}(undef, size(res)[1])
 
-    if meas[6] == "min"
-        a = 60.0
-    else
-        a = 1.0
-    end
+    a = time_unit_conversion_factor(meas[6])
 	for i=1:size(res)[1]
 		
         # filter-out missing values:
         tR_meas = meas[3][!,i+1].*a
-        index_notmissing = Not(findall(ismissing.(tR_meas[:])))
-        tRs_ = collect(skipmissing(tR_meas[:]))
-        prog_ = meas[2][index_notmissing]
-        subst_list_ = fill(meas[4][i], length(tRs_))
+        tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas, meas[2], meas[4][i])
         
 		p = (tRs_, subst_list_, meas[1].L, prog_, opt, meas[1].gas, metric) 
         # the loss-function used in the optimization !!! HAS TO BE CHANGED !!!

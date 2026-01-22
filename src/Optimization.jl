@@ -286,6 +286,77 @@ function optimize_dKcentric(tR::Vector{T}, substance_list, col, prog, d_e::Numbe
 	return opt_sol
 end
 
+"""
+    opt_d_only(x, p)
+
+Function used for optimization of the loss-function with respect to only the column diameter `d`, while keeping the K-centric parameters fixed.
+
+# Arguments
+* `x` ... 1-element vector containing the column diameter `d`.
+* `p` ... vector containing the fixed parameters:
+    * `tR = p[1]` ... vector of the measured retention times in seconds.
+    * `substance_list = p[2]` ... vector of the names of the solutes related to `tR` and `prog`.
+    * `Tchar = p[3]` ... vector of characteristic temperatures (fixed).
+    * `θchar = p[4]` ... vector of characteristic constants (fixed).
+    * `ΔCp = p[5]` ... vector of heat capacity changes (fixed).
+    * `L = p[6]` ... number of the length of the column in m.
+    * `prog = p[7]` ... vector of structure GasChromatographySimulator.Programs containing the definition of the GC-programs.
+    * `opt = p[8]` ... structure GasChromatographySimulator.Options containing the settings for options for the simulation.
+    * `gas = p[9]` ... string of name of the mobile phase gas.
+    * `metric = p[10]` ... string of the metric used for the loss function (`squared` or `abs`).
+
+# Output
+* Loss value from the loss function.
+"""
+function opt_d_only(x, p)
+    d = x[1]
+    tR = p[1]
+    substance_list = p[2]
+    Tchar = p[3]  # fixed
+    θchar = p[4]  # fixed
+    ΔCp = p[5]    # fixed
+    L = p[6]
+    prog = p[7]
+    opt = p[8]
+    gas = p[9]
+    metric = p[10]
+    
+    return loss(tR, Tchar, θchar, ΔCp, substance_list, L, d, prog, gas; opt=opt, metric=metric)
+end
+
+"""
+    optimize_d_only(tR::Vector{T}, substance_list, Tchar, θchar, ΔCp, L, prog, gas, d_e; method=RetentionParameterEstimator.NewtonTrustRegion(), opt=RetentionParameterEstimator.std_opt, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number
+
+Optimize only the column diameter `d` while keeping the K-centric retention parameters fixed.
+
+# Arguments
+- `tR::Vector{T}`: Vector of retention times.
+- `substance_list`: List of substances.
+- `Tchar`: Vector of characteristic temperatures (fixed).
+- `θchar`: Vector of characteristic phase ratios (fixed).
+- `ΔCp`: Vector of heat capacity changes (fixed).
+- `L`: Length of the column in m.
+- `prog`: Program conditions.
+- `gas`: Gas type.
+- `d_e`: Initial estimate for column diameter.
+- `method`: Optimization method to be used (default: `RetentionParameterEstimator.NewtonTrustRegion()`).
+- `opt`: Optimization options (default: `RetentionParameterEstimator.std_opt`).
+- `maxiters`: Maximum number of iterations (default: 10000).
+- `maxtime`: Maximum time allowed for optimization in seconds (default: 600.0).
+- `metric`: Metric to be used for optimization (default: "squared").
+
+# Returns
+- `d_opt`: The optimized column diameter value.
+"""
+function optimize_d_only(tR::Vector{T}, substance_list, Tchar, θchar, ΔCp, L, prog, gas, d_e; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number
+    p = (tR, substance_list, Tchar, θchar, ΔCp, L, prog, opt, gas, metric)
+    x0 = [d_e]
+    optf = OptimizationFunction(opt_d_only, RetentionParameterEstimator.Optimization.AutoForwardDiff())
+    prob = RetentionParameterEstimator.Optimization.OptimizationProblem(optf, x0, p, f_calls_limit=maxiters)
+    opt_sol = solve(prob, method, maxiters=maxiters, maxtime=maxtime)
+    return opt_sol[1]  # return just the d value
+end
+
 
 #=function optimize_dKcentric(tR, col, prog, d_e::Vector{T}, Tchar_e::Matrix{T}, θchar_e::Matrix{T}, ΔCp_e::Matrix{T}; method=BBO_adaptive_de_rand_1_bin_radiuslimited(), opt=opt_std, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number  # here default method should be one which needs bounds  
     p = (tR, col.L, prog, opt, col.gas, metric)
@@ -764,6 +835,125 @@ function method_m3(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±stderrors.sd_Tchar, θchar=res_.θchar.±stderrors.sd_θchar, ΔCp=res_.ΔCp.±stderrors.sd_ΔCp, d=res_.d.±stderrors.sd_d)
 	end
     return res, Telu_max
+end
+
+"""
+    method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, max_alternating_iters=10, tol=1e-6)
+
+Estimation of the column diameter ``d`` and three retention parameters ``T_{char}``, ``θ_{char}`` and ``Δ C_p`` including standard errors, see [`stderror`](@ref).
+Uses alternating/block coordinate descent optimization:
+1. Initialize `d` from a quick estimate (mean of `dKcentric_single` results with reduced iterations)
+2. **Block 1**: Optimize `d` (1D optimization) while fixing substance parameters
+3. **Block 2**: Optimize substance parameters (parallelizable) while fixing `d`
+4. Iterate steps 2-3 until convergence
+
+This approach properly enforces that `d` is the same for all substances and is more efficient than joint optimization for many substances (>10).
+
+# Arguments
+* `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
+* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.
+* `method=NewtonTrustRegion()` ... Optimization method to use.
+* `opt=std_opt` ... Options for the ODE solver.
+* `maxiters=10000` ... Maximum number of iterations for each optimization.
+* `maxtime=600.0` ... Maximum time for each optimization in seconds.
+* `max_alternating_iters=10` ... Maximum number of alternating iterations.
+* `tol=1e-6` ... Convergence tolerance for `d` (iteration stops when change in `d` is less than `tol`).
+
+# Output 
+* `res` ... Dataframe with the optimized parameters and the found minima.
+* `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
+"""   
+function method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, max_alternating_iters=10, tol=1e-6)
+	# calculate start parameters	
+	Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter(meas[3], meas[1], meas[2]; time_unit=meas[6])
+	
+	# Initialize d: use mean from a quick dKcentric_single pass (or use col.d as fallback)
+	# For initialization, we can use a subset or all substances with reduced iterations
+	# Here we use all substances but this could be optimized to use a subset
+	res_dKcentric_single_init = estimate_parameters(meas[3], meas[4], meas[1], meas[2], Tchar_est, θchar_est, ΔCp_est; 
+	                                                pout=meas[5], time_unit=meas[6], mode="dKcentric_single", 
+	                                                method=method, opt=std_opt, maxiters=min(maxiters, 1000), 
+	                                                maxtime=min(maxtime, 60.0))[1]
+	d_current = mean(res_dKcentric_single_init.d)
+	
+	# Use initial estimates from the initialization pass
+	Tchar_current = res_dKcentric_single_init.Tchar
+	θchar_current = res_dKcentric_single_init.θchar
+	ΔCp_current = res_dKcentric_single_init.ΔCp
+	
+	# Alternating optimization
+	res_ = nothing
+	new_col = nothing
+	for iter = 1:max_alternating_iters
+		d_prev = d_current
+		
+		# Block 1: Optimize d while fixing substance parameters
+		# Vectorize data (filter out missing values)
+		if meas[6] == "min"
+			a = 60.0
+		else
+			a = 1.0
+		end
+		tR_meas = Array(meas[3][:,2:end]).*a
+		index_notmissing = Not(findall(ismissing.(tR_meas[:,:])))
+		tRs_ = collect(skipmissing(tR_meas[:,:]))
+		# Create prog_list: expand programs to match 2D structure and filter missing
+		prog_list_2d = Array{GasChromatographySimulator.Program}(undef, size(tR_meas))
+		for j=1:size(tR_meas)[2]
+			prog_list_2d[:,j] = meas[2]
+		end
+		prog_ = prog_list_2d[index_notmissing]
+		# substance_list expects tR_meas (without measurement name column), not meas[3]
+		subst_list_ = substance_list(meas[4], tR_meas)
+		
+		# Optimize d (1D optimization)
+		d_current = optimize_d_only(tRs_, subst_list_, Tchar_current, θchar_current, ΔCp_current, 
+		                            meas[1].L, prog_, meas[1].gas, d_current; 
+		                            method=method, opt=opt, maxiters=maxiters, maxtime=maxtime)
+		
+		# Block 2: Optimize substance parameters while fixing d (can be parallelized)
+		new_col = GasChromatographySimulator.Column(meas[1].L, d_current, meas[1].df, meas[1].sp, meas[1].gas)
+		res_ = estimate_parameters(meas[3], meas[4], new_col, meas[2], Tchar_current, θchar_current, ΔCp_current; 
+		                           pout=meas[5], time_unit=meas[6], mode="Kcentric_single", method=method, 
+		                           opt=opt, maxiters=maxiters, maxtime=maxtime)[1]
+		
+		Tchar_current = res_.Tchar
+		θchar_current = res_.θchar
+		ΔCp_current = res_.ΔCp
+		
+		# Check convergence
+		if abs(d_current - d_prev) < tol
+			break
+		end
+	end
+	
+	# Ensure new_col is set (should always be set from loop, but just in case)
+	if new_col === nothing
+		new_col = GasChromatographySimulator.Column(meas[1].L, d_current, meas[1].df, meas[1].sp, meas[1].gas)
+	end
+	
+	# Add d column to results
+	res_[!, :d] = d_current.*ones(length(res_.Name))
+	
+	# Calculate standard error for d using the spread from initialization (or could use Hessian)
+	# For now, use std from initialization as approximation
+	res_[!, :d_std] = std(res_dKcentric_single_init.d).*ones(length(res_.Name))
+	
+	# Calculate the standard errors of the 3 parameters using the hessian matrix
+    res_col = (L=new_col.L, d=d_current)
+	stderrors = stderror(meas, res_, res_col; opt=opt)[1]
+	
+	# Output dataframe
+    res = if se_col == true
+	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=stderrors.sd_Tchar, 
+	              θchar=res_.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=stderrors.sd_ΔCp, 
+	              d=res_.d, d_std=res_.d_std)
+    else
+	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±stderrors.sd_Tchar, 
+	              θchar=res_.θchar.±stderrors.sd_θchar, ΔCp=res_.ΔCp.±stderrors.sd_ΔCp, 
+	              d=res_.d.±res_.d_std)
+    end
+	return res, Telu_max
 end
 
 """

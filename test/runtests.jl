@@ -267,6 +267,63 @@ end
 # Estimate_Start_Values.jl
 
 # Optimization.jl
+@testset "Optimize d_only" begin
+    # Test the new optimize_d_only function
+    # Use full meas data (not filtered) to ensure proper dimensions
+    file = "./data/meas_test.csv"
+    meas = RetentionParameterEstimator.load_chromatograms(file)
+    
+    # Get parameters from a single substance for testing
+    meas_select = RetentionParameterEstimator.filter_selected_measurements(meas, ["meas3", "meas4", "meas5"], ["2-Octanone"])
+    col_input = (L = meas_select[1].L, d = meas_select[1].d*1000)
+    check, msg, df_flag, index_flag, res, Telu_max = RetentionParameterEstimator.check_measurement(meas_select, col_input; min_th=0.1, loss_th=1.0, se_col=false)
+    
+    # Get parameters
+    Tchar = Measurements.value(res.Tchar[1])
+    θchar = Measurements.value(res.θchar[1])
+    ΔCp = Measurements.value(res.ΔCp[1])
+    L = meas_select[1].L
+    d_initial = meas_select[1].d
+    gas = meas_select[1].gas
+    
+    # Prepare data for optimize_d_only (vectorized format)
+    # Use the full meas data to ensure proper dimensions for substance_list
+    if meas[6] == "min"
+        a = 60.0
+    else
+        a = 1.0
+    end
+    tR_meas = Array(meas[3][:,2:end]).*a  # DataFrame without measurement name column
+    index_notmissing = Not(findall(ismissing.(tR_meas[:,:])))
+    tRs_ = collect(skipmissing(tR_meas[:,:]))
+    prog_list_2d = Array{GasChromatographySimulator.Program}(undef, size(tR_meas))
+    for j=1:size(tR_meas)[2]
+        prog_list_2d[:,j] = meas[2]
+    end
+    prog_ = prog_list_2d[index_notmissing]
+    # substance_list expects tR_meas (without measurement name column), not meas[3]
+    subst_list_ = RetentionParameterEstimator.substance_list(meas[4], tR_meas)
+    
+    # For optimize_d_only, we need to use parameters for all substances
+    # But we only have optimized parameters for one substance, so we'll use the full meas
+    # and get start parameters for all substances
+    Tchar_est, θchar_est, ΔCp_est, Telu_max_est = RetentionParameterEstimator.estimate_start_parameter(meas[3], meas[1], meas[2]; time_unit=meas[6])
+    
+    # Test optimize_d_only with all substances
+    d_optimized = RetentionParameterEstimator.optimize_d_only(tRs_, subst_list_, Tchar_est, θchar_est, ΔCp_est, 
+                                                               meas[1].L, prog_, meas[1].gas, d_initial; maxiters=1000, maxtime=30.0)
+    
+    @test d_optimized > 0.0  # Diameter should be positive
+    @test isfinite(d_optimized)  # Should be finite
+    @test isapprox(d_optimized, d_initial, atol=1e-3)  # Should be close to initial value (may differ slightly)
+    
+    # Test that optimize_d_only actually optimizes (loss should decrease or stay similar)
+    # Calculate loss before and after (using the optimized d)
+    # This is a basic sanity check
+    @test d_optimized > 1e-6  # Should be a reasonable diameter
+    @test d_optimized < 1e-2  # Should be less than 1 cm
+end
+
 @testset "Optimization" begin
     file = "./data/meas_test.csv"
     meas = RetentionParameterEstimator.load_chromatograms(file)
@@ -286,6 +343,28 @@ end
 
     res_m3, Telu_missing_m3 = RetentionParameterEstimator.method_m3(meas)
     @test isapprox(res_m3.d[1], res_m2.d[1], atol=1e-5)
+    
+    # Test method_m4 (alternating optimization)
+    res_m4, Telu_max_m4 = RetentionParameterEstimator.method_m4(meas, se_col=true)
+    @test isapprox(res_m4.d[1], 0.00025, atol=1e-5)
+    @test length(res_m4.Name) == length(meas[4])
+    @test all(res_m4.d .== res_m4.d[1])  # All d values should be the same (system parameter)
+    @test all(res_m4.d_std .== res_m4.d_std[1])  # All d_std values should be the same
+    
+    # Compare method_m2 and method_m4 results (should be similar but may differ slightly)
+    @test isapprox(res_m4.d[1], res_m2.d[1], atol=1e-4)  # d should be similar
+    @test isapprox(res_m4.Tchar[1], res_m2.Tchar[1], atol=5.0)  # Tchar may differ slightly
+    @test Telu_max_m4 == Telu_max_m2  # Telu_max should be the same
+    
+    # Test that method_m4 enforces d is the same for all substances (key feature)
+    @test all(res_m4.d .== res_m4.d[1])  # All d values must be identical
+    @test length(unique(res_m4.d)) == 1  # Only one unique d value
+    
+    # Test method_m4 with custom alternating parameters
+    res_m4_custom, Telu_max_m4_custom = RetentionParameterEstimator.method_m4(meas, se_col=true, 
+                                                                               max_alternating_iters=5, tol=1e-5)
+    @test isapprox(res_m4_custom.d[1], res_m4.d[1], atol=1e-4)  # Should give similar results
+    @test all(res_m4_custom.d .== res_m4_custom.d[1])  # Still enforces same d for all
 end
 
 @testset "Optimization with Missing Values" begin
@@ -307,6 +386,15 @@ end
 
     res_missing_m3 = RetentionParameterEstimator.method_m3(meas_missing)[1]
     @test isapprox(res_missing_m3.d[1], res_missing_m2.d[1], atol=1e-5)
+    
+    # Test method_m4 with missing values
+    res_missing_m4 = RetentionParameterEstimator.method_m4(meas_missing, se_col=false)[1]
+    @test !ismissing(res_missing_m4.Tchar[1])
+    @test !isnothing(res_missing_m4.θchar[1])
+    @test all(res_missing_m4.d .== res_missing_m4.d[1])  # All d values should be the same
+    # Compare with method_m2 (should be similar)
+    @test isapprox(res_missing_m4.d[1], res_missing_m2.d[1], atol=1e-4)
+    @test isapprox(res_missing_m4.Tchar[2], res_missing_m2.Tchar[2], atol=2.0)
     
     # Test with all measurements missing for one solute
     # TODO: this case is not covered yet

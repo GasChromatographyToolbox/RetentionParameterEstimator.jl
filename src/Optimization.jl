@@ -449,8 +449,8 @@ end=#
 	return df, sol
 end=#
 
-function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, mode="dKcentric", metric="squared", pout="vacuum", time_unit="min")
-    # mode = "Kcentric", "Kcentric_single", "dKcentric", "dKcentric_single"
+function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, mode="dKcentric", metric="squared", pout="vacuum", time_unit="min", parallel=false)
+    # mode = "Kcentric", "Kcentric_single", "dKcentric", "dKcentric_single", "d_only"
     
     # add the case for 2-parameter model, where rp3 === 0.0 always
     # -> alternative versions of the different `optimize_` functions (without the third retention parameter)
@@ -473,17 +473,30 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
     #retcode = Array{Any}(undef, ns)
     if mode == "Kcentric_single" #-> new version for missing values ok -> check with no missing		
         sol = Array{SciMLBase.OptimizationSolution}(undef, ns)
-        for j=1:ns
-			# filter-out missing values:
-			tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas[:,j], prog, solute_names[j])
-				
-            sol[j] = optimize_Kcentric(tRs_, subst_list_, col, prog_, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
-			
-            rp1[j] = sol[j][1]
-            rp2[j] = sol[j][2]
-            rp3[j] = sol[j][3]
-            min[j] = sol[j].objective
-            #retcode[j] = sol[j].retcode
+        if parallel
+            Base.Threads.@threads for j=1:ns
+                # filter-out missing values:
+                tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas[:,j], prog, solute_names[j])
+                    
+                sol[j] = optimize_Kcentric(tRs_, subst_list_, col, prog_, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+                
+                rp1[j] = sol[j][1]
+                rp2[j] = sol[j][2]
+                rp3[j] = sol[j][3]
+                min[j] = sol[j].objective
+            end
+        else
+            for j=1:ns
+                # filter-out missing values:
+                tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas[:,j], prog, solute_names[j])
+                    
+                sol[j] = optimize_Kcentric(tRs_, subst_list_, col, prog_, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+                
+                rp1[j] = sol[j][1]
+                rp2[j] = sol[j][2]
+                rp3[j] = sol[j][3]
+                min[j] = sol[j].objective
+            end
         end
         df = DataFrame(Name=solute_names, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min)#, retcode=retcode)
     elseif mode == "Kcentric" #-> new version for missing values ok -> check with no missing
@@ -516,19 +529,72 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
     elseif mode == "dKcentric_single"#-> new version for missing values ok -> check with no missing
         sol = Array{SciMLBase.OptimizationSolution}(undef, ns)
         d = Array{Float64}(undef, ns)
-        for j=1:ns
-			# filter-out missing values:
-			tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas[:,j], prog, solute_names[j])
-			
-            sol[j] = optimize_dKcentric(tRs_, subst_list_, col, prog_, d_e, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
-            d[j] = sol[j][1]
-            rp1[j] = sol[j][2]
-            rp2[j] = sol[j][3]
-            rp3[j] = sol[j][4]
-            min[j] = sol[j].objective
-            #retcode[j] = sol[j].retcode
+        if parallel
+            Base.Threads.@threads for j=1:ns
+                # filter-out missing values:
+                tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas[:,j], prog, solute_names[j])
+                
+                sol[j] = optimize_dKcentric(tRs_, subst_list_, col, prog_, d_e, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+                d[j] = sol[j][1]
+                rp1[j] = sol[j][2]
+                rp2[j] = sol[j][3]
+                rp3[j] = sol[j][4]
+                min[j] = sol[j].objective
+            end
+        else
+            for j=1:ns
+                # filter-out missing values:
+                tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas[:,j], prog, solute_names[j])
+                
+                sol[j] = optimize_dKcentric(tRs_, subst_list_, col, prog_, d_e, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+                d[j] = sol[j][1]
+                rp1[j] = sol[j][2]
+                rp2[j] = sol[j][3]
+                rp3[j] = sol[j][4]
+                min[j] = sol[j].objective
+            end
         end
         df = DataFrame(Name=solute_names, d=d, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min)#, retcode=retcode)
+    elseif mode == "d_only"
+        # Optimize only d while keeping substance parameters fixed
+        # rp1_e, rp2_e, rp3_e should be vectors (fixed values) or matrices (use first row as fixed values)
+        # Extract fixed values (handle both vector and matrix inputs)
+        if isa(rp1_e, Matrix)
+            Tchar_fixed = rp1_e[1,:]  # Use first row if matrix
+        else
+            Tchar_fixed = rp1_e  # Already a vector
+        end
+        if isa(rp2_e, Matrix)
+            θchar_fixed = rp2_e[1,:]
+        else
+            θchar_fixed = rp2_e
+        end
+        if isa(rp3_e, Matrix)
+            ΔCp_fixed = rp3_e[1,:]
+        else
+            ΔCp_fixed = rp3_e
+        end
+        
+        # Prepare vectorized data (filter out missing values)
+        tRs_, prog_, subst_list_ = prepare_optimization_data(tRs, solute_names, prog, time_unit)
+        
+        # Optimize d (1D optimization, shared across all substances)
+        d_opt = optimize_d_only(tRs_, subst_list_, Tchar_fixed, θchar_fixed, ΔCp_fixed, 
+                                col.L, prog_, col.gas, d_e; 
+                                method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+        
+        # Calculate loss value for the optimized d
+        loss_val = loss(tRs_, Tchar_fixed, θchar_fixed, ΔCp_fixed, subst_list_, col.L, d_opt, prog_, col.gas; opt=opt, metric=metric)[1]
+        
+        # Return DataFrame with same d for all substances, fixed substance parameters
+        d = d_opt.*ones(ns)
+        rp1 = Tchar_fixed
+        rp2 = θchar_fixed
+        rp3 = ΔCp_fixed
+        min = loss_val.*ones(ns)  # Same loss for all since it's joint optimization
+        
+        df = DataFrame(Name=solute_names, d=d, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min)
+        sol = nothing  # d_only doesn't return individual solutions
     end
 	
 	return df, sol
@@ -553,15 +619,17 @@ Calculate the estimates for the K-centric parameters and (optional) the column d
     * "Kcentric" ... optimization for the three K-centric retention parameters together for all solutes
     * "dKcentric_single" ... optimization for the column diameter and the three K-centric retention parameters separatly for every solute
     * "dKcentric" ... optimization for the column diameter and the three K-centric retention parameters together for all solutes
+    * "d_only" ... optimization for only the column diameter while keeping the K-centric retention parameters fixed (requires fixed parameter values as vectors)
+    * "d_only" ... optimization for only the column diameter while keeping the K-centric retention parameters fixed (requires fixed parameter values as vectors)
 * `metric="squared"` ... used metric for the loss function ("squared" or "abs")
 
 # Output
 * `df` ... DataFrame with the columns `Name` (solute names), `d` (estimated column diameter, optional), `Tchar` (estimated Tchar), `θchar` (estimated θchar), `ΔCp` (estimated ΔCp) and `min` (value of the loss function at the found optima)
 * `sol` ... Array of `SciMLBase.OptimizationSolution` with the results of the optimization with some additional informations.
 """    
-function estimate_parameters(chrom; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, mode="dKcentric", metric="squared")
+function estimate_parameters(chrom; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, mode="dKcentric", metric="squared", parallel=false)
 	Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter(chrom[3], chrom[1], chrom[2]; time_unit=chrom[6])
-	return estimate_parameters(chrom[3], chrom[4], chrom[1], chrom[2], Tchar_est, θchar_est, ΔCp_est; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, mode=mode, metric=metric, pout=chrom[5], time_unit=chrom[6])
+	return estimate_parameters(chrom[3], chrom[4], chrom[1], chrom[2], Tchar_est, θchar_est, ΔCp_est; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, mode=mode, metric=metric, pout=chrom[5], time_unit=chrom[6], parallel=parallel)
 end
 
 function estimate_parameters_(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, mode="dKcentric", metric="squared", pout="vacuum", time_unit="min")
@@ -653,10 +721,10 @@ another threshold `loss_th` are recorded.
 * `res` ... Dataframe with the optimized parameters and the found minima.
 * `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
 """  
-function check_measurement(meas, col_input; min_th=0.1, loss_th=1.0, se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0)
+function check_measurement(meas, col_input; min_th=0.1, loss_th=1.0, se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, parallel=false)
 	col = GasChromatographySimulator.Column(col_input.L, col_input.d*1e-3, meas[1].df, meas[1].sp, meas[1].gas)
 	Tchar_est, θchar_est, ΔCp_est, Telu_max = RetentionParameterEstimator.estimate_start_parameter(meas[3], col, meas[2]; time_unit=meas[6])
-	df = estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6], method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime)[1]
+	df = estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6], method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel)[1]
 	index_flag = findall(df.min.>min_th)
 	if length(index_flag) == 0
 		check = true
@@ -680,7 +748,7 @@ function check_measurement(meas, col_input; min_th=0.1, loss_th=1.0, se_col=true
 		df_flag = DataFrame(measurement=flag_meas, solute=flag_sub, tRmeas=tRmeas_, tRcalc=tRcalc_)
 	end
     # calculate the standard errors of the 3 parameters using the hessian matrix
-    stderrors = stderror(meas, df, col_input)[1]
+    stderrors = stderror(meas, df, col_input; opt=opt, parallel=parallel)[1]
 	# output dataframe
     res = if se_col == true
 	    DataFrame(Name=df.Name, min=df.min, Tchar=df.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=df.θchar, θchar_std=stderrors.sd_θchar, ΔCp=df.ΔCp, ΔCp_std=stderrors.sd_ΔCp)
@@ -704,28 +772,29 @@ function flagged_loss(meas, df, index_flag)
 end
 
 """
-    method_m1(meas, col_input; se_col=true)
+    method_m1(meas, col_input; se_col=true, parallel=false)
 
 Estimation of the three retention parameters ``T_{char}``, ``θ_{char}`` and ``ΔC_p`` including standard errors, see [`stderror`](@ref).
 
 # Arguments
 * `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
 * `col_input` ... Named tuple with `col_input.L` the column length in m and `col_input.d` the column diameter in mm. 
-* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
+* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.
+* `parallel=false` ... If `true`, use parallelization for per-substance optimizations and standard error calculations (requires Julia to be started with multiple threads, e.g., `julia -t 4`).
 
 # Output 
 * `res` ... Dataframe with the optimized parameters and the found minima.
 * `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
 """   
-function method_m1(meas, col_input; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0)
+function method_m1(meas, col_input; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, parallel=false)
 	# definition of the column
 	col = GasChromatographySimulator.Column(col_input.L, col_input.d*1e-3, meas[1].df, meas[1].sp, meas[1].gas)
 	# calculate start parameters	
 	Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter(meas[3], col, meas[2]; time_unit=meas[6])
 	# optimize every solute separatly for the 3 remaining parameters `Tchar`, `θchar`, `ΔCp`
-	res_ = estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6], method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime)[1]
+	res_ = estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6], method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel)[1]
 	# calculate the standard errors of the 3 parameters using the hessian matrix
-	stderrors = stderror(meas, res_, col_input; opt=opt)[1]
+	stderrors = stderror(meas, res_, col_input; opt=opt, parallel=parallel)[1]
 	# output dataframe
     res = if se_col == true
 	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res_.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=stderrors.sd_ΔCp)
@@ -736,7 +805,7 @@ function method_m1(meas, col_input; se_col=true, method=NewtonTrustRegion(), opt
 end
 
 """
-    method_m2(meas; se_col=true)
+    method_m2(meas; se_col=true, parallel=false)
 
 Estimation of the column diameter ``d`` and three retention parameters ``T_{char}``, ``θ_{char}`` and ``Δ C_p`` including standard errors, see [`stderror`](@ref).
 In a first run all four parameters are estimated for every substance separatly, resulting in different optimized column diameters. The mean value of the column diameter is used for 
@@ -744,28 +813,29 @@ a second optimization using this mean diameter and optimize the remainig thre re
 
 # Arguments
 * `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
-* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
+* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.
+* `parallel=false` ... If `true`, use parallelization for per-substance optimizations and standard error calculations (requires Julia to be started with multiple threads, e.g., `julia -t 4`).
 
 # Output 
 * `res` ... Dataframe with the optimized parameters and the found minima.
 * `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
 """   
-function method_m2(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0)
+function method_m2(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, parallel=false)
 	# calculate start parameters	
 	Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter(meas[3], meas[1], meas[2]; time_unit=meas[6])
 	# optimize every solute separatly for the 4 parameters `Tchar`, `θchar`, `ΔCp` and `d`	
-	res_dKcentric_single = estimate_parameters(meas[3], meas[4], meas[1], meas[2], Tchar_est, θchar_est, ΔCp_est; pout=meas[5], time_unit=meas[6], mode="dKcentric_single", method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime)[1]
+	res_dKcentric_single = estimate_parameters(meas[3], meas[4], meas[1], meas[2], Tchar_est, θchar_est, ΔCp_est; pout=meas[5], time_unit=meas[6], mode="dKcentric_single", method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel)[1]
 	# define a new column with the mean value of the estimated `d` over all solutes
 	new_col = GasChromatographySimulator.Column(meas[1].L, mean(res_dKcentric_single.d), meas[1].df, meas[1].sp, meas[1].gas)
 	# optimize every solute separatly for the 3 remaining parameters `Tchar`, `θchar`, `ΔCp`
-	res_ = estimate_parameters(meas[3], meas[4], new_col, meas[2], res_dKcentric_single.Tchar, res_dKcentric_single.θchar, res_dKcentric_single.ΔCp; pout=meas[5], time_unit=meas[6], mode="Kcentric_single", method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime)[1]
+	res_ = estimate_parameters(meas[3], meas[4], new_col, meas[2], res_dKcentric_single.Tchar, res_dKcentric_single.θchar, res_dKcentric_single.ΔCp; pout=meas[5], time_unit=meas[6], mode="Kcentric_single", method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel)[1]
 
 	res_[!, :d] = mean(res_dKcentric_single.d).*ones(length(res_.Name))
 	
 	res_[!, :d_std] = std(res_dKcentric_single.d).*ones(length(res_.Name))
 	# calculate the standard errors of the 3 parameters using the hessian matrix
     res_col = (L=new_col.L, d=res_.d[1])
-	stderrors = stderror(meas, res_, res_col; opt=opt)[1]
+	stderrors = stderror(meas, res_, res_col; opt=opt, parallel=parallel)[1]
 	# output dataframe
     res = if se_col == true
 	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res_.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=stderrors.sd_ΔCp, d=res_.d, d_std=res_.d_std)
@@ -776,7 +846,7 @@ function method_m2(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 end
 
 """
-    method_m3(meas; se_col=true)
+    method_m3(meas; se_col=true, parallel=false)
 
 Estimation of the column diameter ``d`` and three retention parameters ``T_{char}``, ``θ_{char}`` and ``Δ C_p`` including standard errors, see [`stderror`](@ref).
 Brute-force method, where all parameters (`3n+1` for `n` substances) are estimate in one optimization. 
@@ -785,21 +855,22 @@ ATTENTION: This method can take long time to finish. The more substances, the lo
 
 # Arguments
 * `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
-* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
+* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.
+* `parallel=false` ... If `true`, use parallelization for standard error calculations (requires Julia to be started with multiple threads, e.g., `julia -t 4`). Note: The main optimization cannot be parallelized as it's a single joint optimization.
 
 # Output 
 * `res` ... Dataframe with the optimized parameters and the found minima.
 * `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
 """  
-function method_m3(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0)
+function method_m3(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, parallel=false)
 	# definition of the column, the given diameter is used as start value
 	col = meas[1]
 	# calculate start parameters	
 	Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter(meas[3], col, meas[2]; time_unit=meas[6])
 	# optimize every solute separatly for the 3 remaining parameters `Tchar`, `θchar`, `ΔCp`
-	res_ = estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="dKcentric", pout=meas[5], time_unit=meas[6], method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime)[1]
+	res_ = estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="dKcentric", pout=meas[5], time_unit=meas[6], method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel)[1]
 	# calculate the standard errors of the 3 parameters using the hessian matrix
-	stderrors, hessian = stderror_m3(meas, res_; opt=opt)
+	stderrors, hessian = stderror_m3(meas, res_; opt=opt, parallel=parallel)
 	# output dataframe
     res = if se_col == true
 	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res_.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=stderrors.sd_ΔCp, d=res_.d, d_std=stderrors.sd_d)
@@ -810,7 +881,7 @@ function method_m3(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 end
 
 """
-    method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, max_alternating_iters=10, tol=1e-6)
+    method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, max_alternating_iters=10, tol=1e-6, parallel=false)
 
 Estimation of the column diameter ``d`` and three retention parameters ``T_{char}``, ``θ_{char}`` and ``Δ C_p`` including standard errors, see [`stderror`](@ref).
 Uses alternating/block coordinate descent optimization:
@@ -830,12 +901,13 @@ This approach properly enforces that `d` is the same for all substances and is m
 * `maxtime=600.0` ... Maximum time for each optimization in seconds.
 * `max_alternating_iters=10` ... Maximum number of alternating iterations.
 * `tol=1e-6` ... Convergence tolerance for `d` (iteration stops when change in `d` is less than `tol`).
+* `parallel=false` ... If `true`, use parallelization for per-substance optimizations (Block 2) and standard error calculations (requires Julia to be started with multiple threads, e.g., `julia -t 4`). This can provide significant speedup for many substances.
 
 # Output 
 * `res` ... Dataframe with the optimized parameters and the found minima.
 * `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
 """   
-function method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, max_alternating_iters=10, tol=1e-6)
+function method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, max_alternating_iters=10, tol=1e-6, parallel=false)
 	# calculate start parameters	
 	Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter(meas[3], meas[1], meas[2]; time_unit=meas[6])
 	
@@ -845,7 +917,7 @@ function method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 	res_dKcentric_single_init = estimate_parameters(meas[3], meas[4], meas[1], meas[2], Tchar_est, θchar_est, ΔCp_est; 
 	                                                pout=meas[5], time_unit=meas[6], mode="dKcentric_single", 
 	                                                method=method, opt=std_opt, maxiters=min(maxiters, 1000), 
-	                                                maxtime=min(maxtime, 60.0))[1]
+	                                                maxtime=min(maxtime, 60.0), parallel=parallel)[1]
 	d_current = mean(res_dKcentric_single_init.d)
 	
 	# Use initial estimates from the initialization pass
@@ -860,19 +932,17 @@ function method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 		d_prev = d_current
 		
 		# Block 1: Optimize d while fixing substance parameters
-		# Vectorize data (filter out missing values)
-		tRs_, prog_, subst_list_ = prepare_optimization_data(meas[3], meas[4], meas[2], meas[6])
-		
-		# Optimize d (1D optimization)
-		d_current = optimize_d_only(tRs_, subst_list_, Tchar_current, θchar_current, ΔCp_current, 
-		                            meas[1].L, prog_, meas[1].gas, d_current; 
-		                            method=method, opt=opt, maxiters=maxiters, maxtime=maxtime)
+		# Use estimate_parameters with mode="d_only" for uniform API
+		res_d = estimate_parameters(meas[3], meas[4], meas[1], meas[2], Tchar_current, θchar_current, ΔCp_current; 
+		                           pout=meas[5], time_unit=meas[6], mode="d_only", method=method, 
+		                           opt=opt, maxiters=maxiters, maxtime=maxtime)[1]
+		d_current = res_d.d[1]  # All d values are the same, take first one
 		
 		# Block 2: Optimize substance parameters while fixing d (can be parallelized)
 		new_col = GasChromatographySimulator.Column(meas[1].L, d_current, meas[1].df, meas[1].sp, meas[1].gas)
 		res_ = estimate_parameters(meas[3], meas[4], new_col, meas[2], Tchar_current, θchar_current, ΔCp_current; 
 		                           pout=meas[5], time_unit=meas[6], mode="Kcentric_single", method=method, 
-		                           opt=opt, maxiters=maxiters, maxtime=maxtime)[1]
+		                           opt=opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel)[1]
 		
 		Tchar_current = res_.Tchar
 		θchar_current = res_.θchar
@@ -898,7 +968,7 @@ function method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 	
 	# Calculate the standard errors of the 3 parameters using the hessian matrix
     res_col = (L=new_col.L, d=d_current)
-	stderrors = stderror(meas, res_, res_col; opt=opt)[1]
+	stderrors = stderror(meas, res_, res_col; opt=opt, parallel=parallel)[1]
 	
 	# Output dataframe
     res = if se_col == true
@@ -914,7 +984,7 @@ function method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 end
 
 """
-    stderror(meas, res)
+    stderror(meas, res, col_input; opt=std_opt, metric="squared", parallel=false)
 
 Calculation of the standard error of the found optimized parameters using the hessian matrix at the optima.
 
@@ -924,70 +994,89 @@ The used loss-function is hard coded in the function `opt_Kcentric` and has to b
 # Arguments
 * `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
 * `res` ... Dataframe with the result of the optimization, see [`estimate_parameters`](@ref).
+* `col_input` ... Named tuple with `col_input.L` the column length in m and `col_input.d` the column diameter in mm.
 
-Optional parameters
-* `col_input` ... Named tuple with `col_input.L` the column length in m and `col_input.d` the column diameter in mm. If this parameter is not gicen, than these parameters are taken from `meas`. 
-
+Optional parameters:
+* `opt=std_opt` ... Options for the ODE solver.
+* `metric="squared"` ... Metric used for the loss function (`"squared"` or `"abs"`).
+* `parallel=false` ... If `true`, use parallelization for standard error calculations (requires Julia to be started with multiple threads, e.g., `julia -t 4`).
 
 # Output
 * `stderrors` ... Dataframe with the standard errors of the optimized parameters.
-* `Hessian` ... The hessian matrix at the found optims. 
+* `Hessian` ... The hessian matrix at the found optima. 
 """
-function stderror(meas, res; opt=std_opt)
-	sdTchar = Array{Float64}(undef, size(res)[1])
-	sdθchar = Array{Float64}(undef, size(res)[1])
-	sdΔCp = Array{Float64}(undef, size(res)[1])
-	Hessian = Array{Any}(undef, size(res)[1])
-	for i=1:size(res)[1]
-		
-        substs = fill(meas[4][i], length(meas[3][!,i+1]))
-		a = time_unit_conversion_factor(meas[6])
-		p = [meas[3][!,i+1].*a, substs, meas[1].L, meas[1].d, meas[2], opt, meas[1].gas, "squared"]
-        # the loss-function used in the optimization !!! HAS TO BE CHANGED !!!
-		LF(x) = opt_Kcentric(x, p)
-		# the hessian matrix of the loss-function, calculated with ForwardDiff.jl
-		H(x) = ForwardDiff.hessian(LF, x)
-		# the hessian matrix at the found optima
-		Hessian[i] = H([res.Tchar[i], res.θchar[i], res.ΔCp[i]])
-		# the calculated standard errors of the parameters
-		sdTchar[i] = sqrt.(abs.(inv(Hessian[i])))[1,1]
-		sdθchar[i] = sqrt.(abs.(inv(Hessian[i])))[2,2]
-		sdΔCp[i] = sqrt.(abs.(inv(Hessian[i])))[3,3]
-	end
-	stderrors = DataFrame(Name=res.Name, sd_Tchar=sdTchar, sd_θchar=sdθchar, sd_ΔCp=sdΔCp)
-	return stderrors, Hessian
-end
 
-function stderror(meas, res, col_input; opt=std_opt, metric="squared")
+function stderror(meas, res, col_input; opt=std_opt, metric="squared", parallel=false)
 	sdTchar = Array{Float64}(undef, size(res)[1])
 	sdθchar = Array{Float64}(undef, size(res)[1])
 	sdΔCp = Array{Float64}(undef, size(res)[1])
 	Hessian = Array{Any}(undef, size(res)[1])
 
     a = time_unit_conversion_factor(meas[6])
-	for i=1:size(res)[1]
-		
-        # filter-out missing values:
-        tR_meas = meas[3][!,i+1].*a
-        tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas, meas[2], meas[4][i])
-        
-		p = (tRs_, subst_list_, col_input.L, col_input.d, prog_, opt, meas[1].gas, metric) 
-        # the loss-function used in the optimization !!! HAS TO BE CHANGED !!!
-		LF(x) = opt_Kcentric(x, p)
-		# the hessian matrix of the loss-function, calculated with ForwardDiff.jl
-		H(x) = ForwardDiff.hessian(LF, x)
-		# the hessian matrix at the found optima
-		Hessian[i] = H([res.Tchar[i], res.θchar[i], res.ΔCp[i]])
-		# the calculated standard errors of the parameters
-		sdTchar[i] = sqrt.(abs.(inv(Hessian[i])))[1,1]
-		sdθchar[i] = sqrt.(abs.(inv(Hessian[i])))[2,2]
-		sdΔCp[i] = sqrt.(abs.(inv(Hessian[i])))[3,3]
-	end
+    if parallel
+        Base.Threads.@threads for i=1:size(res)[1]
+            # filter-out missing values:
+            tR_meas = meas[3][!,i+1].*a
+            tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas, meas[2], meas[4][i])
+            
+            p = (tRs_, subst_list_, col_input.L, col_input.d, prog_, opt, meas[1].gas, metric) 
+            # the loss-function used in the optimization !!! HAS TO BE CHANGED !!!
+            LF(x) = opt_Kcentric(x, p)
+            # the hessian matrix of the loss-function, calculated with ForwardDiff.jl
+            H(x) = ForwardDiff.hessian(LF, x)
+            # the hessian matrix at the found optima
+            Hessian[i] = H([res.Tchar[i], res.θchar[i], res.ΔCp[i]])
+            # the calculated standard errors of the parameters
+            sdTchar[i] = sqrt.(abs.(inv(Hessian[i])))[1,1]
+            sdθchar[i] = sqrt.(abs.(inv(Hessian[i])))[2,2]
+            sdΔCp[i] = sqrt.(abs.(inv(Hessian[i])))[3,3]
+        end
+    else
+        for i=1:size(res)[1]
+            # filter-out missing values:
+            tR_meas = meas[3][!,i+1].*a
+            tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas, meas[2], meas[4][i])
+            
+            p = (tRs_, subst_list_, col_input.L, col_input.d, prog_, opt, meas[1].gas, metric) 
+            # the loss-function used in the optimization !!! HAS TO BE CHANGED !!!
+            LF(x) = opt_Kcentric(x, p)
+            # the hessian matrix of the loss-function, calculated with ForwardDiff.jl
+            H(x) = ForwardDiff.hessian(LF, x)
+            # the hessian matrix at the found optima
+            Hessian[i] = H([res.Tchar[i], res.θchar[i], res.ΔCp[i]])
+            # the calculated standard errors of the parameters
+            sdTchar[i] = sqrt.(abs.(inv(Hessian[i])))[1,1]
+            sdθchar[i] = sqrt.(abs.(inv(Hessian[i])))[2,2]
+            sdΔCp[i] = sqrt.(abs.(inv(Hessian[i])))[3,3]
+        end
+    end
 	stderrors = DataFrame(Name=res.Name, sd_Tchar=sdTchar, sd_θchar=sdθchar, sd_ΔCp=sdΔCp)
 	return stderrors, Hessian
 end
 
-function stderror_m3(meas, res; opt=std_opt, metric="squared")
+"""
+    stderror_m3(meas, res; opt=std_opt, metric="squared", parallel=false)
+
+Calculation of the standard error of the found optimized parameters (including column diameter `d`) using the hessian matrix at the optima.
+Used for `method_m3` which optimizes all parameters jointly.
+
+# Attention
+The used loss-function is hard coded in the function `opt_dKcentric` and has to be changed if another loss-function is used.
+
+# Arguments
+* `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
+* `res` ... Dataframe with the result of the optimization, see [`estimate_parameters`](@ref).
+
+Optional parameters:
+* `opt=std_opt` ... Options for the ODE solver.
+* `metric="squared"` ... Metric used for the loss function (`"squared"` or `"abs"`).
+* `parallel=false` ... If `true`, use parallelization for standard error calculations (requires Julia to be started with multiple threads, e.g., `julia -t 4`).
+
+# Output
+* `stderrors` ... Dataframe with the standard errors of the optimized parameters (including `d`).
+* `Hessian` ... The hessian matrix at the found optima. 
+"""
+function stderror_m3(meas, res; opt=std_opt, metric="squared", parallel=false)
 	sd_d = Array{Float64}(undef, size(res)[1])
     sdTchar = Array{Float64}(undef, size(res)[1])
 	sdθchar = Array{Float64}(undef, size(res)[1])
@@ -995,25 +1084,45 @@ function stderror_m3(meas, res; opt=std_opt, metric="squared")
 	Hessian = Array{Any}(undef, size(res)[1])
 
     a = time_unit_conversion_factor(meas[6])
-	for i=1:size(res)[1]
-		
-        # filter-out missing values:
-        tR_meas = meas[3][!,i+1].*a
-        tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas, meas[2], meas[4][i])
-        
-		p = (tRs_, subst_list_, meas[1].L, prog_, opt, meas[1].gas, metric) 
-        # the loss-function used in the optimization !!! HAS TO BE CHANGED !!!
-		LF(x) = opt_dKcentric(x, p)
-		# the hessian matrix of the loss-function, calculated with ForwardDiff.jl
-		H(x) = ForwardDiff.hessian(LF, x)
-		# the hessian matrix at the found optima
-		Hessian[i] = H([res.d[i], res.Tchar[i], res.θchar[i], res.ΔCp[i]])
-		# the calculated standard errors of the parameters
-        sd_d[i] = sqrt.(abs.(inv(Hessian[i])))[1,1]
-		sdTchar[i] = sqrt.(abs.(inv(Hessian[i])))[2,2]
-		sdθchar[i] = sqrt.(abs.(inv(Hessian[i])))[3,3]
-		sdΔCp[i] = sqrt.(abs.(inv(Hessian[i])))[4,4]
-	end
+    if parallel
+        Base.Threads.@threads for i=1:size(res)[1]
+            # filter-out missing values:
+            tR_meas = meas[3][!,i+1].*a
+            tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas, meas[2], meas[4][i])
+            
+            p = (tRs_, subst_list_, meas[1].L, prog_, opt, meas[1].gas, metric) 
+            # the loss-function used in the optimization !!! HAS TO BE CHANGED !!!
+            LF(x) = opt_dKcentric(x, p)
+            # the hessian matrix of the loss-function, calculated with ForwardDiff.jl
+            H(x) = ForwardDiff.hessian(LF, x)
+            # the hessian matrix at the found optima
+            Hessian[i] = H([res.d[i], res.Tchar[i], res.θchar[i], res.ΔCp[i]])
+            # the calculated standard errors of the parameters
+            sd_d[i] = sqrt.(abs.(inv(Hessian[i])))[1,1]
+            sdTchar[i] = sqrt.(abs.(inv(Hessian[i])))[2,2]
+            sdθchar[i] = sqrt.(abs.(inv(Hessian[i])))[3,3]
+            sdΔCp[i] = sqrt.(abs.(inv(Hessian[i])))[4,4]
+        end
+    else
+        for i=1:size(res)[1]
+            # filter-out missing values:
+            tR_meas = meas[3][!,i+1].*a
+            tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas, meas[2], meas[4][i])
+            
+            p = (tRs_, subst_list_, meas[1].L, prog_, opt, meas[1].gas, metric) 
+            # the loss-function used in the optimization !!! HAS TO BE CHANGED !!!
+            LF(x) = opt_dKcentric(x, p)
+            # the hessian matrix of the loss-function, calculated with ForwardDiff.jl
+            H(x) = ForwardDiff.hessian(LF, x)
+            # the hessian matrix at the found optima
+            Hessian[i] = H([res.d[i], res.Tchar[i], res.θchar[i], res.ΔCp[i]])
+            # the calculated standard errors of the parameters
+            sd_d[i] = sqrt.(abs.(inv(Hessian[i])))[1,1]
+            sdTchar[i] = sqrt.(abs.(inv(Hessian[i])))[2,2]
+            sdθchar[i] = sqrt.(abs.(inv(Hessian[i])))[3,3]
+            sdΔCp[i] = sqrt.(abs.(inv(Hessian[i])))[4,4]
+        end
+    end
 	stderrors = DataFrame(Name=res.Name, sd_d=sd_d, sd_Tchar=sdTchar, sd_θchar=sdθchar, sd_ΔCp=sdΔCp)
 	return stderrors, Hessian
 end

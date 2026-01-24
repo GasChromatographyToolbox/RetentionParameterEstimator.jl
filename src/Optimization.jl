@@ -486,19 +486,29 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
                 min[j] = sol[j].objective
             end
         else
-            for j=1:ns
-                # filter-out missing values:
+        for j=1:ns
+			# filter-out missing values:
                 tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas[:,j], prog, solute_names[j])
-                    
-                sol[j] = optimize_Kcentric(tRs_, subst_list_, col, prog_, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
-                
-                rp1[j] = sol[j][1]
-                rp2[j] = sol[j][2]
-                rp3[j] = sol[j][3]
-                min[j] = sol[j].objective
+				
+            sol[j] = optimize_Kcentric(tRs_, subst_list_, col, prog_, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+			
+            rp1[j] = sol[j][1]
+            rp2[j] = sol[j][2]
+            rp3[j] = sol[j][3]
+            min[j] = sol[j].objective
             end
         end
+        
         df = DataFrame(Name=solute_names, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min)#, retcode=retcode)
+        
+        # IMPORTANT: When parallelization is used, ensure DataFrame is sorted by Name to match solute_names order
+        # This prevents any potential ordering issues from parallel execution
+        if parallel
+            # Reorder DataFrame to match solute_names order explicitly
+            # Create a vector of row indices in the desired order
+            sorted_indices = [findfirst(df.Name .== name) for name in solute_names]
+            df = df[sorted_indices, :]
+        end
     elseif mode == "Kcentric" #-> new version for missing values ok -> check with no missing
 		# vectorizing and filter-out missing values:
 		tRs_, prog_, subst_list_ = prepare_optimization_data(tRs, solute_names, prog, time_unit)
@@ -542,41 +552,73 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
                 min[j] = sol[j].objective
             end
         else
-            for j=1:ns
-                # filter-out missing values:
+        for j=1:ns
+			# filter-out missing values:
                 tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas[:,j], prog, solute_names[j])
-                
-                sol[j] = optimize_dKcentric(tRs_, subst_list_, col, prog_, d_e, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
-                d[j] = sol[j][1]
-                rp1[j] = sol[j][2]
-                rp2[j] = sol[j][3]
-                rp3[j] = sol[j][4]
-                min[j] = sol[j].objective
+			
+            sol[j] = optimize_dKcentric(tRs_, subst_list_, col, prog_, d_e, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+            d[j] = sol[j][1]
+            rp1[j] = sol[j][2]
+            rp2[j] = sol[j][3]
+            rp3[j] = sol[j][4]
+            min[j] = sol[j].objective
             end
         end
+        
         df = DataFrame(Name=solute_names, d=d, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min)#, retcode=retcode)
+        
+        # IMPORTANT: When parallelization is used, ensure DataFrame is sorted by Name to match solute_names order
+        # This prevents any potential ordering issues from parallel execution
+        if parallel
+            # Reorder DataFrame to match solute_names order explicitly
+            # Create a vector of row indices in the desired order
+            sorted_indices = [findfirst(df.Name .== name) for name in solute_names]
+            df = df[sorted_indices, :]
+        end
     elseif mode == "d_only"
         # Optimize only d while keeping substance parameters fixed
         # rp1_e, rp2_e, rp3_e should be vectors (fixed values) or matrices (use first row as fixed values)
         # Extract fixed values (handle both vector and matrix inputs)
         if isa(rp1_e, Matrix)
-            Tchar_fixed = rp1_e[1,:]  # Use first row if matrix
+            Tchar_fixed_input = rp1_e[1,:]  # Use first row if matrix
         else
-            Tchar_fixed = rp1_e  # Already a vector
+            Tchar_fixed_input = copy(rp1_e)  # Already a vector - make a copy
         end
         if isa(rp2_e, Matrix)
-            θchar_fixed = rp2_e[1,:]
+            θchar_fixed_input = rp2_e[1,:]
         else
-            θchar_fixed = rp2_e
+            θchar_fixed_input = copy(rp2_e)
         end
         if isa(rp3_e, Matrix)
-            ΔCp_fixed = rp3_e[1,:]
+            ΔCp_fixed_input = rp3_e[1,:]
         else
-            ΔCp_fixed = rp3_e
+            ΔCp_fixed_input = copy(rp3_e)
+        end
+        
+        # Ensure vectors have correct length
+        if length(Tchar_fixed_input) != ns
+            error("Tchar_fixed length ($(length(Tchar_fixed_input))) does not match number of substances ($ns)")
         end
         
         # Prepare vectorized data (filter out missing values)
         tRs_, prog_, subst_list_ = prepare_optimization_data(tRs, solute_names, prog, time_unit)
+        
+        # IMPORTANT: The loss function uses unique(substance_list) to map parameters
+        # So we need to reorder Tchar_fixed, θchar_fixed, ΔCp_fixed to match unique(subst_list_) order
+        unique_subst = unique(subst_list_)
+        Tchar_fixed = Array{Float64}(undef, length(unique_subst))
+        θchar_fixed = Array{Float64}(undef, length(unique_subst))
+        ΔCp_fixed = Array{Float64}(undef, length(unique_subst))
+        
+        for (idx, subst_name) in enumerate(unique_subst)
+            orig_idx = findfirst(solute_names .== subst_name)
+            if isnothing(orig_idx)
+                error("Substance $subst_name not found in solute_names")
+            end
+            Tchar_fixed[idx] = Tchar_fixed_input[orig_idx]
+            θchar_fixed[idx] = θchar_fixed_input[orig_idx]
+            ΔCp_fixed[idx] = ΔCp_fixed_input[orig_idx]
+        end
         
         # Optimize d (1D optimization, shared across all substances)
         d_opt = optimize_d_only(tRs_, subst_list_, Tchar_fixed, θchar_fixed, ΔCp_fixed, 
@@ -587,10 +629,11 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
         loss_val = loss(tRs_, Tchar_fixed, θchar_fixed, ΔCp_fixed, subst_list_, col.L, d_opt, prog_, col.gas; opt=opt, metric=metric)[1]
         
         # Return DataFrame with same d for all substances, fixed substance parameters
+        # Use original solute_names order (not unique_subst order)
         d = d_opt.*ones(ns)
-        rp1 = Tchar_fixed
-        rp2 = θchar_fixed
-        rp3 = ΔCp_fixed
+        rp1 = Tchar_fixed_input  # Use original order for DataFrame
+        rp2 = θchar_fixed_input
+        rp3 = ΔCp_fixed_input
         min = loss_val.*ones(ns)  # Same loss for all since it's joint optimization
         
         df = DataFrame(Name=solute_names, d=d, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min)
@@ -779,7 +822,7 @@ Estimation of the three retention parameters ``T_{char}``, ``θ_{char}`` and ``�
 # Arguments
 * `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
 * `col_input` ... Named tuple with `col_input.L` the column length in m and `col_input.d` the column diameter in mm. 
-* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.
+* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
 * `parallel=false` ... If `true`, use parallelization for per-substance optimizations and standard error calculations (requires Julia to be started with multiple threads, e.g., `julia -t 4`).
 
 # Output 
@@ -795,11 +838,13 @@ function method_m1(meas, col_input; se_col=true, method=NewtonTrustRegion(), opt
 	res_ = estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6], method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel)[1]
 	# calculate the standard errors of the 3 parameters using the hessian matrix
 	stderrors = stderror(meas, res_, col_input; opt=opt, parallel=parallel)[1]
+	# Match standard errors by name to ensure correct association
+	sd_Tchar, sd_θchar, sd_ΔCp = match_stderrors_by_name(res_, stderrors)
 	# output dataframe
     res = if se_col == true
-	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res_.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=stderrors.sd_ΔCp)
+	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=sd_Tchar, θchar=res_.θchar, θchar_std=sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=sd_ΔCp)
     else
-	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±stderrors.sd_Tchar, θchar=res_.θchar.±stderrors.sd_θchar, ΔCp=res_.ΔCp.±stderrors.sd_ΔCp)
+	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±sd_Tchar, θchar=res_.θchar.±sd_θchar, ΔCp=res_.ΔCp.±sd_ΔCp)
 	end
     return res, Telu_max
 end
@@ -813,7 +858,7 @@ a second optimization using this mean diameter and optimize the remainig thre re
 
 # Arguments
 * `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
-* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.
+* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
 * `parallel=false` ... If `true`, use parallelization for per-substance optimizations and standard error calculations (requires Julia to be started with multiple threads, e.g., `julia -t 4`).
 
 # Output 
@@ -827,8 +872,23 @@ function method_m2(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 	res_dKcentric_single = estimate_parameters(meas[3], meas[4], meas[1], meas[2], Tchar_est, θchar_est, ΔCp_est; pout=meas[5], time_unit=meas[6], mode="dKcentric_single", method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel)[1]
 	# define a new column with the mean value of the estimated `d` over all solutes
 	new_col = GasChromatographySimulator.Column(meas[1].L, mean(res_dKcentric_single.d), meas[1].df, meas[1].sp, meas[1].gas)
+	
+	# IMPORTANT: Extract parameters by name to ensure correct ordering
+	Tchar_from_res = Array{Float64}(undef, length(meas[4]))
+	θchar_from_res = Array{Float64}(undef, length(meas[4]))
+	ΔCp_from_res = Array{Float64}(undef, length(meas[4]))
+	for (idx, subst_name) in enumerate(meas[4])
+		res_idx = findfirst(res_dKcentric_single.Name .== subst_name)
+		if isnothing(res_idx)
+			error("Substance $subst_name not found in res_dKcentric_single")
+		end
+		Tchar_from_res[idx] = res_dKcentric_single.Tchar[res_idx]
+		θchar_from_res[idx] = res_dKcentric_single.θchar[res_idx]
+		ΔCp_from_res[idx] = res_dKcentric_single.ΔCp[res_idx]
+	end
+	
 	# optimize every solute separatly for the 3 remaining parameters `Tchar`, `θchar`, `ΔCp`
-	res_ = estimate_parameters(meas[3], meas[4], new_col, meas[2], res_dKcentric_single.Tchar, res_dKcentric_single.θchar, res_dKcentric_single.ΔCp; pout=meas[5], time_unit=meas[6], mode="Kcentric_single", method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel)[1]
+	res_ = estimate_parameters(meas[3], meas[4], new_col, meas[2], Tchar_from_res, θchar_from_res, ΔCp_from_res; pout=meas[5], time_unit=meas[6], mode="Kcentric_single", method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel)[1]
 
 	res_[!, :d] = mean(res_dKcentric_single.d).*ones(length(res_.Name))
 	
@@ -836,11 +896,13 @@ function method_m2(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 	# calculate the standard errors of the 3 parameters using the hessian matrix
     res_col = (L=new_col.L, d=res_.d[1])
 	stderrors = stderror(meas, res_, res_col; opt=opt, parallel=parallel)[1]
+	# Match standard errors by name to ensure correct association
+	sd_Tchar, sd_θchar, sd_ΔCp = match_stderrors_by_name(res_, stderrors)
 	# output dataframe
     res = if se_col == true
-	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res_.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=stderrors.sd_ΔCp, d=res_.d, d_std=res_.d_std)
+	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=sd_Tchar, θchar=res_.θchar, θchar_std=sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=sd_ΔCp, d=res_.d, d_std=res_.d_std)
     else
-	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±stderrors.sd_Tchar, θchar=res_.θchar.±stderrors.sd_θchar, ΔCp=res_.ΔCp.±stderrors.sd_ΔCp, d=res_.d.±res_.d_std)
+	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±sd_Tchar, θchar=res_.θchar.±sd_θchar, ΔCp=res_.ΔCp.±sd_ΔCp, d=res_.d.±res_.d_std)
     end
 	return res, Telu_max
 end
@@ -855,7 +917,7 @@ ATTENTION: This method can take long time to finish. The more substances, the lo
 
 # Arguments
 * `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
-* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.
+* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
 * `parallel=false` ... If `true`, use parallelization for standard error calculations (requires Julia to be started with multiple threads, e.g., `julia -t 4`). Note: The main optimization cannot be parallelized as it's a single joint optimization.
 
 # Output 
@@ -871,11 +933,13 @@ function method_m3(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 	res_ = estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="dKcentric", pout=meas[5], time_unit=meas[6], method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel)[1]
 	# calculate the standard errors of the 3 parameters using the hessian matrix
 	stderrors, hessian = stderror_m3(meas, res_; opt=opt, parallel=parallel)
+	# Match standard errors by name to ensure correct association
+	sd_d, sd_Tchar, sd_θchar, sd_ΔCp = match_stderrors_m3_by_name(res_, stderrors)
 	# output dataframe
     res = if se_col == true
-	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=stderrors.sd_Tchar, θchar=res_.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=stderrors.sd_ΔCp, d=res_.d, d_std=stderrors.sd_d)
+	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=sd_Tchar, θchar=res_.θchar, θchar_std=sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=sd_ΔCp, d=res_.d, d_std=sd_d)
     else
-	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±stderrors.sd_Tchar, θchar=res_.θchar.±stderrors.sd_θchar, ΔCp=res_.ΔCp.±stderrors.sd_ΔCp, d=res_.d.±stderrors.sd_d)
+	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±sd_Tchar, θchar=res_.θchar.±sd_θchar, ΔCp=res_.ΔCp.±sd_ΔCp, d=res_.d.±sd_d)
 	end
     return res, Telu_max
 end
@@ -903,6 +967,8 @@ This approach properly enforces that `d` is the same for all substances and is m
 * `tol=1e-6` ... Convergence tolerance for `d` (iteration stops when change in `d` is less than `tol`).
 * `parallel=false` ... If `true`, use parallelization for per-substance optimizations (Block 2) and standard error calculations (requires Julia to be started with multiple threads, e.g., `julia -t 4`). This can provide significant speedup for many substances.
 
+⚠️ **WARNING**: Parallelization (`parallel=true`) currently causes incorrect results for `method_m4` and `method_m4_`. The results deviate from non-parallelized versions and from other methods (m1, m2, m3). This appears to be related to parameter ordering issues in the alternating optimization loop. Use `parallel=false` for reliable results until this issue is resolved.
+
 # Output 
 * `res` ... Dataframe with the optimized parameters and the found minima.
 * `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
@@ -921,9 +987,19 @@ function method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 	d_current = mean(res_dKcentric_single_init.d)
 	
 	# Use initial estimates from the initialization pass
-	Tchar_current = res_dKcentric_single_init.Tchar
-	θchar_current = res_dKcentric_single_init.θchar
-	ΔCp_current = res_dKcentric_single_init.ΔCp
+	# IMPORTANT: Extract parameters by name to ensure correct ordering
+	Tchar_current = Array{Float64}(undef, length(meas[4]))
+	θchar_current = Array{Float64}(undef, length(meas[4]))
+	ΔCp_current = Array{Float64}(undef, length(meas[4]))
+	for (idx, subst_name) in enumerate(meas[4])
+		res_idx = findfirst(res_dKcentric_single_init.Name .== subst_name)
+		if isnothing(res_idx)
+			error("Substance $subst_name not found in res_dKcentric_single_init")
+		end
+		Tchar_current[idx] = res_dKcentric_single_init.Tchar[res_idx]
+		θchar_current[idx] = res_dKcentric_single_init.θchar[res_idx]
+		ΔCp_current[idx] = res_dKcentric_single_init.ΔCp[res_idx]
+	end
 	
 	# Alternating optimization
 	res_ = nothing
@@ -944,9 +1020,16 @@ function method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 		                           pout=meas[5], time_unit=meas[6], mode="Kcentric_single", method=method, 
 		                           opt=opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel)[1]
 		
-		Tchar_current = res_.Tchar
-		θchar_current = res_.θchar
-		ΔCp_current = res_.ΔCp
+		# IMPORTANT: Extract parameters by name to ensure correct ordering
+		for (idx, subst_name) in enumerate(meas[4])
+			res_idx = findfirst(res_.Name .== subst_name)
+			if isnothing(res_idx)
+				error("Substance $subst_name not found in res_")
+			end
+			Tchar_current[idx] = res_.Tchar[res_idx]
+			θchar_current[idx] = res_.θchar[res_idx]
+			ΔCp_current[idx] = res_.ΔCp[res_idx]
+		end
 		
 		# Check convergence
 		if abs(d_current - d_prev) < tol
@@ -969,22 +1052,167 @@ function method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 	# Calculate the standard errors of the 3 parameters using the hessian matrix
     res_col = (L=new_col.L, d=d_current)
 	stderrors = stderror(meas, res_, res_col; opt=opt, parallel=parallel)[1]
+	# Match standard errors by name to ensure correct association
+	sd_Tchar, sd_θchar, sd_ΔCp = match_stderrors_by_name(res_, stderrors)
 	
 	# Output dataframe
     res = if se_col == true
-	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=stderrors.sd_Tchar, 
-	              θchar=res_.θchar, θchar_std=stderrors.sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=stderrors.sd_ΔCp, 
+	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=sd_Tchar, 
+	              θchar=res_.θchar, θchar_std=sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=sd_ΔCp, 
 	              d=res_.d, d_std=res_.d_std)
     else
-	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±stderrors.sd_Tchar, 
-	              θchar=res_.θchar.±stderrors.sd_θchar, ΔCp=res_.ΔCp.±stderrors.sd_ΔCp, 
+	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±sd_Tchar, 
+	              θchar=res_.θchar.±sd_θchar, ΔCp=res_.ΔCp.±sd_ΔCp, 
 	              d=res_.d.±res_.d_std)
     end
 	return res, Telu_max
 end
 
 """
-    stderror(meas, res, col_input; opt=std_opt, metric="squared", parallel=false)
+    method_m4_(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, max_alternating_iters=10, tol=1e-6, parallel=false)
+
+Estimation of the column diameter ``d`` and three retention parameters ``T_{char}``, ``θ_{char}`` and ``Δ C_p`` including standard errors, see [`stderror`](@ref).
+Uses alternating/block coordinate descent optimization (previous implementation using direct `optimize_d_only` call):
+1. Initialize `d` from a quick estimate (mean of `dKcentric_single` results with reduced iterations)
+2. **Block 1**: Optimize `d` (1D optimization) while fixing substance parameters (uses direct `optimize_d_only` call)
+3. **Block 2**: Optimize substance parameters (parallelizable) while fixing `d`
+4. Iterate steps 2-3 until convergence
+
+This is the previous implementation before refactoring to use `estimate_parameters(..., mode="d_only")`.
+
+# Arguments
+* `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
+* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.
+* `method=NewtonTrustRegion()` ... Optimization method to use.
+* `opt=std_opt` ... Options for the ODE solver.
+* `maxiters=10000` ... Maximum number of iterations for each optimization.
+* `maxtime=600.0` ... Maximum time for each optimization in seconds.
+* `max_alternating_iters=10` ... Maximum number of alternating iterations.
+* `tol=1e-6` ... Convergence tolerance for `d` (iteration stops when change in `d` is less than `tol`).
+* `parallel=false` ... If `true`, use parallelization for per-substance optimizations (Block 2) and standard error calculations (requires Julia to be started with multiple threads, e.g., `julia -t 4`). This can provide significant speedup for many substances.
+
+⚠️ **WARNING**: Parallelization (`parallel=true`) currently causes incorrect results for `method_m4` and `method_m4_`. The results deviate from non-parallelized versions and from other methods (m1, m2, m3). This appears to be related to parameter ordering issues in the alternating optimization loop. Use `parallel=false` for reliable results until this issue is resolved.
+
+# Output 
+* `res` ... Dataframe with the optimized parameters and the found minima.
+* `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
+"""   
+function method_m4_(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, max_alternating_iters=10, tol=1e-6, parallel=false)
+	# calculate start parameters	
+	Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter(meas[3], meas[1], meas[2]; time_unit=meas[6])
+	
+	# Initialize d: use mean from a quick dKcentric_single pass (or use col.d as fallback)
+	# For initialization, we can use a subset or all substances with reduced iterations
+	# Here we use all substances but this could be optimized to use a subset
+	res_dKcentric_single_init = estimate_parameters(meas[3], meas[4], meas[1], meas[2], Tchar_est, θchar_est, ΔCp_est; 
+	                                                pout=meas[5], time_unit=meas[6], mode="dKcentric_single", 
+	                                                method=method, opt=std_opt, maxiters=min(maxiters, 1000), 
+	                                                maxtime=min(maxtime, 60.0), parallel=parallel)[1]
+	d_current = mean(res_dKcentric_single_init.d)
+	
+	# Use initial estimates from the initialization pass
+	# IMPORTANT: Extract parameters by name to ensure correct ordering
+	Tchar_current = Array{Float64}(undef, length(meas[4]))
+	θchar_current = Array{Float64}(undef, length(meas[4]))
+	ΔCp_current = Array{Float64}(undef, length(meas[4]))
+	for (idx, subst_name) in enumerate(meas[4])
+		res_idx = findfirst(res_dKcentric_single_init.Name .== subst_name)
+		if isnothing(res_idx)
+			error("Substance $subst_name not found in res_dKcentric_single_init")
+		end
+		Tchar_current[idx] = res_dKcentric_single_init.Tchar[res_idx]
+		θchar_current[idx] = res_dKcentric_single_init.θchar[res_idx]
+		ΔCp_current[idx] = res_dKcentric_single_init.ΔCp[res_idx]
+	end
+	
+	# Alternating optimization
+	res_ = nothing
+	new_col = nothing
+	for iter = 1:max_alternating_iters
+		d_prev = d_current
+		
+		# Block 1: Optimize d while fixing substance parameters
+		# Vectorize data (filter out missing values) - previous implementation
+		tRs_, prog_, subst_list_ = prepare_optimization_data(meas[3], meas[4], meas[2], meas[6])
+		
+		# IMPORTANT: The loss function uses unique(substance_list) to map parameters
+		# So we need to reorder Tchar_current, θchar_current, ΔCp_current to match unique(subst_list_) order
+		unique_subst = unique(subst_list_)
+		Tchar_reordered = Array{Float64}(undef, length(unique_subst))
+		θchar_reordered = Array{Float64}(undef, length(unique_subst))
+		ΔCp_reordered = Array{Float64}(undef, length(unique_subst))
+		
+		for (idx, subst_name) in enumerate(unique_subst)
+			# Match against meas[4] since both res_dKcentric_single_init and res_ have Name in same order as meas[4]
+			orig_idx = findfirst(meas[4] .== subst_name)
+			if isnothing(orig_idx)
+				error("Substance $subst_name not found in meas[4]")
+			end
+			Tchar_reordered[idx] = Tchar_current[orig_idx]
+			θchar_reordered[idx] = θchar_current[orig_idx]
+			ΔCp_reordered[idx] = ΔCp_current[orig_idx]
+		end
+		
+		# Optimize d (1D optimization) - direct call to optimize_d_only with reordered parameters
+		d_current = optimize_d_only(tRs_, subst_list_, Tchar_reordered, θchar_reordered, ΔCp_reordered, 
+		                            meas[1].L, prog_, meas[1].gas, d_current; 
+		                            method=method, opt=opt, maxiters=maxiters, maxtime=maxtime)
+		
+		# Block 2: Optimize substance parameters while fixing d (can be parallelized)
+		new_col = GasChromatographySimulator.Column(meas[1].L, d_current, meas[1].df, meas[1].sp, meas[1].gas)
+		res_ = estimate_parameters(meas[3], meas[4], new_col, meas[2], Tchar_current, θchar_current, ΔCp_current; 
+		                           pout=meas[5], time_unit=meas[6], mode="Kcentric_single", method=method, 
+		                           opt=opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel)[1]
+		
+		# IMPORTANT: Extract parameters by name to ensure correct ordering
+		for (idx, subst_name) in enumerate(meas[4])
+			res_idx = findfirst(res_.Name .== subst_name)
+			if isnothing(res_idx)
+				error("Substance $subst_name not found in res_")
+			end
+			Tchar_current[idx] = res_.Tchar[res_idx]
+			θchar_current[idx] = res_.θchar[res_idx]
+			ΔCp_current[idx] = res_.ΔCp[res_idx]
+		end
+		
+		# Check convergence
+		if abs(d_current - d_prev) < tol
+			break
+		end
+	end
+	
+	# Ensure new_col is set (should always be set from loop, but just in case)
+	if new_col === nothing
+		new_col = GasChromatographySimulator.Column(meas[1].L, d_current, meas[1].df, meas[1].sp, meas[1].gas)
+	end
+	
+	# Add d column to results
+	res_[!, :d] = d_current.*ones(length(res_.Name))
+	
+	# Calculate standard error for d using the spread from initialization (or could use Hessian)
+	# For now, use std from initialization as approximation
+	res_[!, :d_std] = std(res_dKcentric_single_init.d).*ones(length(res_.Name))
+	
+	# Calculate the standard errors of the 3 parameters using the hessian matrix
+    res_col = (L=new_col.L, d=d_current)
+	stderrors = stderror(meas, res_, res_col; opt=opt, parallel=parallel)[1]
+	# Match standard errors by name to ensure correct association
+	sd_Tchar, sd_θchar, sd_ΔCp = match_stderrors_by_name(res_, stderrors)
+	
+	# Output dataframe
+    res = if se_col == true
+	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=sd_Tchar, 
+	              θchar=res_.θchar, θchar_std=sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=sd_ΔCp, 
+	              d=res_.d, d_std=res_.d_std)
+    else
+	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±sd_Tchar, 
+	              θchar=res_.θchar.±sd_θchar, ΔCp=res_.ΔCp.±sd_ΔCp, 
+	              d=res_.d.±res_.d_std)
+    end
+	return res, Telu_max
+end
+
+"""
 
 Calculation of the standard error of the found optimized parameters using the hessian matrix at the optima.
 
@@ -1015,43 +1243,81 @@ function stderror(meas, res, col_input; opt=std_opt, metric="squared", parallel=
     a = time_unit_conversion_factor(meas[6])
     if parallel
         Base.Threads.@threads for i=1:size(res)[1]
+            # IMPORTANT: Match by name, not by index
+            subst_name = res.Name[i]
+            meas_idx = findfirst(meas[4] .== subst_name)
+            if isnothing(meas_idx)
+                error("Substance $subst_name not found in meas[4]")
+            end
+            
             # filter-out missing values:
-            tR_meas = meas[3][!,i+1].*a
-            tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas, meas[2], meas[4][i])
+            tR_meas = meas[3][!,meas_idx+1].*a
+            tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas, meas[2], subst_name)
             
             p = (tRs_, subst_list_, col_input.L, col_input.d, prog_, opt, meas[1].gas, metric) 
-            # the loss-function used in the optimization !!! HAS TO BE CHANGED !!!
-            LF(x) = opt_Kcentric(x, p)
-            # the hessian matrix of the loss-function, calculated with ForwardDiff.jl
-            H(x) = ForwardDiff.hessian(LF, x)
-            # the hessian matrix at the found optima
-            Hessian[i] = H([res.Tchar[i], res.θchar[i], res.ΔCp[i]])
-            # the calculated standard errors of the parameters
-            sdTchar[i] = sqrt.(abs.(inv(Hessian[i])))[1,1]
-            sdθchar[i] = sqrt.(abs.(inv(Hessian[i])))[2,2]
-            sdΔCp[i] = sqrt.(abs.(inv(Hessian[i])))[3,3]
-        end
+        # the loss-function used in the optimization !!! HAS TO BE CHANGED !!!
+		LF(x) = opt_Kcentric(x, p)
+		# the hessian matrix of the loss-function, calculated with ForwardDiff.jl
+		H(x) = ForwardDiff.hessian(LF, x)
+		# the hessian matrix at the found optima
+		Hessian[i] = H([res.Tchar[i], res.θchar[i], res.ΔCp[i]])
+		# the calculated standard errors of the parameters
+		sdTchar[i] = sqrt.(abs.(inv(Hessian[i])))[1,1]
+		sdθchar[i] = sqrt.(abs.(inv(Hessian[i])))[2,2]
+		sdΔCp[i] = sqrt.(abs.(inv(Hessian[i])))[3,3]
+	end
     else
-        for i=1:size(res)[1]
-            # filter-out missing values:
-            tR_meas = meas[3][!,i+1].*a
-            tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas, meas[2], meas[4][i])
-            
-            p = (tRs_, subst_list_, col_input.L, col_input.d, prog_, opt, meas[1].gas, metric) 
-            # the loss-function used in the optimization !!! HAS TO BE CHANGED !!!
-            LF(x) = opt_Kcentric(x, p)
-            # the hessian matrix of the loss-function, calculated with ForwardDiff.jl
-            H(x) = ForwardDiff.hessian(LF, x)
-            # the hessian matrix at the found optima
-            Hessian[i] = H([res.Tchar[i], res.θchar[i], res.ΔCp[i]])
-            # the calculated standard errors of the parameters
-            sdTchar[i] = sqrt.(abs.(inv(Hessian[i])))[1,1]
-            sdθchar[i] = sqrt.(abs.(inv(Hessian[i])))[2,2]
-            sdΔCp[i] = sqrt.(abs.(inv(Hessian[i])))[3,3]
+	for i=1:size(res)[1]
+        # IMPORTANT: Match by name, not by index
+        subst_name = res.Name[i]
+        meas_idx = findfirst(meas[4] .== subst_name)
+        if isnothing(meas_idx)
+            error("Substance $subst_name not found in meas[4]")
         end
-    end
+		
+        # filter-out missing values:
+        tR_meas = meas[3][!,meas_idx+1].*a
+            tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas, meas[2], subst_name)
+        
+		p = (tRs_, subst_list_, col_input.L, col_input.d, prog_, opt, meas[1].gas, metric) 
+        # the loss-function used in the optimization !!! HAS TO BE CHANGED !!!
+		LF(x) = opt_Kcentric(x, p)
+		# the hessian matrix of the loss-function, calculated with ForwardDiff.jl
+		H(x) = ForwardDiff.hessian(LF, x)
+		# the hessian matrix at the found optima
+		Hessian[i] = H([res.Tchar[i], res.θchar[i], res.ΔCp[i]])
+		# the calculated standard errors of the parameters
+		sdTchar[i] = sqrt.(abs.(inv(Hessian[i])))[1,1]
+		sdθchar[i] = sqrt.(abs.(inv(Hessian[i])))[2,2]
+		sdΔCp[i] = sqrt.(abs.(inv(Hessian[i])))[3,3]
+        end
+	end
 	stderrors = DataFrame(Name=res.Name, sd_Tchar=sdTchar, sd_θchar=sdθchar, sd_ΔCp=sdΔCp)
 	return stderrors, Hessian
+end
+
+"""
+    match_stderrors_by_name(res, stderrors)
+
+Match standard errors to results by substance name, ensuring correct association regardless of DataFrame order.
+Returns arrays of standard errors in the same order as `res.Name`.
+"""
+function match_stderrors_by_name(res, stderrors)
+	sd_Tchar = Array{Float64}(undef, length(res.Name))
+	sd_θchar = Array{Float64}(undef, length(res.Name))
+	sd_ΔCp = Array{Float64}(undef, length(res.Name))
+	
+	for (idx, subst_name) in enumerate(res.Name)
+		stderr_idx = findfirst(stderrors.Name .== subst_name)
+		if isnothing(stderr_idx)
+			error("Substance $subst_name not found in stderrors")
+		end
+		sd_Tchar[idx] = stderrors.sd_Tchar[stderr_idx]
+		sd_θchar[idx] = stderrors.sd_θchar[stderr_idx]
+		sd_ΔCp[idx] = stderrors.sd_ΔCp[stderr_idx]
+	end
+	
+	return sd_Tchar, sd_θchar, sd_ΔCp
 end
 
 """
@@ -1086,9 +1352,16 @@ function stderror_m3(meas, res; opt=std_opt, metric="squared", parallel=false)
     a = time_unit_conversion_factor(meas[6])
     if parallel
         Base.Threads.@threads for i=1:size(res)[1]
+            # IMPORTANT: Match by name, not by index
+            subst_name = res.Name[i]
+            meas_idx = findfirst(meas[4] .== subst_name)
+            if isnothing(meas_idx)
+                error("Substance $subst_name not found in meas[4]")
+            end
+            
             # filter-out missing values:
-            tR_meas = meas[3][!,i+1].*a
-            tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas, meas[2], meas[4][i])
+            tR_meas = meas[3][!,meas_idx+1].*a
+            tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas, meas[2], subst_name)
             
             p = (tRs_, subst_list_, meas[1].L, prog_, opt, meas[1].gas, metric) 
             # the loss-function used in the optimization !!! HAS TO BE CHANGED !!!
@@ -1104,25 +1377,58 @@ function stderror_m3(meas, res; opt=std_opt, metric="squared", parallel=false)
             sdΔCp[i] = sqrt.(abs.(inv(Hessian[i])))[4,4]
         end
     else
-        for i=1:size(res)[1]
-            # filter-out missing values:
-            tR_meas = meas[3][!,i+1].*a
-            tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas, meas[2], meas[4][i])
-            
-            p = (tRs_, subst_list_, meas[1].L, prog_, opt, meas[1].gas, metric) 
-            # the loss-function used in the optimization !!! HAS TO BE CHANGED !!!
-            LF(x) = opt_dKcentric(x, p)
-            # the hessian matrix of the loss-function, calculated with ForwardDiff.jl
-            H(x) = ForwardDiff.hessian(LF, x)
-            # the hessian matrix at the found optima
-            Hessian[i] = H([res.d[i], res.Tchar[i], res.θchar[i], res.ΔCp[i]])
-            # the calculated standard errors of the parameters
-            sd_d[i] = sqrt.(abs.(inv(Hessian[i])))[1,1]
-            sdTchar[i] = sqrt.(abs.(inv(Hessian[i])))[2,2]
-            sdθchar[i] = sqrt.(abs.(inv(Hessian[i])))[3,3]
-            sdΔCp[i] = sqrt.(abs.(inv(Hessian[i])))[4,4]
+	for i=1:size(res)[1]
+        # IMPORTANT: Match by name, not by index
+        subst_name = res.Name[i]
+        meas_idx = findfirst(meas[4] .== subst_name)
+        if isnothing(meas_idx)
+            error("Substance $subst_name not found in meas[4]")
         end
-    end
+		
+        # filter-out missing values:
+        tR_meas = meas[3][!,meas_idx+1].*a
+            tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas, meas[2], subst_name)
+        
+		p = (tRs_, subst_list_, meas[1].L, prog_, opt, meas[1].gas, metric) 
+        # the loss-function used in the optimization !!! HAS TO BE CHANGED !!!
+		LF(x) = opt_dKcentric(x, p)
+		# the hessian matrix of the loss-function, calculated with ForwardDiff.jl
+		H(x) = ForwardDiff.hessian(LF, x)
+		# the hessian matrix at the found optima
+		Hessian[i] = H([res.d[i], res.Tchar[i], res.θchar[i], res.ΔCp[i]])
+		# the calculated standard errors of the parameters
+        sd_d[i] = sqrt.(abs.(inv(Hessian[i])))[1,1]
+		sdTchar[i] = sqrt.(abs.(inv(Hessian[i])))[2,2]
+		sdθchar[i] = sqrt.(abs.(inv(Hessian[i])))[3,3]
+		sdΔCp[i] = sqrt.(abs.(inv(Hessian[i])))[4,4]
+        end
+	end
 	stderrors = DataFrame(Name=res.Name, sd_d=sd_d, sd_Tchar=sdTchar, sd_θchar=sdθchar, sd_ΔCp=sdΔCp)
 	return stderrors, Hessian
+end
+
+"""
+    match_stderrors_m3_by_name(res, stderrors)
+
+Match standard errors from stderror_m3 to results by substance name, ensuring correct association regardless of DataFrame order.
+Returns arrays of standard errors in the same order as `res.Name`.
+"""
+function match_stderrors_m3_by_name(res, stderrors)
+	sd_d = Array{Float64}(undef, length(res.Name))
+	sd_Tchar = Array{Float64}(undef, length(res.Name))
+	sd_θchar = Array{Float64}(undef, length(res.Name))
+	sd_ΔCp = Array{Float64}(undef, length(res.Name))
+	
+	for (idx, subst_name) in enumerate(res.Name)
+		stderr_idx = findfirst(stderrors.Name .== subst_name)
+		if isnothing(stderr_idx)
+			error("Substance $subst_name not found in stderrors")
+		end
+		sd_d[idx] = stderrors.sd_d[stderr_idx]
+		sd_Tchar[idx] = stderrors.sd_Tchar[stderr_idx]
+		sd_θchar[idx] = stderrors.sd_θchar[stderr_idx]
+		sd_ΔCp[idx] = stderrors.sd_ΔCp[stderr_idx]
+	end
+	
+	return sd_d, sd_Tchar, sd_θchar, sd_ΔCp
 end

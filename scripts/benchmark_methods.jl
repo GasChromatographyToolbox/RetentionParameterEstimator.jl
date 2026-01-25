@@ -454,10 +454,10 @@ end
 # When run directly from command line
 if abspath(PROGRAM_FILE) == @__FILE__
     # Parse command-line arguments
-    data_file = nothing
-    use_parallel = nothing  # nil means auto-detect
-    maxiters = 10000
-    maxtime = 600.0
+    local data_file = nothing
+    local use_parallel = nothing  # nil means auto-detect
+    local maxiters = 10000
+    local maxtime = 600.0
     
     for arg in ARGS
         if arg == "--parallel"
@@ -521,7 +521,6 @@ if abspath(PROGRAM_FILE) == @__FILE__
         end
         
         Base.write(tee::TeeIO, x::UInt8) = (write(tee.console, x); write(tee.buffer, x))
-        Base.write(tee::TeeIO, x::AbstractString) = (write(tee.console, x); write(tee.buffer, x))
         Base.flush(tee::TeeIO) = (flush(tee.console); flush(tee.buffer))
         Base.close(tee::TeeIO) = nothing  # Don't close stdout
         

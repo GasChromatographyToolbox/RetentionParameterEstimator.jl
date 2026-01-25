@@ -53,8 +53,13 @@ function get_git_info()
         end
         
         # Check for uncommitted changes
-        status = LibGit2.status(repo)
-        has_changes = !isempty(status)
+        has_changes = false
+        try
+            status_dict = LibGit2.status(repo, ".")
+            has_changes = status_dict !== nothing && !isempty(status_dict)
+        catch
+            has_changes = false
+        end
         
         # Get commit message
         commit_obj = LibGit2.get(LibGit2.GitCommit, repo, commit_oid)
@@ -528,41 +533,32 @@ if abspath(PROGRAM_FILE) == @__FILE__
         # Get git info
         git_info = get_git_info()
         
-        # Create a buffer to capture all output
+        # Capture all output to buffer
         output_buffer = IOBuffer()
-        
-        # Custom IO that writes to both stdout and buffer
-        mutable struct TeeIO <: IO
-            console::IO
-            buffer::IOBuffer
-        end
-        
-        Base.write(tee::TeeIO, x::UInt8) = (write(tee.console, x); write(tee.buffer, x))
-        Base.flush(tee::TeeIO) = (flush(tee.console); flush(tee.buffer))
-        Base.close(tee::TeeIO) = nothing  # Don't close stdout
-        
-        tee_io = TeeIO(stdout, output_buffer)
-        
-        # Write git info header first
-        println(tee_io, "=" ^ 80)
-        println(tee_io, "Benchmark Output - $(Dates.format(now(), "yyyy-mm-dd HH:MM:SS"))")
-        println(tee_io, "=" ^ 80)
-        println(tee_io, "\nGit Repository Information:")
-        println(tee_io, "  Commit Hash: $(git_info["commit_hash"]) ($(git_info["commit_hash_full"]))")
-        println(tee_io, "  Branch: $(git_info["branch"])")
-        println(tee_io, "  Uncommitted Changes: $(git_info["has_uncommitted_changes"] ? "YES" : "NO")")
-        println(tee_io, "  Commit Message: $(git_info["commit_message"])")
-        println(tee_io, "\n" * "=" ^ 80)
-        println(tee_io, "")
-        
-        # Capture all output and run benchmark
-        redirect_stdout(tee_io) do
+        redirect_stdout(output_buffer) do
+            # Print git info header to buffer
+            println("=" ^ 80)
+            println("Benchmark Output - $(Dates.format(now(), "yyyy-mm-dd HH:MM:SS"))")
+            println("=" ^ 80)
+            println("\nGit Repository Information:")
+            println("  Commit Hash: $(git_info["commit_hash"]) ($(git_info["commit_hash_full"]))")
+            println("  Branch: $(git_info["branch"])")
+            println("  Uncommitted Changes: $(git_info["has_uncommitted_changes"] ? "YES" : "NO")")
+            println("  Commit Message: $(git_info["commit_message"])")
+            println("\n" * "=" ^ 80)
+            println()
+            
+            # Run benchmark (output goes to buffer)
             benchmark_and_compare(data_file, use_parallel=use_parallel, maxiters=maxiters, maxtime=maxtime)
         end
         
-        # Write captured output to file
-        flush(tee_io)
+        # Get captured output
         output_text = String(take!(output_buffer))
+        
+        # Print captured output to stdout
+        print(output_text)
+        
+        # Write captured output to file
         open(output_file, "w") do f
             write(f, output_text)
         end

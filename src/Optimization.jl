@@ -1020,6 +1020,9 @@ function method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 	
 	# Use initial estimates from the initialization pass
 	# IMPORTANT: Extract parameters by name to ensure correct ordering (only needed for parallel)
+	Tchar_current = Array{Float64}(undef, length(meas[4]))
+	θchar_current = Array{Float64}(undef, length(meas[4]))
+	ΔCp_current = Array{Float64}(undef, length(meas[4]))
 	if parallel
 		# Create a dictionary for O(1) lookup instead of O(n) findfirst in loop
 		name_to_idx = Dict(name => idx for (idx, name) in enumerate(res_dKcentric_single_init.Name))
@@ -1169,6 +1172,9 @@ function method_m4_(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, 
 	
 	# Use initial estimates from the initialization pass
 	# IMPORTANT: Extract parameters by name to ensure correct ordering (only needed for parallel)
+	Tchar_current = Array{Float64}(undef, length(meas[4]))
+	θchar_current = Array{Float64}(undef, length(meas[4]))
+	ΔCp_current = Array{Float64}(undef, length(meas[4]))
 	if parallel
 		# Create a dictionary for O(1) lookup instead of O(n) findfirst in loop
 		name_to_idx = Dict(name => idx for (idx, name) in enumerate(res_dKcentric_single_init.Name))

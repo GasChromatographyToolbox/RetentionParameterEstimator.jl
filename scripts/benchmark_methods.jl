@@ -533,10 +533,9 @@ if abspath(PROGRAM_FILE) == @__FILE__
         # Get git info
         git_info = get_git_info()
         
-        # Capture all output to buffer
-        output_buffer = IOBuffer()
-        redirect_stdout(output_buffer) do
-            # Print git info header to buffer
+        # Capture all output using redirect_stdout with a pipe
+        output_text = redirect_stdout() do
+            # Print git info header
             println("=" ^ 80)
             println("Benchmark Output - $(Dates.format(now(), "yyyy-mm-dd HH:MM:SS"))")
             println("=" ^ 80)
@@ -548,12 +547,9 @@ if abspath(PROGRAM_FILE) == @__FILE__
             println("\n" * "=" ^ 80)
             println()
             
-            # Run benchmark (output goes to buffer)
+            # Run benchmark (output goes to pipe)
             benchmark_and_compare(data_file, use_parallel=use_parallel, maxiters=maxiters, maxtime=maxtime)
         end
-        
-        # Get captured output
-        output_text = String(take!(output_buffer))
         
         # Print captured output to stdout
         print(output_text)

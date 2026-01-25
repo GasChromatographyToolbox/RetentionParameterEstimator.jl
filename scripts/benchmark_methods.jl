@@ -432,6 +432,63 @@ function benchmark_and_compare(data_file::String; use_parallel::Union{Bool,Nothi
         println("\nWarning: Could not save comparison file: $e")
     end
     
+    # Save benchmark summary to text file
+    output_file = joinpath(dirname(data_file), "$(data_basename)_benchmark_output_$(parallel_suffix)_$(timestamp).txt")
+    try
+        open(output_file, "w") do f
+            println(f, "=" ^ 80)
+            println(f, "Benchmark Summary - $(Dates.format(now(), "yyyy-mm-dd HH:MM:SS"))")
+            println(f, "=" ^ 80)
+            println(f, "\nGit Repository Information:")
+            println(f, "  Commit Hash: $(git_info["commit_hash"]) ($(git_info["commit_hash_full"]))")
+            println(f, "  Branch: $(git_info["branch"])")
+            println(f, "  Uncommitted Changes: $(git_info["has_uncommitted_changes"] ? "YES" : "NO")")
+            println(f, "  Commit Message: $(git_info["commit_message"])")
+            println(f, "\n" * "=" ^ 80)
+            println(f, "\nBenchmark Configuration:")
+            println(f, "  Data file: $data_file")
+            println(f, "  Parallelization: $(parallel_flag ? "ENABLED ($nthreads threads)" : "DISABLED")")
+            println(f, "  Optimization limits: maxiters=$maxiters, maxtime=$maxtime")
+            println(f, "  Substances: $(length(meas[4]))")
+            println(f, "  Measurements: $(length(meas[3].measurement))")
+            println(f, "\n" * "=" ^ 80)
+            println(f, "\nExecution Times:")
+            sorted_indices = sortperm(times)
+            for (rank, idx) in enumerate(sorted_indices)
+                speedup = times[idx] / times[sorted_indices[1]]
+                if rank == 1
+                    println(f, "  $rank. $(methods[idx]): $(@sprintf("%.2f", times[idx])) seconds (fastest)")
+                else
+                    println(f, "  $rank. $(methods[idx]): $(@sprintf("%.2f", times[idx])) seconds ($(@sprintf("%.2fx", speedup)) slower)")
+                end
+            end
+            println(f, "\n" * "=" ^ 80)
+            println(f, "\nKey Results:")
+            println(f, "  Column diameter (d):")
+            for (method_name, res, _, has_d) in methods_to_compare
+                if has_d && "d" in names(res)
+                    d_unique = length(unique(res.d))
+                    if d_unique == 1
+                        println(f, "    method_$method_name: $(@sprintf("%.6f", res.d[1])) m (consistent)")
+                    else
+                        d_mean = mean(res.d)
+                        println(f, "    method_$method_name: $(@sprintf("%.6f", d_mean)) m (varies, std=$(@sprintf("%.2e", std(res.d))) m)")
+                    end
+                end
+            end
+            println(f, "\n  Maximum Elution Temperature (Telu_max):")
+            for (method_name, _, Telu_max, _) in methods_to_compare
+                Telu_max_val = isa(Telu_max, Vector) ? maximum(Telu_max) : Telu_max
+                println(f, "    method_$method_name: $(@sprintf("%.2f", Telu_max_val)) K")
+            end
+            println(f, "\n" * "=" ^ 80)
+            println(f, "\nFull comparison CSV: $comparison_file")
+        end
+        println("\nBenchmark summary saved to: $output_file")
+    catch e
+        println("\nWarning: Could not save summary file: $e")
+    end
+    
     # Summary
     println("\n" * "=" ^ 80)
     println("Summary")
@@ -533,33 +590,8 @@ if abspath(PROGRAM_FILE) == @__FILE__
         # Get git info
         git_info = get_git_info()
         
-        # Capture all output using redirect_stdout with a pipe
-        output_text = redirect_stdout() do
-            # Print git info header
-            println("=" ^ 80)
-            println("Benchmark Output - $(Dates.format(now(), "yyyy-mm-dd HH:MM:SS"))")
-            println("=" ^ 80)
-            println("\nGit Repository Information:")
-            println("  Commit Hash: $(git_info["commit_hash"]) ($(git_info["commit_hash_full"]))")
-            println("  Branch: $(git_info["branch"])")
-            println("  Uncommitted Changes: $(git_info["has_uncommitted_changes"] ? "YES" : "NO")")
-            println("  Commit Message: $(git_info["commit_message"])")
-            println("\n" * "=" ^ 80)
-            println()
-            
-            # Run benchmark (output goes to pipe)
-            benchmark_and_compare(data_file, use_parallel=use_parallel, maxiters=maxiters, maxtime=maxtime)
-        end
-        
-        # Print captured output to stdout
-        print(output_text)
-        
-        # Write captured output to file
-        open(output_file, "w") do f
-            write(f, output_text)
-        end
-        
-        println("\nComplete benchmark output saved to: $output_file")
+        # Run benchmark (output goes to console)
+        benchmark_and_compare(data_file, use_parallel=use_parallel, maxiters=maxiters, maxtime=maxtime)
     catch e
         println("\nError during benchmarking:")
         println(e)

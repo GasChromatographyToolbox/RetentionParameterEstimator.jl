@@ -505,8 +505,9 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
         # This prevents any potential ordering issues from parallel execution
         if parallel
             # Reorder DataFrame to match solute_names order explicitly
-            # Create a vector of row indices in the desired order
-            sorted_indices = [findfirst(df.Name .== name) for name in solute_names]
+            # Create a dictionary for O(1) lookup instead of O(n) findfirst
+            name_to_index = Dict(name => idx for (idx, name) in enumerate(df.Name))
+            sorted_indices = [name_to_index[name] for name in solute_names]
             df = df[sorted_indices, :]
         end
     elseif mode == "Kcentric" #-> new version for missing values ok -> check with no missing
@@ -571,8 +572,9 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
         # This prevents any potential ordering issues from parallel execution
         if parallel
             # Reorder DataFrame to match solute_names order explicitly
-            # Create a vector of row indices in the desired order
-            sorted_indices = [findfirst(df.Name .== name) for name in solute_names]
+            # Create a dictionary for O(1) lookup instead of O(n) findfirst
+            name_to_index = Dict(name => idx for (idx, name) in enumerate(df.Name))
+            sorted_indices = [name_to_index[name] for name in solute_names]
             df = df[sorted_indices, :]
         end
     elseif mode == "d_only"
@@ -838,8 +840,14 @@ function method_m1(meas, col_input; se_col=true, method=NewtonTrustRegion(), opt
 	res_ = estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6], method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel)[1]
 	# calculate the standard errors of the 3 parameters using the hessian matrix
 	stderrors = stderror(meas, res_, col_input; opt=opt, parallel=parallel)[1]
-	# Match standard errors by name to ensure correct association
-	sd_Tchar, sd_θchar, sd_ΔCp = match_stderrors_by_name(res_, stderrors)
+	# Match standard errors by name only if parallel (non-parallel: already in correct order)
+	if parallel
+		sd_Tchar, sd_θchar, sd_ΔCp = match_stderrors_by_name(res_, stderrors)
+	else
+		sd_Tchar = stderrors.sd_Tchar
+		sd_θchar = stderrors.sd_θchar
+		sd_ΔCp = stderrors.sd_ΔCp
+	end
 	# output dataframe
     res = if se_col == true
 	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=sd_Tchar, θchar=res_.θchar, θchar_std=sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=sd_ΔCp)
@@ -873,18 +881,29 @@ function method_m2(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 	# define a new column with the mean value of the estimated `d` over all solutes
 	new_col = GasChromatographySimulator.Column(meas[1].L, mean(res_dKcentric_single.d), meas[1].df, meas[1].sp, meas[1].gas)
 	
-	# IMPORTANT: Extract parameters by name to ensure correct ordering
+	# IMPORTANT: Extract parameters by name to ensure correct ordering (only needed for parallel)
 	Tchar_from_res = Array{Float64}(undef, length(meas[4]))
 	θchar_from_res = Array{Float64}(undef, length(meas[4]))
 	ΔCp_from_res = Array{Float64}(undef, length(meas[4]))
-	for (idx, subst_name) in enumerate(meas[4])
-		res_idx = findfirst(res_dKcentric_single.Name .== subst_name)
-		if isnothing(res_idx)
-			error("Substance $subst_name not found in res_dKcentric_single")
+	if parallel
+		# Create a dictionary for O(1) lookup instead of O(n) findfirst in loop
+		name_to_idx = Dict(name => idx for (idx, name) in enumerate(res_dKcentric_single.Name))
+		for (idx, subst_name) in enumerate(meas[4])
+			res_idx = get(name_to_idx, subst_name, nothing)
+			if isnothing(res_idx)
+				error("Substance $subst_name not found in res_dKcentric_single")
+			end
+			Tchar_from_res[idx] = res_dKcentric_single.Tchar[res_idx]
+			θchar_from_res[idx] = res_dKcentric_single.θchar[res_idx]
+			ΔCp_from_res[idx] = res_dKcentric_single.ΔCp[res_idx]
 		end
-		Tchar_from_res[idx] = res_dKcentric_single.Tchar[res_idx]
-		θchar_from_res[idx] = res_dKcentric_single.θchar[res_idx]
-		ΔCp_from_res[idx] = res_dKcentric_single.ΔCp[res_idx]
+	else
+		# Non-parallel: DataFrame is already in correct order, use direct indexing
+		for idx=1:length(meas[4])
+			Tchar_from_res[idx] = res_dKcentric_single.Tchar[idx]
+			θchar_from_res[idx] = res_dKcentric_single.θchar[idx]
+			ΔCp_from_res[idx] = res_dKcentric_single.ΔCp[idx]
+		end
 	end
 	
 	# optimize every solute separatly for the 3 remaining parameters `Tchar`, `θchar`, `ΔCp`
@@ -896,8 +915,14 @@ function method_m2(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 	# calculate the standard errors of the 3 parameters using the hessian matrix
     res_col = (L=new_col.L, d=res_.d[1])
 	stderrors = stderror(meas, res_, res_col; opt=opt, parallel=parallel)[1]
-	# Match standard errors by name to ensure correct association
-	sd_Tchar, sd_θchar, sd_ΔCp = match_stderrors_by_name(res_, stderrors)
+	# Match standard errors by name only if parallel (non-parallel: already in correct order)
+	if parallel
+		sd_Tchar, sd_θchar, sd_ΔCp = match_stderrors_by_name(res_, stderrors)
+	else
+		sd_Tchar = stderrors.sd_Tchar
+		sd_θchar = stderrors.sd_θchar
+		sd_ΔCp = stderrors.sd_ΔCp
+	end
 	# output dataframe
     res = if se_col == true
 	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=sd_Tchar, θchar=res_.θchar, θchar_std=sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=sd_ΔCp, d=res_.d, d_std=res_.d_std)
@@ -933,8 +958,15 @@ function method_m3(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 	res_ = estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="dKcentric", pout=meas[5], time_unit=meas[6], method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel)[1]
 	# calculate the standard errors of the 3 parameters using the hessian matrix
 	stderrors, hessian = stderror_m3(meas, res_; opt=opt, parallel=parallel)
-	# Match standard errors by name to ensure correct association
-	sd_d, sd_Tchar, sd_θchar, sd_ΔCp = match_stderrors_m3_by_name(res_, stderrors)
+	# Match standard errors by name only if parallel (non-parallel: already in correct order)
+	if parallel
+		sd_d, sd_Tchar, sd_θchar, sd_ΔCp = match_stderrors_m3_by_name(res_, stderrors)
+	else
+		sd_d = stderrors.sd_d
+		sd_Tchar = stderrors.sd_Tchar
+		sd_θchar = stderrors.sd_θchar
+		sd_ΔCp = stderrors.sd_ΔCp
+	end
 	# output dataframe
     res = if se_col == true
 	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=sd_Tchar, θchar=res_.θchar, θchar_std=sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=sd_ΔCp, d=res_.d, d_std=sd_d)
@@ -987,18 +1019,26 @@ function method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 	d_current = mean(res_dKcentric_single_init.d)
 	
 	# Use initial estimates from the initialization pass
-	# IMPORTANT: Extract parameters by name to ensure correct ordering
-	Tchar_current = Array{Float64}(undef, length(meas[4]))
-	θchar_current = Array{Float64}(undef, length(meas[4]))
-	ΔCp_current = Array{Float64}(undef, length(meas[4]))
-	for (idx, subst_name) in enumerate(meas[4])
-		res_idx = findfirst(res_dKcentric_single_init.Name .== subst_name)
-		if isnothing(res_idx)
-			error("Substance $subst_name not found in res_dKcentric_single_init")
+	# IMPORTANT: Extract parameters by name to ensure correct ordering (only needed for parallel)
+	if parallel
+		# Create a dictionary for O(1) lookup instead of O(n) findfirst in loop
+		name_to_idx = Dict(name => idx for (idx, name) in enumerate(res_dKcentric_single_init.Name))
+		for (idx, subst_name) in enumerate(meas[4])
+			res_idx = get(name_to_idx, subst_name, nothing)
+			if isnothing(res_idx)
+				error("Substance $subst_name not found in res_dKcentric_single_init")
+			end
+			Tchar_current[idx] = res_dKcentric_single_init.Tchar[res_idx]
+			θchar_current[idx] = res_dKcentric_single_init.θchar[res_idx]
+			ΔCp_current[idx] = res_dKcentric_single_init.ΔCp[res_idx]
 		end
-		Tchar_current[idx] = res_dKcentric_single_init.Tchar[res_idx]
-		θchar_current[idx] = res_dKcentric_single_init.θchar[res_idx]
-		ΔCp_current[idx] = res_dKcentric_single_init.ΔCp[res_idx]
+	else
+		# Non-parallel: DataFrame is already in correct order, use direct indexing
+		for idx=1:length(meas[4])
+			Tchar_current[idx] = res_dKcentric_single_init.Tchar[idx]
+			θchar_current[idx] = res_dKcentric_single_init.θchar[idx]
+			ΔCp_current[idx] = res_dKcentric_single_init.ΔCp[idx]
+		end
 	end
 	
 	# Alternating optimization
@@ -1020,15 +1060,26 @@ function method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 		                           pout=meas[5], time_unit=meas[6], mode="Kcentric_single", method=method, 
 		                           opt=opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel)[1]
 		
-		# IMPORTANT: Extract parameters by name to ensure correct ordering
-		for (idx, subst_name) in enumerate(meas[4])
-			res_idx = findfirst(res_.Name .== subst_name)
-			if isnothing(res_idx)
-				error("Substance $subst_name not found in res_")
+		# IMPORTANT: Extract parameters by name to ensure correct ordering (only needed for parallel)
+		if parallel
+			# Create a dictionary for O(1) lookup instead of O(n) findfirst in loop
+			name_to_idx = Dict(name => idx for (idx, name) in enumerate(res_.Name))
+			for (idx, subst_name) in enumerate(meas[4])
+				res_idx = get(name_to_idx, subst_name, nothing)
+				if isnothing(res_idx)
+					error("Substance $subst_name not found in res_")
+				end
+				Tchar_current[idx] = res_.Tchar[res_idx]
+				θchar_current[idx] = res_.θchar[res_idx]
+				ΔCp_current[idx] = res_.ΔCp[res_idx]
 			end
-			Tchar_current[idx] = res_.Tchar[res_idx]
-			θchar_current[idx] = res_.θchar[res_idx]
-			ΔCp_current[idx] = res_.ΔCp[res_idx]
+		else
+			# Non-parallel: DataFrame is already in correct order, use direct indexing
+			for idx=1:length(meas[4])
+				Tchar_current[idx] = res_.Tchar[idx]
+				θchar_current[idx] = res_.θchar[idx]
+				ΔCp_current[idx] = res_.ΔCp[idx]
+			end
 		end
 		
 		# Check convergence
@@ -1052,8 +1103,14 @@ function method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 	# Calculate the standard errors of the 3 parameters using the hessian matrix
     res_col = (L=new_col.L, d=d_current)
 	stderrors = stderror(meas, res_, res_col; opt=opt, parallel=parallel)[1]
-	# Match standard errors by name to ensure correct association
-	sd_Tchar, sd_θchar, sd_ΔCp = match_stderrors_by_name(res_, stderrors)
+	# Match standard errors by name only if parallel (non-parallel: already in correct order)
+	if parallel
+		sd_Tchar, sd_θchar, sd_ΔCp = match_stderrors_by_name(res_, stderrors)
+	else
+		sd_Tchar = stderrors.sd_Tchar
+		sd_θchar = stderrors.sd_θchar
+		sd_ΔCp = stderrors.sd_ΔCp
+	end
 	
 	# Output dataframe
     res = if se_col == true
@@ -1111,18 +1168,26 @@ function method_m4_(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, 
 	d_current = mean(res_dKcentric_single_init.d)
 	
 	# Use initial estimates from the initialization pass
-	# IMPORTANT: Extract parameters by name to ensure correct ordering
-	Tchar_current = Array{Float64}(undef, length(meas[4]))
-	θchar_current = Array{Float64}(undef, length(meas[4]))
-	ΔCp_current = Array{Float64}(undef, length(meas[4]))
-	for (idx, subst_name) in enumerate(meas[4])
-		res_idx = findfirst(res_dKcentric_single_init.Name .== subst_name)
-		if isnothing(res_idx)
-			error("Substance $subst_name not found in res_dKcentric_single_init")
+	# IMPORTANT: Extract parameters by name to ensure correct ordering (only needed for parallel)
+	if parallel
+		# Create a dictionary for O(1) lookup instead of O(n) findfirst in loop
+		name_to_idx = Dict(name => idx for (idx, name) in enumerate(res_dKcentric_single_init.Name))
+		for (idx, subst_name) in enumerate(meas[4])
+			res_idx = get(name_to_idx, subst_name, nothing)
+			if isnothing(res_idx)
+				error("Substance $subst_name not found in res_dKcentric_single_init")
+			end
+			Tchar_current[idx] = res_dKcentric_single_init.Tchar[res_idx]
+			θchar_current[idx] = res_dKcentric_single_init.θchar[res_idx]
+			ΔCp_current[idx] = res_dKcentric_single_init.ΔCp[res_idx]
 		end
-		Tchar_current[idx] = res_dKcentric_single_init.Tchar[res_idx]
-		θchar_current[idx] = res_dKcentric_single_init.θchar[res_idx]
-		ΔCp_current[idx] = res_dKcentric_single_init.ΔCp[res_idx]
+	else
+		# Non-parallel: DataFrame is already in correct order, use direct indexing
+		for idx=1:length(meas[4])
+			Tchar_current[idx] = res_dKcentric_single_init.Tchar[idx]
+			θchar_current[idx] = res_dKcentric_single_init.θchar[idx]
+			ΔCp_current[idx] = res_dKcentric_single_init.ΔCp[idx]
+		end
 	end
 	
 	# Alternating optimization
@@ -1142,9 +1207,12 @@ function method_m4_(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, 
 		θchar_reordered = Array{Float64}(undef, length(unique_subst))
 		ΔCp_reordered = Array{Float64}(undef, length(unique_subst))
 		
+		# Create a dictionary for O(1) lookup instead of O(n) findfirst in loop
+		meas4_to_idx = Dict(name => idx for (idx, name) in enumerate(meas[4]))
+		
 		for (idx, subst_name) in enumerate(unique_subst)
 			# Match against meas[4] since both res_dKcentric_single_init and res_ have Name in same order as meas[4]
-			orig_idx = findfirst(meas[4] .== subst_name)
+			orig_idx = get(meas4_to_idx, subst_name, nothing)
 			if isnothing(orig_idx)
 				error("Substance $subst_name not found in meas[4]")
 			end
@@ -1164,15 +1232,26 @@ function method_m4_(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, 
 		                           pout=meas[5], time_unit=meas[6], mode="Kcentric_single", method=method, 
 		                           opt=opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel)[1]
 		
-		# IMPORTANT: Extract parameters by name to ensure correct ordering
-		for (idx, subst_name) in enumerate(meas[4])
-			res_idx = findfirst(res_.Name .== subst_name)
-			if isnothing(res_idx)
-				error("Substance $subst_name not found in res_")
+		# IMPORTANT: Extract parameters by name to ensure correct ordering (only needed for parallel)
+		if parallel
+			# Create a dictionary for O(1) lookup instead of O(n) findfirst in loop
+			name_to_idx = Dict(name => idx for (idx, name) in enumerate(res_.Name))
+			for (idx, subst_name) in enumerate(meas[4])
+				res_idx = get(name_to_idx, subst_name, nothing)
+				if isnothing(res_idx)
+					error("Substance $subst_name not found in res_")
+				end
+				Tchar_current[idx] = res_.Tchar[res_idx]
+				θchar_current[idx] = res_.θchar[res_idx]
+				ΔCp_current[idx] = res_.ΔCp[res_idx]
 			end
-			Tchar_current[idx] = res_.Tchar[res_idx]
-			θchar_current[idx] = res_.θchar[res_idx]
-			ΔCp_current[idx] = res_.ΔCp[res_idx]
+		else
+			# Non-parallel: DataFrame is already in correct order, use direct indexing
+			for idx=1:length(meas[4])
+				Tchar_current[idx] = res_.Tchar[idx]
+				θchar_current[idx] = res_.θchar[idx]
+				ΔCp_current[idx] = res_.ΔCp[idx]
+			end
 		end
 		
 		# Check convergence
@@ -1196,8 +1275,14 @@ function method_m4_(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, 
 	# Calculate the standard errors of the 3 parameters using the hessian matrix
     res_col = (L=new_col.L, d=d_current)
 	stderrors = stderror(meas, res_, res_col; opt=opt, parallel=parallel)[1]
-	# Match standard errors by name to ensure correct association
-	sd_Tchar, sd_θchar, sd_ΔCp = match_stderrors_by_name(res_, stderrors)
+	# Match standard errors by name only if parallel (non-parallel: already in correct order)
+	if parallel
+		sd_Tchar, sd_θchar, sd_ΔCp = match_stderrors_by_name(res_, stderrors)
+	else
+		sd_Tchar = stderrors.sd_Tchar
+		sd_θchar = stderrors.sd_θchar
+		sd_ΔCp = stderrors.sd_ΔCp
+	end
 	
 	# Output dataframe
     res = if se_col == true
@@ -1241,11 +1326,15 @@ function stderror(meas, res, col_input; opt=std_opt, metric="squared", parallel=
 	Hessian = Array{Any}(undef, size(res)[1])
 
     a = time_unit_conversion_factor(meas[6])
+    
+    # Create a dictionary for O(1) lookup instead of O(n) findfirst in loop
+    meas4_to_idx = Dict(name => idx for (idx, name) in enumerate(meas[4]))
+    
     if parallel
         Base.Threads.@threads for i=1:size(res)[1]
             # IMPORTANT: Match by name, not by index
             subst_name = res.Name[i]
-            meas_idx = findfirst(meas[4] .== subst_name)
+            meas_idx = get(meas4_to_idx, subst_name, nothing)
             if isnothing(meas_idx)
                 error("Substance $subst_name not found in meas[4]")
             end
@@ -1270,7 +1359,7 @@ function stderror(meas, res, col_input; opt=std_opt, metric="squared", parallel=
 	for i=1:size(res)[1]
         # IMPORTANT: Match by name, not by index
         subst_name = res.Name[i]
-        meas_idx = findfirst(meas[4] .== subst_name)
+        meas_idx = get(meas4_to_idx, subst_name, nothing)
         if isnothing(meas_idx)
             error("Substance $subst_name not found in meas[4]")
         end
@@ -1307,8 +1396,11 @@ function match_stderrors_by_name(res, stderrors)
 	sd_θchar = Array{Float64}(undef, length(res.Name))
 	sd_ΔCp = Array{Float64}(undef, length(res.Name))
 	
+	# Create a dictionary for O(1) lookup instead of O(n) findfirst in loop
+	name_to_idx = Dict(name => idx for (idx, name) in enumerate(stderrors.Name))
+	
 	for (idx, subst_name) in enumerate(res.Name)
-		stderr_idx = findfirst(stderrors.Name .== subst_name)
+		stderr_idx = get(name_to_idx, subst_name, nothing)
 		if isnothing(stderr_idx)
 			error("Substance $subst_name not found in stderrors")
 		end
@@ -1350,11 +1442,14 @@ function stderror_m3(meas, res; opt=std_opt, metric="squared", parallel=false)
 	Hessian = Array{Any}(undef, size(res)[1])
 
     a = time_unit_conversion_factor(meas[6])
+    
     if parallel
+        # Create a dictionary for O(1) lookup instead of O(n) findfirst in loop
+        meas4_to_idx = Dict(name => idx for (idx, name) in enumerate(meas[4]))
         Base.Threads.@threads for i=1:size(res)[1]
             # IMPORTANT: Match by name, not by index
             subst_name = res.Name[i]
-            meas_idx = findfirst(meas[4] .== subst_name)
+            meas_idx = get(meas4_to_idx, subst_name, nothing)
             if isnothing(meas_idx)
                 error("Substance $subst_name not found in meas[4]")
             end
@@ -1378,16 +1473,10 @@ function stderror_m3(meas, res; opt=std_opt, metric="squared", parallel=false)
         end
     else
 	for i=1:size(res)[1]
-        # IMPORTANT: Match by name, not by index
-        subst_name = res.Name[i]
-        meas_idx = findfirst(meas[4] .== subst_name)
-        if isnothing(meas_idx)
-            error("Substance $subst_name not found in meas[4]")
-        end
-		
+        # Non-parallel: res is in same order as meas[4], use direct indexing
         # filter-out missing values:
-        tR_meas = meas[3][!,meas_idx+1].*a
-            tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas, meas[2], subst_name)
+        tR_meas = meas[3][!,i+1].*a
+            tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas, meas[2], res.Name[i])
         
 		p = (tRs_, subst_list_, meas[1].L, prog_, opt, meas[1].gas, metric) 
         # the loss-function used in the optimization !!! HAS TO BE CHANGED !!!
@@ -1419,8 +1508,11 @@ function match_stderrors_m3_by_name(res, stderrors)
 	sd_θchar = Array{Float64}(undef, length(res.Name))
 	sd_ΔCp = Array{Float64}(undef, length(res.Name))
 	
+	# Create a dictionary for O(1) lookup instead of O(n) findfirst in loop
+	name_to_idx = Dict(name => idx for (idx, name) in enumerate(stderrors.Name))
+	
 	for (idx, subst_name) in enumerate(res.Name)
-		stderr_idx = findfirst(stderrors.Name .== subst_name)
+		stderr_idx = get(name_to_idx, subst_name, nothing)
 		if isnothing(stderr_idx)
 			error("Substance $subst_name not found in stderrors")
 		end

@@ -124,6 +124,23 @@ function benchmark_and_compare(data_file::String; use_parallel::Union{Bool,Nothi
     # Prepare col_input for method_m1 (needs L and d in mm)
     col_input = (L=meas[1].L, d=meas[1].d*1000)  # Convert d from m to mm
     
+    # Warm-up run to trigger JIT compilation
+    println("\n" * "-" ^ 80)
+    println("Warming up (compiling code)...")
+    println("-" ^ 80)
+    try
+        # Quick warm-up with minimal iterations/time to compile all code paths
+        RetentionParameterEstimator.method_m1(meas, col_input, se_col=false, parallel=parallel_flag, maxiters=10, maxtime=1.0)
+        RetentionParameterEstimator.method_m2(meas, se_col=false, parallel=parallel_flag, maxiters=10, maxtime=1.0)
+        RetentionParameterEstimator.method_m3(meas, se_col=false, parallel=parallel_flag, maxiters=10, maxtime=1.0)
+        RetentionParameterEstimator.method_m4(meas, se_col=false, parallel=parallel_flag, maxiters=10, maxtime=1.0)
+        RetentionParameterEstimator.method_m4_(meas, se_col=false, parallel=parallel_flag, maxiters=10, maxtime=1.0)
+        println("  Warm-up completed")
+    catch e
+        println("  Warning: Warm-up failed (this is usually fine): $e")
+    end
+    println()
+    
     # Run method_m1
     println("\n" * "-" ^ 80)
     println("Running method_m1 (requires known d)...")

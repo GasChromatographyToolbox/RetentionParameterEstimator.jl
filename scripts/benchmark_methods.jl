@@ -2,7 +2,7 @@
 """
     benchmark_methods.jl
 
-Script to benchmark and compare all optimization methods (method_m1, m2, m3, m4, m4_) performance and results.
+Script to benchmark and compare all optimization methods (method_m1, m2, m3, m4) performance and results.
 Supports optional parallelization controlled via command-line argument.
 
 Usage:
@@ -88,7 +88,7 @@ end
 
 function benchmark_and_compare(data_file::String; use_parallel::Union{Bool,Nothing}=nothing, maxiters::Int=10000, maxtime::Float64=600.0)
     println("=" ^ 80)
-    println("Benchmarking All Methods: method_m1, m2, m3, m4, m4_")
+    println("Benchmarking All Methods: method_m1, m2, m3, m4")
     println("=" ^ 80)
     println("\nData file: $data_file")
     
@@ -107,8 +107,8 @@ function benchmark_and_compare(data_file::String; use_parallel::Union{Bool,Nothi
     elseif use_parallel
         if nthreads > 1
             parallel_flag = true
-            println("\nParallelization: ENABLED ($nthreads threads)")
-        else
+        println("\nParallelization: ENABLED ($nthreads threads)")
+    else
             parallel_flag = false
             println("\nParallelization: REQUESTED but only 1 thread available")
             println("  Start Julia with multiple threads: julia -t 4 benchmark_methods.jl")
@@ -139,7 +139,6 @@ function benchmark_and_compare(data_file::String; use_parallel::Union{Bool,Nothi
         RetentionParameterEstimator.method_m2(meas, se_col=false, parallel=parallel_flag, maxiters=10, maxtime=1.0)
         RetentionParameterEstimator.method_m3(meas, se_col=false, parallel=parallel_flag, maxiters=10, maxtime=1.0)
         RetentionParameterEstimator.method_m4(meas, se_col=false, parallel=parallel_flag, maxiters=10, maxtime=1.0)
-        RetentionParameterEstimator.method_m4_(meas, se_col=false, parallel=parallel_flag, maxiters=10, maxtime=1.0)
         println("  Warm-up completed")
     catch e
         println("  Warning: Warm-up failed (this is usually fine): $e")
@@ -204,28 +203,13 @@ function benchmark_and_compare(data_file::String; use_parallel::Union{Bool,Nothi
     println("  Completed in $(@sprintf("%.2f", time_m4)) seconds")
     println("  Estimated parameters for $(length(res_m4.Name)) substances")
     
-    # Run method_m4_ (previous implementation)
-    println("\n" * "-" ^ 80)
-    println("Running method_m4_ (alternating optimization - previous implementation)...")
-    if parallel_flag
-        println("  Using parallelization: $(parallel_flag) (for Block 2 and standard error calculation)")
-        println("  ⚠️  WARNING: method_m4_ may have issues with parallelization - results may differ")
-    end
-    println("-" ^ 80)
-    time_m4_ = @elapsed begin
-        res_m4_, Telu_max_m4_ = RetentionParameterEstimator.method_m4_(meas, se_col=true, parallel=parallel_flag, maxiters=maxiters, maxtime=maxtime)
-    end
-    
-    println("  Completed in $(@sprintf("%.2f", time_m4_)) seconds")
-    println("  Estimated parameters for $(length(res_m4_.Name)) substances")
-    
     # Compare results
     println("\n" * "=" ^ 80)
     println("Performance Comparison")
     println("=" ^ 80)
     
-    times = [time_m1, time_m2, time_m3, time_m4, time_m4_]
-    methods = ["method_m1", "method_m2", "method_m3", "method_m4", "method_m4_"]
+    times = [time_m1, time_m2, time_m3, time_m4]
+    methods = ["method_m1", "method_m2", "method_m3", "method_m4"]
     fastest_idx = argmin(times)
     
     println("\nExecution Times:")
@@ -248,8 +232,7 @@ function benchmark_and_compare(data_file::String; use_parallel::Union{Bool,Nothi
         ("m1", res_m1, Telu_max_m1, false),  # m1 doesn't optimize d
         ("m2", res_m2, Telu_max_m2, true),
         ("m3", res_m3, Telu_max_m3, true),
-        ("m4", res_m4, Telu_max_m4, true),
-        ("m4_", res_m4_, Telu_max_m4_, true)
+        ("m4", res_m4, Telu_max_m4, true)
     ]
     
     for (method_name, res, Telu_max, has_d) in methods_to_compare
@@ -357,7 +340,6 @@ function benchmark_and_compare(data_file::String; use_parallel::Union{Bool,Nothi
         idx_m2 = findfirst(res_m2.Name .== substance_name)
         idx_m3 = findfirst(res_m3.Name .== substance_name)
         idx_m4 = i
-        idx_m4_ = findfirst(res_m4_.Name .== substance_name)
         
         row = Dict(
             "Substance" => substance_name,
@@ -380,11 +362,6 @@ function benchmark_and_compare(data_file::String; use_parallel::Union{Bool,Nothi
             "m4_ΔCp" => res_m4.ΔCp[idx_m4],
             "m4_d" => res_m4.d[idx_m4],
             "m4_min" => res_m4.min[idx_m4],
-            "m4__Tchar" => isnothing(idx_m4_) ? missing : res_m4_.Tchar[idx_m4_],
-            "m4__θchar" => isnothing(idx_m4_) ? missing : res_m4_.θchar[idx_m4_],
-            "m4__ΔCp" => isnothing(idx_m4_) ? missing : res_m4_.ΔCp[idx_m4_],
-            "m4__d" => isnothing(idx_m4_) ? missing : res_m4_.d[idx_m4_],
-            "m4__min" => isnothing(idx_m4_) ? missing : res_m4_.min[idx_m4_],
         )
         push!(comparison_data, row)
     end
@@ -401,13 +378,13 @@ function benchmark_and_compare(data_file::String; use_parallel::Union{Bool,Nothi
         idx_m3 = findfirst(res_m3.Name .== substance_name)
         
         println("\n$(substance_name):")
-        println("  Tchar (K):    m1=$(ismissing(comparison_df.m1_Tchar[i]) ? "N/A" : @sprintf("%.2f", comparison_df.m1_Tchar[i])), m2=$(ismissing(comparison_df.m2_Tchar[i]) ? "N/A" : @sprintf("%.2f", comparison_df.m2_Tchar[i])), m3=$(ismissing(comparison_df.m3_Tchar[i]) ? "N/A" : @sprintf("%.2f", comparison_df.m3_Tchar[i])), m4=$(@sprintf("%.2f", comparison_df.m4_Tchar[i])), m4_=$(ismissing(comparison_df.m4__Tchar[i]) ? "N/A" : @sprintf("%.2f", comparison_df.m4__Tchar[i]))")
-        println("  θchar:        m1=$(ismissing(comparison_df.m1_θchar[i]) ? "N/A" : @sprintf("%.2f", comparison_df.m1_θchar[i])), m2=$(ismissing(comparison_df.m2_θchar[i]) ? "N/A" : @sprintf("%.2f", comparison_df.m2_θchar[i])), m3=$(ismissing(comparison_df.m3_θchar[i]) ? "N/A" : @sprintf("%.2f", comparison_df.m3_θchar[i])), m4=$(@sprintf("%.2f", comparison_df.m4_θchar[i])), m4_=$(ismissing(comparison_df.m4__θchar[i]) ? "N/A" : @sprintf("%.2f", comparison_df.m4__θchar[i]))")
-        println("  ΔCp (J/mol·K): m1=$(ismissing(comparison_df.m1_ΔCp[i]) ? "N/A" : @sprintf("%.2f", comparison_df.m1_ΔCp[i])), m2=$(ismissing(comparison_df.m2_ΔCp[i]) ? "N/A" : @sprintf("%.2f", comparison_df.m2_ΔCp[i])), m3=$(ismissing(comparison_df.m3_ΔCp[i]) ? "N/A" : @sprintf("%.2f", comparison_df.m3_ΔCp[i])), m4=$(@sprintf("%.2f", comparison_df.m4_ΔCp[i])), m4_=$(ismissing(comparison_df.m4__ΔCp[i]) ? "N/A" : @sprintf("%.2f", comparison_df.m4__ΔCp[i]))")
+        println("  Tchar (K):    m1=$(ismissing(comparison_df.m1_Tchar[i]) ? "N/A" : @sprintf("%.2f", comparison_df.m1_Tchar[i])), m2=$(ismissing(comparison_df.m2_Tchar[i]) ? "N/A" : @sprintf("%.2f", comparison_df.m2_Tchar[i])), m3=$(ismissing(comparison_df.m3_Tchar[i]) ? "N/A" : @sprintf("%.2f", comparison_df.m3_Tchar[i])), m4=$(@sprintf("%.2f", comparison_df.m4_Tchar[i]))")
+        println("  θchar:        m1=$(ismissing(comparison_df.m1_θchar[i]) ? "N/A" : @sprintf("%.2f", comparison_df.m1_θchar[i])), m2=$(ismissing(comparison_df.m2_θchar[i]) ? "N/A" : @sprintf("%.2f", comparison_df.m2_θchar[i])), m3=$(ismissing(comparison_df.m3_θchar[i]) ? "N/A" : @sprintf("%.2f", comparison_df.m3_θchar[i])), m4=$(@sprintf("%.2f", comparison_df.m4_θchar[i]))")
+        println("  ΔCp (J/mol·K): m1=$(ismissing(comparison_df.m1_ΔCp[i]) ? "N/A" : @sprintf("%.2f", comparison_df.m1_ΔCp[i])), m2=$(ismissing(comparison_df.m2_ΔCp[i]) ? "N/A" : @sprintf("%.2f", comparison_df.m2_ΔCp[i])), m3=$(ismissing(comparison_df.m3_ΔCp[i]) ? "N/A" : @sprintf("%.2f", comparison_df.m3_ΔCp[i])), m4=$(@sprintf("%.2f", comparison_df.m4_ΔCp[i]))")
         if !ismissing(comparison_df.m2_d[i])
-            println("  d (m):        m2=$(@sprintf("%.6f", comparison_df.m2_d[i])), m3=$(@sprintf("%.6f", comparison_df.m3_d[i])), m4=$(@sprintf("%.6f", comparison_df.m4_d[i])), m4_=$(ismissing(comparison_df.m4__d[i]) ? "N/A" : @sprintf("%.6f", comparison_df.m4__d[i]))")
+            println("  d (m):        m2=$(@sprintf("%.6f", comparison_df.m2_d[i])), m3=$(@sprintf("%.6f", comparison_df.m3_d[i])), m4=$(@sprintf("%.6f", comparison_df.m4_d[i]))")
         end
-        println("  min:          m1=$(ismissing(comparison_df.m1_min[i]) ? "N/A" : @sprintf("%.4e", comparison_df.m1_min[i])), m2=$(ismissing(comparison_df.m2_min[i]) ? "N/A" : @sprintf("%.4e", comparison_df.m2_min[i])), m3=$(ismissing(comparison_df.m3_min[i]) ? "N/A" : @sprintf("%.4e", comparison_df.m3_min[i])), m4=$(@sprintf("%.4e", comparison_df.m4_min[i])), m4_=$(ismissing(comparison_df.m4__min[i]) ? "N/A" : @sprintf("%.4e", comparison_df.m4__min[i]))")
+        println("  min:          m1=$(ismissing(comparison_df.m1_min[i]) ? "N/A" : @sprintf("%.4e", comparison_df.m1_min[i])), m2=$(ismissing(comparison_df.m2_min[i]) ? "N/A" : @sprintf("%.4e", comparison_df.m2_min[i])), m3=$(ismissing(comparison_df.m3_min[i]) ? "N/A" : @sprintf("%.4e", comparison_df.m3_min[i])), m4=$(@sprintf("%.4e", comparison_df.m4_min[i]))")
     end
     
     if nrow(comparison_df) > 5
@@ -504,12 +481,11 @@ function benchmark_and_compare(data_file::String; use_parallel::Union{Bool,Nothi
     println("  • method_m2: Two-pass heuristic (legacy method)")
     println("  • method_m3: Joint optimization (slow for many substances)")
     println("  • method_m4: Alternating optimization (uses estimate_parameters mode=\"d_only\")")
-    println("  • method_m4_: Alternating optimization (previous implementation with direct optimize_d_only call)")
     
     if parallel_flag
         println("\n  ✓ Parallelization was used ($nthreads threads)")
         println("    Expected speedup: 2-4x for methods with many substances")
-        println("    ⚠️  Note: method_m4 and method_m4_ may have issues with parallelization")
+        println("    ⚠️  Note: method_m4 may have issues with parallelization")
     else
         if length(meas[4]) > 5 && nthreads > 1
             println("\n  💡 Tip: Start Julia with multiple threads for better performance:")
@@ -525,8 +501,7 @@ function benchmark_and_compare(data_file::String; use_parallel::Union{Bool,Nothi
     return (m1=(res_m1, Telu_max_m1, time_m1), 
             m2=(res_m2, Telu_max_m2, time_m2),
             m3=(res_m3, Telu_max_m3, time_m3),
-            m4=(res_m4, Telu_max_m4, time_m4),
-            m4_=(res_m4_, Telu_max_m4_, time_m4_)), parallel_flag
+            m4=(res_m4, Telu_max_m4, time_m4)), parallel_flag
 end
 
 # Main execution

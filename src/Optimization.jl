@@ -496,7 +496,7 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
             rp2[j] = sol[j][2]
             rp3[j] = sol[j][3]
             min[j] = sol[j].objective
-            end
+        end
         end
         
         df = DataFrame(Name=solute_names, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min)#, retcode=retcode)
@@ -563,7 +563,7 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
             rp2[j] = sol[j][3]
             rp3[j] = sol[j][4]
             min[j] = sol[j].objective
-            end
+        end
         end
         
         df = DataFrame(Name=solute_names, d=d, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min)#, retcode=retcode)
@@ -999,8 +999,6 @@ This approach properly enforces that `d` is the same for all substances and is m
 * `tol=1e-6` ... Convergence tolerance for `d` (iteration stops when change in `d` is less than `tol`).
 * `parallel=false` ... If `true`, use parallelization for per-substance optimizations (Block 2) and standard error calculations (requires Julia to be started with multiple threads, e.g., `julia -t 4`). This can provide significant speedup for many substances.
 
-⚠️ **WARNING**: Parallelization (`parallel=true`) currently causes incorrect results for `method_m4` and `method_m4_`. The results deviate from non-parallelized versions and from other methods (m1, m2, m3). This appears to be related to parameter ordering issues in the alternating optimization loop. Use `parallel=false` for reliable results until this issue is resolved.
-
 # Output 
 * `res` ... Dataframe with the optimized parameters and the found minima.
 * `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
@@ -1128,180 +1126,6 @@ function method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 	return res, Telu_max
 end
 
-"""
-    method_m4_(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, max_alternating_iters=10, tol=1e-6, parallel=false)
-
-Estimation of the column diameter ``d`` and three retention parameters ``T_{char}``, ``θ_{char}`` and ``Δ C_p`` including standard errors, see [`stderror`](@ref).
-Uses alternating/block coordinate descent optimization (previous implementation using direct `optimize_d_only` call):
-1. Initialize `d` from a quick estimate (mean of `dKcentric_single` results with reduced iterations)
-2. **Block 1**: Optimize `d` (1D optimization) while fixing substance parameters (uses direct `optimize_d_only` call)
-3. **Block 2**: Optimize substance parameters (parallelizable) while fixing `d`
-4. Iterate steps 2-3 until convergence
-
-This is the previous implementation before refactoring to use `estimate_parameters(..., mode="d_only")`.
-
-# Arguments
-* `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
-* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.
-* `method=NewtonTrustRegion()` ... Optimization method to use.
-* `opt=std_opt` ... Options for the ODE solver.
-* `maxiters=10000` ... Maximum number of iterations for each optimization.
-* `maxtime=600.0` ... Maximum time for each optimization in seconds.
-* `max_alternating_iters=10` ... Maximum number of alternating iterations.
-* `tol=1e-6` ... Convergence tolerance for `d` (iteration stops when change in `d` is less than `tol`).
-* `parallel=false` ... If `true`, use parallelization for per-substance optimizations (Block 2) and standard error calculations (requires Julia to be started with multiple threads, e.g., `julia -t 4`). This can provide significant speedup for many substances.
-
-⚠️ **WARNING**: Parallelization (`parallel=true`) currently causes incorrect results for `method_m4` and `method_m4_`. The results deviate from non-parallelized versions and from other methods (m1, m2, m3). This appears to be related to parameter ordering issues in the alternating optimization loop. Use `parallel=false` for reliable results until this issue is resolved.
-
-# Output 
-* `res` ... Dataframe with the optimized parameters and the found minima.
-* `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
-"""   
-function method_m4_(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, max_alternating_iters=10, tol=1e-6, parallel=false)
-	# calculate start parameters	
-	Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter(meas[3], meas[1], meas[2]; time_unit=meas[6])
-	
-	# Initialize d: use mean from a quick dKcentric_single pass (or use col.d as fallback)
-	# For initialization, we can use a subset or all substances with reduced iterations
-	# Here we use all substances but this could be optimized to use a subset
-	res_dKcentric_single_init = estimate_parameters(meas[3], meas[4], meas[1], meas[2], Tchar_est, θchar_est, ΔCp_est; 
-	                                                pout=meas[5], time_unit=meas[6], mode="dKcentric_single", 
-	                                                method=method, opt=std_opt, maxiters=min(maxiters, 1000), 
-	                                                maxtime=min(maxtime, 60.0), parallel=parallel)[1]
-	d_current = mean(res_dKcentric_single_init.d)
-	
-	# Use initial estimates from the initialization pass
-	# IMPORTANT: Extract parameters by name to ensure correct ordering (only needed for parallel)
-	Tchar_current = Array{Float64}(undef, length(meas[4]))
-	θchar_current = Array{Float64}(undef, length(meas[4]))
-	ΔCp_current = Array{Float64}(undef, length(meas[4]))
-	if parallel
-		# Create a dictionary for O(1) lookup instead of O(n) findfirst in loop
-		name_to_idx = Dict(name => idx for (idx, name) in enumerate(res_dKcentric_single_init.Name))
-		for (idx, subst_name) in enumerate(meas[4])
-			res_idx = get(name_to_idx, subst_name, nothing)
-			if isnothing(res_idx)
-				error("Substance $subst_name not found in res_dKcentric_single_init")
-			end
-			Tchar_current[idx] = res_dKcentric_single_init.Tchar[res_idx]
-			θchar_current[idx] = res_dKcentric_single_init.θchar[res_idx]
-			ΔCp_current[idx] = res_dKcentric_single_init.ΔCp[res_idx]
-		end
-	else
-		# Non-parallel: DataFrame is already in correct order, use direct indexing
-		for idx=1:length(meas[4])
-			Tchar_current[idx] = res_dKcentric_single_init.Tchar[idx]
-			θchar_current[idx] = res_dKcentric_single_init.θchar[idx]
-			ΔCp_current[idx] = res_dKcentric_single_init.ΔCp[idx]
-		end
-	end
-	
-	# Alternating optimization
-	res_ = nothing
-	new_col = nothing
-	for iter = 1:max_alternating_iters
-		d_prev = d_current
-		
-		# Block 1: Optimize d while fixing substance parameters
-		# Vectorize data (filter out missing values) - previous implementation
-		tRs_, prog_, subst_list_ = prepare_optimization_data(meas[3], meas[4], meas[2], meas[6])
-		
-		# IMPORTANT: The loss function uses unique(substance_list) to map parameters
-		# So we need to reorder Tchar_current, θchar_current, ΔCp_current to match unique(subst_list_) order
-		unique_subst = unique(subst_list_)
-		Tchar_reordered = Array{Float64}(undef, length(unique_subst))
-		θchar_reordered = Array{Float64}(undef, length(unique_subst))
-		ΔCp_reordered = Array{Float64}(undef, length(unique_subst))
-		
-		# Create a dictionary for O(1) lookup instead of O(n) findfirst in loop
-		meas4_to_idx = Dict(name => idx for (idx, name) in enumerate(meas[4]))
-		
-		for (idx, subst_name) in enumerate(unique_subst)
-			# Match against meas[4] since both res_dKcentric_single_init and res_ have Name in same order as meas[4]
-			orig_idx = get(meas4_to_idx, subst_name, nothing)
-			if isnothing(orig_idx)
-				error("Substance $subst_name not found in meas[4]")
-			end
-			Tchar_reordered[idx] = Tchar_current[orig_idx]
-			θchar_reordered[idx] = θchar_current[orig_idx]
-			ΔCp_reordered[idx] = ΔCp_current[orig_idx]
-		end
-		
-		# Optimize d (1D optimization) - direct call to optimize_d_only with reordered parameters
-		d_current = optimize_d_only(tRs_, subst_list_, Tchar_reordered, θchar_reordered, ΔCp_reordered, 
-		                            meas[1].L, prog_, meas[1].gas, d_current; 
-		                            method=method, opt=opt, maxiters=maxiters, maxtime=maxtime)
-		
-		# Block 2: Optimize substance parameters while fixing d (can be parallelized)
-		new_col = GasChromatographySimulator.Column(meas[1].L, d_current, meas[1].df, meas[1].sp, meas[1].gas)
-		res_ = estimate_parameters(meas[3], meas[4], new_col, meas[2], Tchar_current, θchar_current, ΔCp_current; 
-		                           pout=meas[5], time_unit=meas[6], mode="Kcentric_single", method=method, 
-		                           opt=opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel)[1]
-		
-		# IMPORTANT: Extract parameters by name to ensure correct ordering (only needed for parallel)
-		if parallel
-			# Create a dictionary for O(1) lookup instead of O(n) findfirst in loop
-			name_to_idx = Dict(name => idx for (idx, name) in enumerate(res_.Name))
-			for (idx, subst_name) in enumerate(meas[4])
-				res_idx = get(name_to_idx, subst_name, nothing)
-				if isnothing(res_idx)
-					error("Substance $subst_name not found in res_")
-				end
-				Tchar_current[idx] = res_.Tchar[res_idx]
-				θchar_current[idx] = res_.θchar[res_idx]
-				ΔCp_current[idx] = res_.ΔCp[res_idx]
-			end
-		else
-			# Non-parallel: DataFrame is already in correct order, use direct indexing
-			for idx=1:length(meas[4])
-				Tchar_current[idx] = res_.Tchar[idx]
-				θchar_current[idx] = res_.θchar[idx]
-				ΔCp_current[idx] = res_.ΔCp[idx]
-			end
-		end
-		
-		# Check convergence
-		if abs(d_current - d_prev) < tol
-			break
-		end
-	end
-	
-	# Ensure new_col is set (should always be set from loop, but just in case)
-	if new_col === nothing
-		new_col = GasChromatographySimulator.Column(meas[1].L, d_current, meas[1].df, meas[1].sp, meas[1].gas)
-	end
-	
-	# Add d column to results
-	res_[!, :d] = d_current.*ones(length(res_.Name))
-	
-	# Calculate standard error for d using the spread from initialization (or could use Hessian)
-	# For now, use std from initialization as approximation
-	res_[!, :d_std] = std(res_dKcentric_single_init.d).*ones(length(res_.Name))
-	
-	# Calculate the standard errors of the 3 parameters using the hessian matrix
-    res_col = (L=new_col.L, d=d_current)
-	stderrors = stderror(meas, res_, res_col; opt=opt, parallel=parallel)[1]
-	# Match standard errors by name only if parallel (non-parallel: already in correct order)
-	if parallel
-		sd_Tchar, sd_θchar, sd_ΔCp = match_stderrors_by_name(res_, stderrors)
-	else
-		sd_Tchar = stderrors.sd_Tchar
-		sd_θchar = stderrors.sd_θchar
-		sd_ΔCp = stderrors.sd_ΔCp
-	end
-	
-	# Output dataframe
-    res = if se_col == true
-	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar, Tchar_std=sd_Tchar, 
-	              θchar=res_.θchar, θchar_std=sd_θchar, ΔCp=res_.ΔCp, ΔCp_std=sd_ΔCp, 
-	              d=res_.d, d_std=res_.d_std)
-    else
-	    DataFrame(Name=res_.Name, min=res_.min, Tchar=res_.Tchar.±sd_Tchar, 
-	              θchar=res_.θchar.±sd_θchar, ΔCp=res_.ΔCp.±sd_ΔCp, 
-	              d=res_.d.±res_.d_std)
-    end
-	return res, Telu_max
-end
 
 """
 

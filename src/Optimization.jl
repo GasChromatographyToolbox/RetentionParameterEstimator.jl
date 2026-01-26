@@ -996,7 +996,7 @@ This approach properly enforces that `d` is the same for all substances and is m
 * `maxiters=10000` ... Maximum number of iterations for each optimization.
 * `maxtime=600.0` ... Maximum time for each optimization in seconds.
 * `max_alternating_iters=10` ... Maximum number of alternating iterations.
-* `tol=1e-6` ... Convergence tolerance for `d` (iteration stops when change in `d` is less than `tol`).
+* `tol=1e-6` ... Convergence tolerance for `d` and substance parameters (iteration stops when relative changes in `d`, `Tchar`, `θchar`, and `ΔCp` are all less than `tol`).
 * `parallel=false` ... If `true`, use parallelization for per-substance optimizations (Block 2) and standard error calculations (requires Julia to be started with multiple threads, e.g., `julia -t 4`). This can provide significant speedup for many substances.
 
 # Output 
@@ -1045,6 +1045,11 @@ function method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 	# Alternating optimization
 	res_ = nothing
 	new_col = nothing
+	# Store previous substance parameters for convergence checking
+	Tchar_prev = copy(Tchar_current)
+	θchar_prev = copy(θchar_current)
+	ΔCp_prev = copy(ΔCp_current)
+	
 	for iter = 1:max_alternating_iters
 		d_prev = d_current
 		
@@ -1083,10 +1088,26 @@ function method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 			end
 		end
 		
-		# Check convergence
-		if abs(d_current - d_prev) < tol
+		# Check convergence: both d and substance parameters must have converged
+		d_converged = abs(d_current - d_prev) < tol
+		
+		# Check substance parameter convergence using relative tolerance
+		# Use maximum relative change across all substances
+		max_tchar_rel_change = maximum(abs.((Tchar_current .- Tchar_prev) ./ (Tchar_prev .+ 1e-10)))  # Add small epsilon to avoid division by zero
+		max_thetachar_rel_change = maximum(abs.((θchar_current .- θchar_prev) ./ (θchar_prev .+ 1e-10)))
+		max_deltacp_rel_change = maximum(abs.((ΔCp_current .- ΔCp_prev) ./ (abs.(ΔCp_prev) .+ 1e-10)))
+		
+		# Use same tolerance for relative changes (or could use separate parameter)
+		substance_params_converged = (max_tchar_rel_change < tol) && (max_thetachar_rel_change < tol) && (max_deltacp_rel_change < tol)
+		
+		if d_converged && substance_params_converged
 			break
 		end
+		
+		# Update previous values for next iteration
+		Tchar_prev = copy(Tchar_current)
+		θchar_prev = copy(θchar_current)
+		ΔCp_prev = copy(ΔCp_current)
 	end
 	
 	# Ensure new_col is set (should always be set from loop, but just in case)

@@ -6,9 +6,9 @@ Script to benchmark and compare all optimization methods (method_m1, m2, m3, m4,
 Supports optional parallelization controlled via command-line argument.
 
 Usage:
-    julia benchmark_methods.jl [data_file] [--parallel|--no-parallel] [maxiters] [maxtime]
-    julia -t 4 benchmark_methods.jl [data_file] --parallel  # With 4 threads for parallelization
-    julia benchmark_methods.jl [data_file] --no-parallel    # Force no parallelization
+    julia scripts/benchmark_methods.jl [data_file] [--parallel|--no-parallel] [maxiters] [maxtime]
+    julia -t 4 scripts/benchmark_methods.jl [data_file] --parallel  # With 4 threads for parallelization
+    julia scripts/benchmark_methods.jl [data_file] --no-parallel    # Force no parallelization
 
 Arguments:
     data_file: Path to CSV file with measurement data (default: ../data/meas_df05_Rxi5SilMS.csv)

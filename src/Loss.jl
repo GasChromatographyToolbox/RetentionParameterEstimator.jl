@@ -135,9 +135,11 @@ function loss(tR::Array{T, 1}, Tchar, θchar, ΔCp, substance_list::Array{String
 	if length(tR) != length(substance_list) || length(tR) != length(prog)
 		error("Lengths of tR = $(length(tR)), substance_list = $(length(substance_list)), and prog = $(length(prog)) do not match.")
 	end
+	# Compute unique substances once (performance optimization)
+	unique_substances = unique(substance_list)
 	tRcalc = Array{Any}(undef, length(tR))
 	for i=1:length(tR)
-		j = findfirst(substance_list[i] .== unique(substance_list))
+		j = findfirst(substance_list[i] .== unique_substances)
 		tRcalc[i] = RetentionParameterEstimator.tR_calc(Tchar[j], θchar[j], ΔCp[j], L, d, prog[i], gas; opt=opt)
 	end
 	if metric == "abs"

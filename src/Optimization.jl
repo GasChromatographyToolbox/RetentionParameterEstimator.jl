@@ -1149,6 +1149,7 @@ end
 
 
 """
+    stderror(meas, res, col_input; opt=std_opt, metric="squared", parallel=false)
 
 Calculation of the standard error of the found optimized parameters using the hessian matrix at the optima.
 

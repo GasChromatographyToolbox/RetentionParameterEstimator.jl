@@ -3,8 +3,7 @@ using RetentionParameterEstimator
 
 makedocs(
     sitename = "RetentionParameterEstimator",
-    #format = Documenter.HTML(),
-    #modules = [RetentionData]
+    modules = [RetentionParameterEstimator],
     pages = Any[
                 "Home" => "index.md",
                 "Docstrings" => "docstrings.md"

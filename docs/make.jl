@@ -4,6 +4,7 @@ using RetentionParameterEstimator
 makedocs(
     sitename = "RetentionParameterEstimator",
     modules = [RetentionParameterEstimator],
+    doctest = false,  # Disabled until doctest environment is properly configured
     pages = Any[
                 "Home" => "index.md",
                 "Docstrings" => "docstrings.md"

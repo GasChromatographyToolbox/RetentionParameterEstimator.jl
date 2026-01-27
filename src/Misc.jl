@@ -155,21 +155,21 @@ julia> tRs = [100.0 150.0; 200.0 250.0]
  200.0  250.0
 
 julia> prog_single = GasChromatographySimulator.Program([0.0, 5.0], [40.0, 340.0], [150000.0, 250000.0], "vacuum", "min")
-...
+GasChromatographySimulator.Program(...)
 
 julia> prog_vec = [prog_single, prog_single]
 2-element Vector{GasChromatographySimulator.Program}:
- ...
+ GasChromatographySimulator.Program(...)
 
 julia> # Single program (repeated)
-julia> prog_list(prog_single, tRs)
+       prog_list(prog_single, tRs)
 4-element Vector{GasChromatographySimulator.Program}:
- ...
+ GasChromatographySimulator.Program(...)
 
 julia> # Vector of programs (one per measurement)
-julia> prog_list(prog_vec, tRs)
+       prog_list(prog_vec, tRs)
 4-element Vector{GasChromatographySimulator.Program}:
- ...
+ GasChromatographySimulator.Program(...)
 ```
 """
 function prog_list(prog, tRs)
@@ -207,6 +207,8 @@ Get the conversion factor for time units.
 
 # Examples
 ```jldoctest
+julia> using RetentionParameterEstimator
+
 julia> RetentionParameterEstimator.time_unit_conversion_factor("min")
 60.0
 
@@ -242,15 +244,15 @@ filtering missing values, and creating vectorized program and substance lists.
 
 # Examples
 ```jldoctest
-julia> using RetentionParameterEstimator, DataFrames
+julia> using RetentionParameterEstimator, DataFrames, GasChromatographySimulator
 
 julia> tRs = DataFrame(measurement=["meas1", "meas2"], solute1=[100.0, 200.0], solute2=[150.0, 250.0])
 2×3 DataFrame
  Row │ measurement  solute1   solute2  
      │ String       Float64   Float64  
-─────┼─────────────────────────────────
-   1 │ meas1           100.0    150.0
-   2 │ meas2           200.0    250.0
+ ─────┼─────────────────────────────────
+    1 │ meas1           100.0    150.0
+    2 │ meas2           200.0    250.0
 
 julia> solute_names = ["solute1", "solute2"]
 2-element Vector{String}:
@@ -259,10 +261,10 @@ julia> solute_names = ["solute1", "solute2"]
 
 julia> prog = [GasChromatographySimulator.Program([0.0, 5.0], [40.0, 340.0], [150000.0, 250000.0], "vacuum", "min") for _ in 1:2]
 2-element Vector{GasChromatographySimulator.Program}:
- ...
+ GasChromatographySimulator.Program(...)
 
 julia> tRs_, prog_, subst_list_ = RetentionParameterEstimator.prepare_optimization_data(tRs, solute_names, prog, "min")
-([100.0, 200.0, 150.0, 250.0], [...], ["solute1", "solute1", "solute2", "solute2"])
+([100.0, 200.0, 150.0, 250.0], GasChromatographySimulator.Program[...], ["solute1", "solute1", "solute2", "solute2"])
 ```
 """
 function prepare_optimization_data(tRs, solute_names, prog, time_unit)
@@ -293,21 +295,21 @@ vectorized program and substance lists.
 
 # Examples
 ```jldoctest
-julia> using RetentionParameterEstimator
+julia> using RetentionParameterEstimator, GasChromatographySimulator
 
 julia> tR_meas = [100.0, missing, 200.0, 250.0]
 4-element Vector{Union{Missing, Float64}}:
- 100.0
-  missing
- 200.0
- 250.0
+  100.0
+   missing
+  200.0
+  250.0
 
 julia> prog = [GasChromatographySimulator.Program([0.0, 5.0], [40.0, 340.0], [150000.0, 250000.0], "vacuum", "min") for _ in 1:4]
 4-element Vector{GasChromatographySimulator.Program}:
- ...
+ GasChromatographySimulator.Program(...)
 
 julia> tRs_, prog_, subst_list_ = RetentionParameterEstimator.prepare_single_substance_data(tR_meas, prog, "solute1")
-([100.0, 200.0, 250.0], [...], ["solute1", "solute1", "solute1"])
+([100.0, 200.0, 250.0], GasChromatographySimulator.Program[...], ["solute1", "solute1", "solute1"])
 ```
 """
 function prepare_single_substance_data(tR_meas, prog, solute_name)

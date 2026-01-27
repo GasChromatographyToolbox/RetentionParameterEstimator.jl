@@ -749,14 +749,14 @@ end
 """
     check_measurement(meas, col_input; min_th=0.1, loss_th=1.0, se_col=true)
 
-Similar to `method_m1` ([`method_m1`](@ref)) estimate the three retention parameters ``T_{char}``, ``θ_{char}`` and ``ΔC_p`` including standard errors, see [`stderror`](@ref).
+Similar to `method_m1` ([`method_m1`](@ref)) estimate the three retention parameters ``T_{char}``, ``θ_{char}`` and ``ΔC_p`` including standard errors, see `stderror`.
 In addition, if the found optimized minima is above a threshold `min_th`, it is flagged and the squared differences of single measured retention times and calculated retention times above
 another threshold `loss_th` are recorded.   
 
 # Arguments
 * `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
 * `col_input` ... Named tuple with `col_input.L` the column length in m and `col_input.d` the column diameter in mm. If this parameter is not gicen, than these parameters are taken from `meas`. 
-* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
+* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see `stderror`) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
 
 # Output 
 * `check` ... Boolean. `true` if all values are below the thresholds, `false` if not.
@@ -819,12 +819,12 @@ end
 """
     method_m1(meas, col_input; se_col=true, parallel=false)
 
-Estimation of the three retention parameters ``T_{char}``, ``θ_{char}`` and ``ΔC_p`` including standard errors, see [`stderror`](@ref).
+Estimation of the three retention parameters ``T_{char}``, ``θ_{char}`` and ``ΔC_p`` including standard errors, see `stderror`.
 
 # Arguments
 * `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
 * `col_input` ... Named tuple with `col_input.L` the column length in m and `col_input.d` the column diameter in mm. 
-* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
+* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see `stderror`) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
 * `parallel=false` ... If `true`, use parallelization for per-substance optimizations and standard error calculations (requires Julia to be started with multiple threads, e.g., `julia -t 4`).
 
 # Output 
@@ -860,13 +860,13 @@ end
 """
     method_m2(meas; se_col=true, parallel=false)
 
-Estimation of the column diameter ``d`` and three retention parameters ``T_{char}``, ``θ_{char}`` and ``Δ C_p`` including standard errors, see [`stderror`](@ref).
+Estimation of the column diameter ``d`` and three retention parameters ``T_{char}``, ``θ_{char}`` and ``Δ C_p`` including standard errors, see `stderror`.
 In a first run all four parameters are estimated for every substance separatly, resulting in different optimized column diameters. The mean value of the column diameter is used for 
 a second optimization using this mean diameter and optimize the remainig thre retention parameters ``T_{char}``, ``θ_{char}`` and ``Δ C_p``.
 
 # Arguments
 * `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
-* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
+* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see `stderror`) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
 * `parallel=false` ... If `true`, use parallelization for per-substance optimizations and standard error calculations (requires Julia to be started with multiple threads, e.g., `julia -t 4`).
 
 # Output 
@@ -935,14 +935,14 @@ end
 """
     method_m3(meas; se_col=true, parallel=false)
 
-Estimation of the column diameter ``d`` and three retention parameters ``T_{char}``, ``θ_{char}`` and ``Δ C_p`` including standard errors, see [`stderror`](@ref).
+Estimation of the column diameter ``d`` and three retention parameters ``T_{char}``, ``θ_{char}`` and ``Δ C_p`` including standard errors, see `stderror`.
 Brute-force method, where all parameters (`3n+1` for `n` substances) are estimate in one optimization. 
 
 ATTENTION: This method can take long time to finish. The more substances, the longer it takes.
 
 # Arguments
 * `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
-* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
+* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see `stderror`) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
 * `parallel=false` ... If `true`, use parallelization for standard error calculations (requires Julia to be started with multiple threads, e.g., `julia -t 4`). Note: The main optimization cannot be parallelized as it's a single joint optimization.
 
 # Output 
@@ -979,7 +979,7 @@ end
 """
     method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, max_alternating_iters=10, tol=1e-6, parallel=false)
 
-Estimation of the column diameter ``d`` and three retention parameters ``T_{char}``, ``θ_{char}`` and ``Δ C_p`` including standard errors, see [`stderror`](@ref).
+Estimation of the column diameter ``d`` and three retention parameters ``T_{char}``, ``θ_{char}`` and ``Δ C_p`` including standard errors, see `stderror`.
 Uses alternating/block coordinate descent optimization:
 1. Initialize `d` from a quick estimate (mean of `dKcentric_single` results with reduced iterations)
 2. **Block 1**: Optimize `d` (1D optimization) while fixing substance parameters
@@ -990,7 +990,7 @@ This approach properly enforces that `d` is the same for all substances and is m
 
 # Arguments
 * `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
-* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see [`stderror`](@ref)) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.
+* `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see `stderror`) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.
 * `method=NewtonTrustRegion()` ... Optimization method to use.
 * `opt=std_opt` ... Options for the ODE solver.
 * `maxiters=10000` ... Maximum number of iterations for each optimization.
@@ -1149,6 +1149,7 @@ end
 
 
 """
+    stderror(meas, res, col_input; opt=std_opt, metric="squared", parallel=false)
 
 Calculation of the standard error of the found optimized parameters using the hessian matrix at the optima.
 

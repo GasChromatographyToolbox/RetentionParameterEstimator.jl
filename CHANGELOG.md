@@ -4,6 +4,17 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
 
 ## [Unreleased]
 
+### Changed
+
+- **TagBot workflow**: Updated `.github/workflows/TagBot.yml` to match current [Julia TagBot](https://github.com/marketplace/actions/julia-tagbot#setup) recommendations
+  - Removed explicit `permissions:` block to rely on repository defaults
+  - Kept `issue_comment` and `workflow_dispatch` triggers for manual and automatic tagging
+- **Codecov integration**: Updated Codecov action from v1 to v4 in CI workflow
+  - Changed secret name from `CODECOV_SECRET` to `CODECOV_TOKEN` (standard naming)
+  - Added `fail_ci_if_error: false` to prevent CI failures if Codecov is temporarily unavailable
+  - Added `verbose: true` for better debugging of coverage uploads
+  - Fixed coverage file path to `./lcov.info`
+
 ## [0.2.1] - 2025-01-27
 
 ### Fixed

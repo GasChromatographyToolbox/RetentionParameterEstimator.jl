@@ -131,8 +131,17 @@ This is particularly useful when only one chromatogram is available, as the init
 """
 function optimize_Kcentric_multistart(tR::Vector{T}, substance_list, col, prog, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=RetentionParameterEstimator.NewtonTrustRegion(), opt=RetentionParameterEstimator.std_opt, maxiters=10000, maxtime=600.0, metric="squared", n_starts=10, perturbation=0.2) where T<:Number
     # Run optimization from the original starting point first
-    best_sol = optimize_Kcentric(tR, substance_list, col, prog, Tchar_e, θchar_e, ΔCp_e; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
-    best_obj = best_sol.objective
+    best_sol = nothing
+    best_obj = Inf
+    
+    try
+        sol = optimize_Kcentric(tR, substance_list, col, prog, Tchar_e, θchar_e, ΔCp_e; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+        best_sol = sol
+        best_obj = sol.objective
+    catch
+        # If first optimization fails, continue to try random starting points
+        # This can happen with poor initial estimates
+    end
     
     # Try additional random starting points
     for i in 2:n_starts
@@ -157,6 +166,11 @@ function optimize_Kcentric_multistart(tR::Vector{T}, substance_list, col, prog, 
         end
     end
     
+    # If all optimizations failed, throw an error
+    if best_sol === nothing
+        error("All multistart optimization attempts failed. Check initial parameter estimates and optimization settings.")
+    end
+    
     return best_sol
 end
 
@@ -176,8 +190,17 @@ This is particularly useful when only one chromatogram is available, as the init
 """
 function optimize_dKcentric_multistart(tR::Vector{T}, substance_list, col, prog, d_e::Number, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=RetentionParameterEstimator.NewtonTrustRegion(), opt=RetentionParameterEstimator.std_opt, maxiters=10000, maxtime=600.0, metric="squared", n_starts=10, perturbation=0.2) where T<:Number
     # Run optimization from the original starting point first
-    best_sol = optimize_dKcentric(tR, substance_list, col, prog, d_e, Tchar_e, θchar_e, ΔCp_e; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
-    best_obj = best_sol.objective
+    best_sol = nothing
+    best_obj = Inf
+    
+    try
+        sol = optimize_dKcentric(tR, substance_list, col, prog, d_e, Tchar_e, θchar_e, ΔCp_e; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+        best_sol = sol
+        best_obj = sol.objective
+    catch
+        # If first optimization fails, continue to try random starting points
+        # This can happen with poor initial estimates
+    end
     
     # Try additional random starting points
     for i in 2:n_starts
@@ -202,6 +225,11 @@ function optimize_dKcentric_multistart(tR::Vector{T}, substance_list, col, prog,
             # If optimization fails, continue with next starting point
             continue
         end
+    end
+    
+    # If all optimizations failed, throw an error
+    if best_sol === nothing
+        error("All multistart optimization attempts failed. Check initial parameter estimates and optimization settings.")
     end
     
     return best_sol

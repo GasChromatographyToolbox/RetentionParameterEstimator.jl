@@ -73,6 +73,12 @@ println("\nConfiguration:")
 println("  Data file: $data_file")
 println("  Multistart runs: $multistart_n")
 println("  Optimization limits: maxiters=$maxiters, maxtime=$maxtime")
+println("\nNote: Multistart can sometimes be faster if non-multistart hits time limits.")
+println("      Multistart should never give worse loss than non-multistart (it tries the")
+println("      original starting point first). If it does, it's likely due to:")
+println("      - Non-determinism when hitting time/iteration limits")
+println("      - Different convergence paths due to numerical precision")
+println("      - The first optimization in multistart failing (caught silently)")
 println()
 
 # Load database for comparison (if available)
@@ -172,13 +178,26 @@ for meas_idx in 1:n_measurements
                 ΔCp=[isa(x, Measurements.Measurement) ? Measurements.value(x) : x for x in res_no_multistart.ΔCp]
             )
             diff = RetentionParameterEstimator.difference_estimation_to_alternative_data(res_no_multistart_values, db)
-            db_comparison = (
-                mean_abs_relΔTchar=mean(skipmissing(abs.(diff.relΔTchar))) * 100,
-                mean_abs_relΔθchar=mean(skipmissing(abs.(diff.relΔθchar))) * 100,
-                mean_abs_relΔΔCp=mean(skipmissing(abs.(diff.relΔΔCp))) * 100
-            )
+            
+            # Check if any matches were found (not all NaN)
+            valid_relΔTchar = skipmissing(abs.(diff.relΔTchar))
+            valid_relΔθchar = skipmissing(abs.(diff.relΔθchar))
+            valid_relΔΔCp = skipmissing(abs.(diff.relΔΔCp))
+            
+            if length(valid_relΔTchar) > 0 && length(valid_relΔθchar) > 0 && length(valid_relΔΔCp) > 0
+                db_comparison = (
+                    mean_abs_relΔTchar=mean(valid_relΔTchar) * 100,
+                    mean_abs_relΔθchar=mean(valid_relΔθchar) * 100,
+                    mean_abs_relΔΔCp=mean(valid_relΔΔCp) * 100,
+                    n_matched=length(valid_relΔTchar)
+                )
+            else
+                # No matches found - substances in results don't match database
+                db_comparison = (n_matched=0,)
+            end
         catch e
-            # If comparison fails, continue without it
+            # If comparison fails, show error for debugging
+            println("    Warning: Database comparison failed: $e")
         end
     end
     
@@ -213,10 +232,14 @@ for meas_idx in 1:n_measurements
         println("    Loss improvement:         $(@sprintf("%.2f", loss_improvement))%")
     end
     if db_comparison !== nothing
-        println("    Database comparison (no multistart):")
-        println("      Mean |rel ΔTchar|: $(@sprintf("%.2f", db_comparison.mean_abs_relΔTchar))%")
-        println("      Mean |rel Δθchar|: $(@sprintf("%.2f", db_comparison.mean_abs_relΔθchar))%")
-        println("      Mean |rel ΔΔCp|:   $(@sprintf("%.2f", db_comparison.mean_abs_relΔΔCp))%")
+        if haskey(db_comparison, :n_matched) && db_comparison.n_matched == 0
+            println("    Database comparison: No matching substances found (check CAS numbers)")
+        elseif haskey(db_comparison, :mean_abs_relΔTchar)
+            println("    Database comparison (no multistart, $(db_comparison.n_matched) substances):")
+            println("      Mean |rel ΔTchar|: $(@sprintf("%.2f", db_comparison.mean_abs_relΔTchar))%")
+            println("      Mean |rel Δθchar|: $(@sprintf("%.2f", db_comparison.mean_abs_relΔθchar))%")
+            println("      Mean |rel ΔΔCp|:   $(@sprintf("%.2f", db_comparison.mean_abs_relΔΔCp))%")
+        end
     end
     println()
 end
@@ -252,7 +275,9 @@ for r in results
     println("    Loss: $(format_loss(r.avg_loss_no_multistart)) → $(format_loss(r.avg_loss_multistart))", 
             r.loss_improvement != 0.0 ? " ($(@sprintf("%+.2f", r.loss_improvement))%)" : "")
     if r.db_comparison !== nothing
-        println("    DB: |rel ΔTchar|=$(@sprintf("%.2f", r.db_comparison.mean_abs_relΔTchar))%, |rel Δθchar|=$(@sprintf("%.2f", r.db_comparison.mean_abs_relΔθchar))%, |rel ΔΔCp|=$(@sprintf("%.2f", r.db_comparison.mean_abs_relΔΔCp))%")
+        if haskey(r.db_comparison, :mean_abs_relΔTchar)
+            println("    DB ($(r.db_comparison.n_matched) matched): |rel ΔTchar|=$(@sprintf("%.2f", r.db_comparison.mean_abs_relΔTchar))%, |rel Δθchar|=$(@sprintf("%.2f", r.db_comparison.mean_abs_relΔθchar))%, |rel ΔΔCp|=$(@sprintf("%.2f", r.db_comparison.mean_abs_relΔΔCp))%")
+        end
     end
 end
 

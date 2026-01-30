@@ -26,6 +26,13 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
     - Suppressed warnings during benchmark execution using `NullLogger()`
     - Added automatic database parameter comparison with `database_Rxi5SilMS_beta125.csv` when available
     - Reports mean absolute relative differences for Tchar, θchar, and ΔCp compared to database values
+    - Added explanatory notes about multistart behavior (speed and loss differences)
+  - **Multistart optimization logging**: Added logging for failed optimization steps in multistart functions
+    - Always logs when the original starting point fails (critical for debugging)
+    - Always logs when random starting points fail
+    - Shows summary of failed optimizations and improved solutions found
+    - Added optional `verbose` parameter to `optimize_Kcentric_multistart` and `optimize_dKcentric_multistart` for detailed logging
+    - Helps identify why multistart might give worse results than non-multistart (e.g., if original starting point fails)
 
 ### Changed
 

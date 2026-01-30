@@ -290,23 +290,10 @@ end
     d_initial = meas_select[1].d
     gas = meas_select[1].gas
     
-    # Prepare data for optimize_d_only (vectorized format)
-    # Use the full meas data to ensure proper dimensions for substance_list
-    if meas[6] == "min"
-        a = 60.0
-    else
-        a = 1.0
-    end
-    tR_meas = Array(meas[3][:,2:end]).*a  # DataFrame without measurement name column
-    index_notmissing = Not(findall(ismissing.(tR_meas[:,:])))
-    tRs_ = collect(skipmissing(tR_meas[:,:]))
-    prog_list_2d = Array{GasChromatographySimulator.Program}(undef, size(tR_meas))
-    for j=1:size(tR_meas)[2]
-        prog_list_2d[:,j] = meas[2]
-    end
-    prog_ = prog_list_2d[index_notmissing]
-    # substance_list expects tR_meas (without measurement name column), not meas[3]
-    subst_list_ = RetentionParameterEstimator.substance_list(meas[4], tR_meas)
+    # Prepare data for optimize_d_only using helper function
+    tRs_, prog_, subst_list_ = RetentionParameterEstimator.prepare_optimization_data(
+        meas[3], meas[4], meas[2], meas[6]
+    )
     
     # For optimize_d_only, we need to use parameters for all substances
     # But we only have optimized parameters for one substance, so we'll use the full meas
@@ -425,3 +412,77 @@ end
     #@test length(res_all_missing.Tchar) == length(meas_all_missing[4]) - 1  # Should skip fully missing solute
 end
 
+@testset "Multi-start Optimization" begin
+    file = "./data/meas_test.csv"
+    meas = RetentionParameterEstimator.load_chromatograms(file)
+    meas_select = RetentionParameterEstimator.filter_selected_measurements(meas, ["meas3", "meas4", "meas5"], ["2-Octanone"])
+    
+    col = GasChromatographySimulator.Column(meas_select[1].L, meas_select[1].d, meas_select[1].df, meas_select[1].sp, meas_select[1].gas)
+    
+    # Get initial estimates using helper function
+    Tchar_est, θchar_est, ΔCp_est, _ = RetentionParameterEstimator.estimate_start_parameter(meas_select[3], col, meas_select[2]; time_unit=meas_select[6])
+    
+    # Prepare data using helper functions
+    a = RetentionParameterEstimator.time_unit_conversion_factor(meas_select[6])
+    tR_meas = Array(meas_select[3][:,2:end]).*a
+    tRs_, prog_, subst_list_ = RetentionParameterEstimator.prepare_single_substance_data(tR_meas[:,1], meas_select[2], meas_select[4][1])
+    
+    # Test 1: Basic multistart functionality (single chromatogram - minimal n_starts)
+    @testset "optimize_Kcentric_multistart basic" begin
+        # Create single-chromatogram scenario
+        prog_single = [prog_[1]]
+        tRs_single = [tRs_[1]]
+        subst_list_single = [subst_list_[1]]
+        
+        sol_multistart = RetentionParameterEstimator.optimize_Kcentric_multistart(
+            tRs_single, subst_list_single, col, prog_single, 
+            [Tchar_est[1]], [θchar_est[1]], [ΔCp_est[1]]; 
+            maxiters=500, maxtime=30.0, n_starts=2  # Minimal starts for testing
+        )
+        
+        @test sol_multistart[1] > 0.0
+        @test sol_multistart[2] > 0.0
+        @test isfinite(sol_multistart.objective)
+        @test sol_multistart.objective >= 0.0
+    end
+    
+    # Test 2: estimate_parameters with automatic multistart (single chromatogram)
+    @testset "estimate_parameters automatic multistart" begin
+        # Create single-chromatogram measurement
+        meas_single = (
+            meas_select[1],
+            [meas_select[2][1]],  # Single program
+            meas_select[3][1:1, :],  # Single row
+            meas_select[4],
+            meas_select[5],
+            meas_select[6]
+        )
+        
+        # Test that multistart is automatically enabled (multistart_n=0 should auto-enable for single chromatogram)
+        res_auto = RetentionParameterEstimator.estimate_parameters(
+            meas_single[3], meas_single[4], meas_single[1], meas_single[2],
+            Tchar_est, θchar_est, ΔCp_est;
+            mode="Kcentric_single", pout=meas_single[5], time_unit=meas_single[6],
+            maxiters=500, maxtime=30.0, multistart_n=0
+        )[1]
+        
+        @test length(res_auto.Name) == length(meas_single[4])
+        @test all(res_auto.Tchar .> 0.0)
+        @test all(isfinite.(res_auto.Tchar))
+    end
+    
+    # Test 3: estimate_parameters with explicit multistart_n (minimal test)
+    @testset "estimate_parameters explicit multistart_n" begin
+        # Test with explicit multistart_n > 0 (minimal n_starts)
+        res_explicit = RetentionParameterEstimator.estimate_parameters(
+            meas_select[3], meas_select[4], meas_select[1], meas_select[2],
+            Tchar_est, θchar_est, ΔCp_est;
+            mode="Kcentric_single", pout=meas_select[5], time_unit=meas_select[6],
+            maxiters=500, maxtime=30.0, multistart_n=2  # Minimal for testing
+        )[1]
+        
+        @test length(res_explicit.Name) == length(meas_select[4])
+        @test all(res_explicit.Tchar .> 0.0)
+        @test all(isfinite.(res_explicit.Tchar))
+    end
+end

@@ -129,18 +129,25 @@ This is particularly useful when only one chromatogram is available, as the init
 # Returns
 - `opt_sol`: The best solution found across all starting points.
 """
-function optimize_Kcentric_multistart(tR::Vector{T}, substance_list, col, prog, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=RetentionParameterEstimator.NewtonTrustRegion(), opt=RetentionParameterEstimator.std_opt, maxiters=10000, maxtime=600.0, metric="squared", n_starts=10, perturbation=0.2) where T<:Number
+function optimize_Kcentric_multistart(tR::Vector{T}, substance_list, col, prog, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=RetentionParameterEstimator.NewtonTrustRegion(), opt=RetentionParameterEstimator.std_opt, maxiters=10000, maxtime=600.0, metric="squared", n_starts=10, perturbation=0.2, verbose=false) where T<:Number
     # Run optimization from the original starting point first
     best_sol = nothing
     best_obj = Inf
+    n_failed = 0
+    n_improved = 0
     
     try
         sol = optimize_Kcentric(tR, substance_list, col, prog, Tchar_e, θchar_e, ΔCp_e; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
         best_sol = sol
         best_obj = sol.objective
-    catch
+        if verbose
+            println("Multistart: Original starting point succeeded, objective = $(best_obj)")
+        end
+    catch e
         # If first optimization fails, continue to try random starting points
         # This can happen with poor initial estimates
+        n_failed += 1
+        println("Multistart: WARNING - Original starting point failed: $(typeof(e)) - $(e)")
     end
     
     # Try additional random starting points
@@ -159,11 +166,21 @@ function optimize_Kcentric_multistart(tR::Vector{T}, substance_list, col, prog, 
             if sol.objective < best_obj
                 best_sol = sol
                 best_obj = sol.objective
+                n_improved += 1
+                if verbose
+                    println("Multistart: Start $i improved objective to $(best_obj)")
+                end
             end
-        catch
+        catch e
             # If optimization fails, continue with next starting point
+            n_failed += 1
+            println("Multistart: WARNING - Start $i failed: $(typeof(e)) - $(e)")
             continue
         end
+    end
+    
+    if n_failed > 0 || verbose
+        println("Multistart: $n_failed out of $n_starts optimizations failed, $n_improved improved solutions found")
     end
     
     # If all optimizations failed, throw an error
@@ -175,7 +192,7 @@ function optimize_Kcentric_multistart(tR::Vector{T}, substance_list, col, prog, 
 end
 
 """
-    optimize_dKcentric_multistart(tR::Vector{T}, substance_list, col, prog, d_e::Number, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=RetentionParameterEstimator.NewtonTrustRegion(), opt=RetentionParameterEstimator.std_opt, maxiters=10000, maxtime=600.0, metric="squared", n_starts=10, perturbation=0.2) where T<:Number
+    optimize_dKcentric_multistart(tR::Vector{T}, substance_list, col, prog, d_e::Number, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=RetentionParameterEstimator.NewtonTrustRegion(), opt=RetentionParameterEstimator.std_opt, maxiters=10000, maxtime=600.0, metric="squared", n_starts=10, perturbation=0.2, verbose=false) where T<:Number
 
 Multi-start optimization wrapper for `optimize_dKcentric` that runs multiple optimizations with randomly perturbed initial guesses.
 This is particularly useful when only one chromatogram is available, as the initial parameter estimates are less accurate.
@@ -184,22 +201,30 @@ This is particularly useful when only one chromatogram is available, as the init
 - All arguments are the same as `optimize_dKcentric`, plus:
 - `n_starts=10`: Number of random starting points to try.
 - `perturbation=0.2`: Relative perturbation factor for random initial guesses (e.g., 0.2 means ±20% variation).
+- `verbose=false`: If true, log information about failed optimizations and improved solutions.
 
 # Returns
 - `opt_sol`: The best solution found across all starting points.
 """
-function optimize_dKcentric_multistart(tR::Vector{T}, substance_list, col, prog, d_e::Number, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=RetentionParameterEstimator.NewtonTrustRegion(), opt=RetentionParameterEstimator.std_opt, maxiters=10000, maxtime=600.0, metric="squared", n_starts=10, perturbation=0.2) where T<:Number
+function optimize_dKcentric_multistart(tR::Vector{T}, substance_list, col, prog, d_e::Number, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=RetentionParameterEstimator.NewtonTrustRegion(), opt=RetentionParameterEstimator.std_opt, maxiters=10000, maxtime=600.0, metric="squared", n_starts=10, perturbation=0.2, verbose=false) where T<:Number
     # Run optimization from the original starting point first
     best_sol = nothing
     best_obj = Inf
+    n_failed = 0
+    n_improved = 0
     
     try
         sol = optimize_dKcentric(tR, substance_list, col, prog, d_e, Tchar_e, θchar_e, ΔCp_e; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
         best_sol = sol
         best_obj = sol.objective
-    catch
+        if verbose
+            println("Multistart: Original starting point succeeded, objective = $(best_obj)")
+        end
+    catch e
         # If first optimization fails, continue to try random starting points
         # This can happen with poor initial estimates
+        n_failed += 1
+        println("Multistart: WARNING - Original starting point failed: $(typeof(e)) - $(e)")
     end
     
     # Try additional random starting points
@@ -220,11 +245,21 @@ function optimize_dKcentric_multistart(tR::Vector{T}, substance_list, col, prog,
             if sol.objective < best_obj
                 best_sol = sol
                 best_obj = sol.objective
+                n_improved += 1
+                if verbose
+                    println("Multistart: Start $i improved objective to $(best_obj)")
+                end
             end
-        catch
+        catch e
             # If optimization fails, continue with next starting point
+            n_failed += 1
+            println("Multistart: WARNING - Start $i failed: $(typeof(e)) - $(e)")
             continue
         end
+    end
+    
+    if n_failed > 0 || verbose
+        println("Multistart: $n_failed out of $n_starts optimizations failed, $n_improved improved solutions found")
     end
     
     # If all optimizations failed, throw an error
@@ -626,11 +661,11 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
         for j=1:ns
 			# filter-out missing values:
                 tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas[:,j], prog, solute_names[j])
-            
+				
             if use_multistart > 0
                 sol[j] = optimize_Kcentric_multistart(tRs_, subst_list_, col, prog_, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric, n_starts=use_multistart)
             else
-                sol[j] = optimize_Kcentric(tRs_, subst_list_, col, prog_, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+            sol[j] = optimize_Kcentric(tRs_, subst_list_, col, prog_, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
             end
 			
             rp1[j] = sol[j][1]
@@ -701,11 +736,11 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
         for j=1:ns
 			# filter-out missing values:
                 tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas[:,j], prog, solute_names[j])
-            
+			
             if use_multistart > 0
                 sol[j] = optimize_dKcentric_multistart(tRs_, subst_list_, col, prog_, d_e, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric, n_starts=use_multistart)
             else
-                sol[j] = optimize_dKcentric(tRs_, subst_list_, col, prog_, d_e, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+            sol[j] = optimize_dKcentric(tRs_, subst_list_, col, prog_, d_e, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
             end
             d[j] = sol[j][1]
             rp1[j] = sol[j][2]

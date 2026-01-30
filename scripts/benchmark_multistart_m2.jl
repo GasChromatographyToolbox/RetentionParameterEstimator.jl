@@ -82,15 +82,20 @@ println()
 
 # Load database for comparison (if available)
 db_file = joinpath(@__DIR__, "..", "data", "database_Rxi5SilMS_beta125.csv")
-db = nothing
+global db = nothing
 if isfile(db_file)
     try
-        db = DataFrame(CSV.File(db_file))
+        global db = DataFrame(CSV.File(db_file))
         println("  Database file found: $db_file")
         println("  Will compare results with database parameters")
-    catch
+        println("  Loaded $(nrow(db)) substances from database")
+    catch e
         println("  Warning: Could not load database file: $db_file")
+        println("  Error: $(typeof(e)) - $(e)")
+        global db = nothing  # Explicitly set to nothing on error
     end
+else
+    println("  Database file not found: $db_file")
 end
 println()
 
@@ -220,8 +225,12 @@ for meas_idx in 1:n_measurements
             end
         catch e
             # If comparison fails, show error for debugging
-            println("    Warning: Database comparison failed: $e")
+            println("    Warning: Database comparison failed: $(typeof(e)) - $(e)")
+            println("    Stacktrace: $(sprint(showerror, e, catch_backtrace()))")
         end
+    else
+        # Debug: why is db nothing?
+        println("    Debug: db is nothing, cannot compare with database")
     end
     
     # Store results

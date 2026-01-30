@@ -19,6 +19,7 @@ using Pkg
 Pkg.activate(joinpath(@__DIR__, ".."))
 
 using RetentionParameterEstimator
+using GasChromatographySimulator
 using Printf
 using Dates
 

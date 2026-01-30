@@ -21,6 +21,11 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
     - `scripts/benchmark_multistart_m2.jl`: Benchmarks method_m2 with single chromatograms
     - `scripts/benchmark_multistart_m4.jl`: Benchmarks method_m4 with single chromatograms
   - Each benchmark script processes every chromatogram individually and compares optimization with/without multistart
+  - Improved benchmark scripts:
+    - Fixed loss value formatting (uses scientific notation for very small values, prevents "0.000000" display)
+    - Suppressed warnings during benchmark execution using `NullLogger()`
+    - Added automatic database parameter comparison with `database_Rxi5SilMS_beta125.csv` when available
+    - Reports mean absolute relative differences for Tchar, θchar, and ΔCp compared to database values
 
 ### Changed
 

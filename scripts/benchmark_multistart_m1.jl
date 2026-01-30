@@ -22,6 +22,9 @@ using RetentionParameterEstimator
 using GasChromatographySimulator
 using Printf
 using Dates
+using Logging
+using CSV
+using DataFrames
 
 # Default values
 default_data_file = joinpath(@__DIR__, "..", "data", "meas_df05_Rxi5SilMS.csv")
@@ -59,6 +62,10 @@ for arg in ARGS
     end
 end
 
+# Suppress warnings during benchmarks
+old_logger = global_logger()
+global_logger(NullLogger())
+
 println("=" ^ 80)
 println("Benchmark: method_m1 with multistart (single chromatograms)")
 println("=" ^ 80)
@@ -66,6 +73,20 @@ println("\nConfiguration:")
 println("  Data file: $data_file")
 println("  Multistart runs: $multistart_n")
 println("  Optimization limits: maxiters=$maxiters, maxtime=$maxtime")
+println()
+
+# Load database for comparison (if available)
+db_file = joinpath(@__DIR__, "..", "data", "database_Rxi5SilMS_beta125.csv")
+db = nothing
+if isfile(db_file)
+    try
+        db = DataFrame(CSV.File(db_file))
+        println("  Database file found: $db_file")
+        println("  Will compare results with database parameters")
+    catch
+        println("  Warning: Could not load database file: $db_file")
+    end
+end
 println()
 
 # Load data
@@ -133,7 +154,33 @@ for meas_idx in 1:n_measurements
     # Calculate average loss improvement
     avg_loss_no_multistart = mean(res_no_multistart.min)
     avg_loss_multistart = mean(res_multistart.min)
-    loss_improvement = (avg_loss_no_multistart - avg_loss_multistart) / avg_loss_no_multistart * 100
+    loss_improvement = if avg_loss_no_multistart > 0
+        (avg_loss_no_multistart - avg_loss_multistart) / avg_loss_no_multistart * 100
+    else
+        0.0
+    end
+    
+    # Compare with database if available
+    db_comparison = nothing
+    if db !== nothing
+        try
+            # Extract values from Measurements if needed
+            res_no_multistart_values = DataFrame(
+                Name=res_no_multistart.Name,
+                Tchar=[isa(x, Measurements.Measurement) ? Measurements.value(x) : x for x in res_no_multistart.Tchar],
+                θchar=[isa(x, Measurements.Measurement) ? Measurements.value(x) : x for x in res_no_multistart.θchar],
+                ΔCp=[isa(x, Measurements.Measurement) ? Measurements.value(x) : x for x in res_no_multistart.ΔCp]
+            )
+            diff = RetentionParameterEstimator.difference_estimation_to_alternative_data(res_no_multistart_values, db)
+            db_comparison = (
+                mean_abs_relΔTchar=mean(skipmissing(abs.(diff.relΔTchar))) * 100,
+                mean_abs_relΔθchar=mean(skipmissing(abs.(diff.relΔθchar))) * 100,
+                mean_abs_relΔΔCp=mean(skipmissing(abs.(diff.relΔΔCp))) * 100
+            )
+        catch e
+            # If comparison fails, continue without it
+        end
+    end
     
     # Store results
     push!(results, (
@@ -143,16 +190,34 @@ for meas_idx in 1:n_measurements
         avg_loss_no_multistart=avg_loss_no_multistart,
         avg_loss_multistart=avg_loss_multistart,
         loss_improvement=loss_improvement,
-        speedup=time_no_multistart / time_multistart
+        speedup=time_no_multistart / time_multistart,
+        db_comparison=db_comparison
     ))
+    
+    # Format loss values appropriately
+    format_loss(loss) = if loss < 1e-6
+        @sprintf("%.2e", loss)
+    elseif loss < 1.0
+        @sprintf("%.8f", loss)
+    else
+        @sprintf("%.6f", loss)
+    end
     
     println("  Results:")
     println("    Time (no multistart): $(@sprintf("%.2f", time_no_multistart)) s")
     println("    Time (multistart):    $(@sprintf("%.2f", time_multistart)) s")
     println("    Speedup:              $(@sprintf("%.2f", time_no_multistart / time_multistart))x")
-    println("    Avg loss (no multistart): $(@sprintf("%.6f", avg_loss_no_multistart))")
-    println("    Avg loss (multistart):    $(@sprintf("%.6f", avg_loss_multistart))")
-    println("    Loss improvement:         $(@sprintf("%.2f", loss_improvement))%")
+    println("    Avg loss (no multistart): $(format_loss(avg_loss_no_multistart))")
+    println("    Avg loss (multistart):    $(format_loss(avg_loss_multistart))")
+    if loss_improvement != 0.0
+        println("    Loss improvement:         $(@sprintf("%.2f", loss_improvement))%")
+    end
+    if db_comparison !== nothing
+        println("    Database comparison (no multistart):")
+        println("      Mean |rel ΔTchar|: $(@sprintf("%.2f", db_comparison.mean_abs_relΔTchar))%")
+        println("      Mean |rel Δθchar|: $(@sprintf("%.2f", db_comparison.mean_abs_relΔθchar))%")
+        println("      Mean |rel ΔΔCp|:   $(@sprintf("%.2f", db_comparison.mean_abs_relΔΔCp))%")
+    end
     println()
 end
 
@@ -171,12 +236,28 @@ println("  Average time (multistart):    $(@sprintf("%.2f", avg_time_multistart)
 println("  Average speedup:              $(@sprintf("%.2f", avg_speedup))x")
 println("  Average loss improvement:    $(@sprintf("%.2f", avg_loss_improvement))%")
 
+# Format loss values appropriately
+format_loss(loss) = if loss < 1e-6
+    @sprintf("%.2e", loss)
+elseif loss < 1.0
+    @sprintf("%.8f", loss)
+else
+    @sprintf("%.6f", loss)
+end
+
 println("\nPer-measurement details:")
 for r in results
     println("  $(r.measurement):")
     println("    Time: $(@sprintf("%.2f", r.time_no_multistart))s → $(@sprintf("%.2f", r.time_multistart))s ($(@sprintf("%.2f", r.speedup))x)")
-    println("    Loss: $(@sprintf("%.6f", r.avg_loss_no_multistart)) → $(@sprintf("%.6f", r.avg_loss_multistart)) ($(@sprintf("%+.2f", r.loss_improvement))%)")
+    println("    Loss: $(format_loss(r.avg_loss_no_multistart)) → $(format_loss(r.avg_loss_multistart))", 
+            r.loss_improvement != 0.0 ? " ($(@sprintf("%+.2f", r.loss_improvement))%)" : "")
+    if r.db_comparison !== nothing
+        println("    DB: |rel ΔTchar|=$(@sprintf("%.2f", r.db_comparison.mean_abs_relΔTchar))%, |rel Δθchar|=$(@sprintf("%.2f", r.db_comparison.mean_abs_relΔθchar))%, |rel ΔΔCp|=$(@sprintf("%.2f", r.db_comparison.mean_abs_relΔΔCp))%")
+    end
 end
+
+# Restore logger
+global_logger(old_logger)
 
 println("\n" * "=" ^ 80)
 println("Benchmark complete!")

@@ -62,8 +62,12 @@ for arg in ARGS
     end
 end
 
-# Suppress warnings during benchmarks
+# Suppress warnings during benchmarks, but allow info/warn for multistart logging
 old_logger = global_logger()
+# Use a logger that filters out most warnings but allows our multistart messages
+# We'll use ConsoleLogger with a custom filter or just use the default logger
+# For now, keep NullLogger to suppress warnings, but multistart verbose logging
+# can be enabled by setting verbose=true in estimate_parameters (if we add that parameter)
 global_logger(NullLogger())
 
 println("=" ^ 80)

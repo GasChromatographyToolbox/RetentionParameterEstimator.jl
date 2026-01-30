@@ -115,6 +115,98 @@ function optimize_Kcentric(tR::Vector{T}, substance_list, col, prog, Tchar_e::Ve
 	return opt_sol
 end
 
+"""
+    optimize_Kcentric_multistart(tR::Vector{T}, substance_list, col, prog, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=RetentionParameterEstimator.NewtonTrustRegion(), opt=RetentionParameterEstimator.std_opt, maxiters=10000, maxtime=600.0, metric="squared", n_starts=10, perturbation=0.2) where T<:Number
+
+Multi-start optimization wrapper for `optimize_Kcentric` that runs multiple optimizations with randomly perturbed initial guesses.
+This is particularly useful when only one chromatogram is available, as the initial parameter estimates are less accurate.
+
+# Arguments
+- All arguments are the same as `optimize_Kcentric`, plus:
+- `n_starts=10`: Number of random starting points to try.
+- `perturbation=0.2`: Relative perturbation factor for random initial guesses (e.g., 0.2 means ±20% variation).
+
+# Returns
+- `opt_sol`: The best solution found across all starting points.
+"""
+function optimize_Kcentric_multistart(tR::Vector{T}, substance_list, col, prog, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=RetentionParameterEstimator.NewtonTrustRegion(), opt=RetentionParameterEstimator.std_opt, maxiters=10000, maxtime=600.0, metric="squared", n_starts=10, perturbation=0.2) where T<:Number
+    # Run optimization from the original starting point first
+    best_sol = optimize_Kcentric(tR, substance_list, col, prog, Tchar_e, θchar_e, ΔCp_e; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+    best_obj = best_sol.objective
+    
+    # Try additional random starting points
+    for i in 2:n_starts
+        # Generate random perturbations around the initial estimates
+        Tchar_perturbed = Tchar_e .* (1.0 .+ perturbation .* (2.0 .* rand(length(Tchar_e)) .- 1.0))
+        θchar_perturbed = θchar_e .* (1.0 .+ perturbation .* (2.0 .* rand(length(θchar_e)) .- 1.0))
+        ΔCp_perturbed = ΔCp_e .* (1.0 .+ perturbation .* (2.0 .* rand(length(ΔCp_e)) .- 1.0))
+        
+        # Ensure positive values (Tchar and θchar should be positive)
+        Tchar_perturbed = max.(Tchar_perturbed, Tchar_e .* 0.5)  # Don't go below 50% of original
+        θchar_perturbed = max.(θchar_perturbed, θchar_e .* 0.5)
+        
+        try
+            sol = optimize_Kcentric(tR, substance_list, col, prog, Tchar_perturbed, θchar_perturbed, ΔCp_perturbed; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+            if sol.objective < best_obj
+                best_sol = sol
+                best_obj = sol.objective
+            end
+        catch
+            # If optimization fails, continue with next starting point
+            continue
+        end
+    end
+    
+    return best_sol
+end
+
+"""
+    optimize_dKcentric_multistart(tR::Vector{T}, substance_list, col, prog, d_e::Number, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=RetentionParameterEstimator.NewtonTrustRegion(), opt=RetentionParameterEstimator.std_opt, maxiters=10000, maxtime=600.0, metric="squared", n_starts=10, perturbation=0.2) where T<:Number
+
+Multi-start optimization wrapper for `optimize_dKcentric` that runs multiple optimizations with randomly perturbed initial guesses.
+This is particularly useful when only one chromatogram is available, as the initial parameter estimates are less accurate.
+
+# Arguments
+- All arguments are the same as `optimize_dKcentric`, plus:
+- `n_starts=10`: Number of random starting points to try.
+- `perturbation=0.2`: Relative perturbation factor for random initial guesses (e.g., 0.2 means ±20% variation).
+
+# Returns
+- `opt_sol`: The best solution found across all starting points.
+"""
+function optimize_dKcentric_multistart(tR::Vector{T}, substance_list, col, prog, d_e::Number, Tchar_e::Vector{T}, θchar_e::Vector{T}, ΔCp_e::Vector{T}; method=RetentionParameterEstimator.NewtonTrustRegion(), opt=RetentionParameterEstimator.std_opt, maxiters=10000, maxtime=600.0, metric="squared", n_starts=10, perturbation=0.2) where T<:Number
+    # Run optimization from the original starting point first
+    best_sol = optimize_dKcentric(tR, substance_list, col, prog, d_e, Tchar_e, θchar_e, ΔCp_e; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+    best_obj = best_sol.objective
+    
+    # Try additional random starting points
+    for i in 2:n_starts
+        # Generate random perturbations around the initial estimates
+        d_perturbed = d_e * (1.0 + perturbation * (2.0 * rand() - 1.0))
+        Tchar_perturbed = Tchar_e .* (1.0 .+ perturbation .* (2.0 .* rand(length(Tchar_e)) .- 1.0))
+        θchar_perturbed = θchar_e .* (1.0 .+ perturbation .* (2.0 .* rand(length(θchar_e)) .- 1.0))
+        ΔCp_perturbed = ΔCp_e .* (1.0 .+ perturbation .* (2.0 .* rand(length(ΔCp_e)) .- 1.0))
+        
+        # Ensure positive values
+        d_perturbed = max(d_perturbed, d_e * 0.5)  # Don't go below 50% of original
+        Tchar_perturbed = max.(Tchar_perturbed, Tchar_e .* 0.5)
+        θchar_perturbed = max.(θchar_perturbed, θchar_e .* 0.5)
+        
+        try
+            sol = optimize_dKcentric(tR, substance_list, col, prog, d_perturbed, Tchar_perturbed, θchar_perturbed, ΔCp_perturbed; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+            if sol.objective < best_obj
+                best_sol = sol
+                best_obj = sol.objective
+            end
+        catch
+            # If optimization fails, continue with next starting point
+            continue
+        end
+    end
+    
+    return best_sol
+end
+
 #=function optimize_Kcentric(tR, col, prog, Tchar_e::Matrix{T}, θchar_e::Matrix{T}, ΔCp_e::Matrix{T}; method=BBO_adaptive_de_rand_1_bin_radiuslimited(), opt=std_opt, maxiters=10000, maxtime=600.0, metric="squared") where T<:Number # here default method should be one which needs bounds
     p = (tR, col.L, col.d, prog, opt, col.gas, metric)
 	x0 = [Tchar_e[1,:]; θchar_e[1,:]; ΔCp_e[1,:]]
@@ -449,8 +541,10 @@ end=#
 	return df, sol
 end=#
 
-function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, mode="dKcentric", metric="squared", pout="vacuum", time_unit="min", parallel=false)
+function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, mode="dKcentric", metric="squared", pout="vacuum", time_unit="min", parallel=false, multistart_n=0)
     # mode = "Kcentric", "Kcentric_single", "dKcentric", "dKcentric_single", "d_only"
+    # multistart_n: Number of multistart optimizations (0 = disabled, >0 = enabled with that many starts)
+    #               If 0 and only one chromatogram is available, automatically uses 10 starts
     
     # add the case for 2-parameter model, where rp3 === 0.0 always
     # -> alternative versions of the different `optimize_` functions (without the third retention parameter)
@@ -471,14 +565,29 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
 	rp3 = Array{Float64}(undef, ns)
     min = Array{Float64}(undef, ns)
     #retcode = Array{Any}(undef, ns)
+    
+    # Determine if multistart should be used
+    # Use multistart if explicitly requested (multistart_n > 0) or if only one chromatogram (auto-enable with 10 starts)
+    use_multistart = if multistart_n > 0
+        multistart_n
+    elseif length(prog) == 1
+        10  # Auto-enable with 10 starts for single chromatogram
+    else
+        0   # Disabled
+    end
+    
     if mode == "Kcentric_single" #-> new version for missing values ok -> check with no missing		
         sol = Array{SciMLBase.OptimizationSolution}(undef, ns)
         if parallel
             Base.Threads.@threads for j=1:ns
                 # filter-out missing values:
                 tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas[:,j], prog, solute_names[j])
-                    
-                sol[j] = optimize_Kcentric(tRs_, subst_list_, col, prog_, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+                
+                if use_multistart > 0
+                    sol[j] = optimize_Kcentric_multistart(tRs_, subst_list_, col, prog_, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric, n_starts=use_multistart)
+                else
+                    sol[j] = optimize_Kcentric(tRs_, subst_list_, col, prog_, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+                end
                 
                 rp1[j] = sol[j][1]
                 rp2[j] = sol[j][2]
@@ -489,8 +598,12 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
         for j=1:ns
 			# filter-out missing values:
                 tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas[:,j], prog, solute_names[j])
-				
-            sol[j] = optimize_Kcentric(tRs_, subst_list_, col, prog_, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+            
+            if use_multistart > 0
+                sol[j] = optimize_Kcentric_multistart(tRs_, subst_list_, col, prog_, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric, n_starts=use_multistart)
+            else
+                sol[j] = optimize_Kcentric(tRs_, subst_list_, col, prog_, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+            end
 			
             rp1[j] = sol[j][1]
             rp2[j] = sol[j][2]
@@ -545,7 +658,11 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
                 # filter-out missing values:
                 tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas[:,j], prog, solute_names[j])
                 
-                sol[j] = optimize_dKcentric(tRs_, subst_list_, col, prog_, d_e, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+                if use_multistart > 0
+                    sol[j] = optimize_dKcentric_multistart(tRs_, subst_list_, col, prog_, d_e, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric, n_starts=use_multistart)
+                else
+                    sol[j] = optimize_dKcentric(tRs_, subst_list_, col, prog_, d_e, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+                end
                 d[j] = sol[j][1]
                 rp1[j] = sol[j][2]
                 rp2[j] = sol[j][3]
@@ -556,8 +673,12 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
         for j=1:ns
 			# filter-out missing values:
                 tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas[:,j], prog, solute_names[j])
-			
-            sol[j] = optimize_dKcentric(tRs_, subst_list_, col, prog_, d_e, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+            
+            if use_multistart > 0
+                sol[j] = optimize_dKcentric_multistart(tRs_, subst_list_, col, prog_, d_e, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric, n_starts=use_multistart)
+            else
+                sol[j] = optimize_dKcentric(tRs_, subst_list_, col, prog_, d_e, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+            end
             d[j] = sol[j][1]
             rp1[j] = sol[j][2]
             rp2[j] = sol[j][3]
@@ -646,7 +767,7 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
 end
 
 """
-    estimate_parameters(chrom; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, mode="dKcentric", metric="squared")
+    estimate_parameters(chrom; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, mode="dKcentric", metric="squared", parallel=false, multistart_n=0)
 
 Calculate the estimates for the K-centric parameters and (optional) the column diameter.
 
@@ -665,16 +786,19 @@ Calculate the estimates for the K-centric parameters and (optional) the column d
     * "dKcentric_single" ... optimization for the column diameter and the three K-centric retention parameters separatly for every solute
     * "dKcentric" ... optimization for the column diameter and the three K-centric retention parameters together for all solutes
     * "d_only" ... optimization for only the column diameter while keeping the K-centric retention parameters fixed (requires fixed parameter values as vectors)
-    * "d_only" ... optimization for only the column diameter while keeping the K-centric retention parameters fixed (requires fixed parameter values as vectors)
 * `metric="squared"` ... used metric for the loss function ("squared" or "abs")
+* `parallel=false` ... If `true`, use parallelization for per-substance optimizations (requires Julia to be started with multiple threads, e.g., `julia -t 4`)
+* `multistart_n=0` ... Number of multistart optimizations for single-substance modes (`Kcentric_single`, `dKcentric_single`). 
+    * `0` (default): Disabled for multiple chromatograms, automatically enabled with 10 starts when only one chromatogram is available
+    * `>0`: Explicitly enable multistart with the specified number of starting points (useful for difficult optimization problems)
 
 # Output
 * `df` ... DataFrame with the columns `Name` (solute names), `d` (estimated column diameter, optional), `Tchar` (estimated Tchar), `θchar` (estimated θchar), `ΔCp` (estimated ΔCp) and `min` (value of the loss function at the found optima)
 * `sol` ... Array of `SciMLBase.OptimizationSolution` with the results of the optimization with some additional informations.
 """    
-function estimate_parameters(chrom; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, mode="dKcentric", metric="squared", parallel=false)
+function estimate_parameters(chrom; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, mode="dKcentric", metric="squared", parallel=false, multistart_n=0)
 	Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter(chrom[3], chrom[1], chrom[2]; time_unit=chrom[6])
-	return estimate_parameters(chrom[3], chrom[4], chrom[1], chrom[2], Tchar_est, θchar_est, ΔCp_est; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, mode=mode, metric=metric, pout=chrom[5], time_unit=chrom[6], parallel=parallel)
+	return estimate_parameters(chrom[3], chrom[4], chrom[1], chrom[2], Tchar_est, θchar_est, ΔCp_est; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, mode=mode, metric=metric, pout=chrom[5], time_unit=chrom[6], parallel=parallel, multistart_n=multistart_n)
 end
 
 function estimate_parameters_(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, mode="dKcentric", metric="squared", pout="vacuum", time_unit="min")
@@ -696,8 +820,16 @@ function estimate_parameters_(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e;
     #retcode = Array{Any}(undef, ns)
     if mode == "Kcentric_single"
         sol = Array{SciMLBase.OptimizationSolution}(undef, ns)
+        # Check if only one chromatogram is available - use multi-start optimization in this case
+        use_multistart = length(prog) == 1
         for j=1:ns
-            sol[j] = optimize_Kcentric_(tR_meas[:,j], col, prog, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+            # filter-out missing values:
+            tRs_, prog_, subst_list_ = prepare_single_substance_data(tR_meas[:,j], prog, solute_names[j])
+            if use_multistart
+                sol[j] = optimize_Kcentric_multistart(tRs_, subst_list_, col, prog_, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+            else
+                sol[j] = optimize_Kcentric(tRs_, subst_list_, col, prog_, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
+            end
             rp1[j] = sol[j][1]
             rp2[j] = sol[j][2]
             rp3[j] = sol[j][3]

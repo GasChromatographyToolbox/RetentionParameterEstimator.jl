@@ -13,6 +13,8 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
   - Created `optimize_Kcentric_multistart` and `optimize_dKcentric_multistart` wrapper functions
   - Uses random perturbations (±20% by default) around initial parameter estimates
   - Returns the best solution (lowest loss) across all starting points
+  - Robust error handling: if an optimization attempt fails, it continues with the next starting point
+  - If all optimization attempts fail, throws a clear error message
   - Added comprehensive tests for multi-start optimization in `test/runtests.jl`
   - Created benchmark scripts for multistart optimization:
     - `scripts/benchmark_multistart_m1.jl`: Benchmarks method_m1 with single chromatograms

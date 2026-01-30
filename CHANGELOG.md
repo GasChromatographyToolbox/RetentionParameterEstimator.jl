@@ -13,6 +13,25 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
   - Created `optimize_Kcentric_multistart` and `optimize_dKcentric_multistart` wrapper functions
   - Uses random perturbations (±20% by default) around initial parameter estimates
   - Returns the best solution (lowest loss) across all starting points
+  - Added comprehensive tests for multi-start optimization in `test/runtests.jl`
+  - Created benchmark scripts for multistart optimization:
+    - `scripts/benchmark_multistart_m1.jl`: Benchmarks method_m1 with single chromatograms
+    - `scripts/benchmark_multistart_m2.jl`: Benchmarks method_m2 with single chromatograms
+    - `scripts/benchmark_multistart_m4.jl`: Benchmarks method_m4 with single chromatograms
+  - Each benchmark script processes every chromatogram individually and compares optimization with/without multistart
+
+### Changed
+
+- **Dependencies**: Added `Random` as an explicit dependency in `Project.toml`
+  - Required for multi-start optimization random number generation
+  - `Random` is a standard library but must be declared as a dependency when used in packages
+
+### Fixed
+
+- **Test refactoring**: Updated tests to use helper functions for data preparation
+  - Replaced manual time unit conversion with `time_unit_conversion_factor()` helper
+  - Replaced manual data preparation with `prepare_optimization_data()` and `prepare_single_substance_data()` helpers
+  - Improved test maintainability and consistency
 
 ## [0.2.1] - 2025-01-27
 

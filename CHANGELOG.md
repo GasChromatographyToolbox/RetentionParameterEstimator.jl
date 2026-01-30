@@ -4,6 +4,16 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
 
 ## [Unreleased]
 
+### Added
+
+- **Multi-start optimization**: Added optional multi-start optimization for single-substance modes (`Kcentric_single`, `dKcentric_single`)
+  - New `multistart_n` parameter in `estimate_parameters` to control number of random starting points
+  - Automatically enabled with 10 starts when only one chromatogram is available (improves accuracy with poor initial guesses)
+  - Can be manually enabled for any case by setting `multistart_n > 0`
+  - Created `optimize_Kcentric_multistart` and `optimize_dKcentric_multistart` wrapper functions
+  - Uses random perturbations (±20% by default) around initial parameter estimates
+  - Returns the best solution (lowest loss) across all starting points
+
 ## [0.2.1] - 2025-01-27
 
 ### Fixed

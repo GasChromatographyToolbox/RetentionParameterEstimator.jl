@@ -208,9 +208,9 @@ for meas_idx in 1:n_measurements
             diff = RetentionParameterEstimator.difference_estimation_to_alternative_data(res_no_multistart_values, db)
             
             # Check if any matches were found (not all NaN)
-            valid_relΔTchar = skipmissing(abs.(diff.relΔTchar))
-            valid_relΔθchar = skipmissing(abs.(diff.relΔθchar))
-            valid_relΔΔCp = skipmissing(abs.(diff.relΔΔCp))
+            valid_relΔTchar = collect(skipmissing(abs.(diff.relΔTchar)))
+            valid_relΔθchar = collect(skipmissing(abs.(diff.relΔθchar)))
+            valid_relΔΔCp = collect(skipmissing(abs.(diff.relΔΔCp)))
             
             if length(valid_relΔTchar) > 0 && length(valid_relΔθchar) > 0 && length(valid_relΔΔCp) > 0
                 db_comparison = (

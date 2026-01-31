@@ -40,6 +40,16 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
     - When `coupled_perturbation=true` (default), maintains empirical relationships: `θchar = 22.0 * (Tchar/Tst)^0.7 * (1000*col.df/col.d)^0.09` and `ΔCp = -52.0 + 0.34*Tchar`
     - When `coupled_perturbation=false`, all parameters are perturbed independently (allows exploration of parameter space that doesn't follow empirical trends)
     - Updated benchmark scripts (`benchmark_multistart_m1.jl`, `benchmark_multistart_m2.jl`, `benchmark_multistart_m4.jl`) to use `coupled_perturbation=true`
+  - **Database comparison for multistart results**: Enhanced benchmark scripts to show database comparisons for both no multistart and multistart cases
+    - Added database comparison computation for multistart results in all benchmark scripts
+    - Displays mean relative differences for Tchar, θchar, and ΔCp for both optimization strategies
+    - Helps evaluate how multistart affects the accuracy of estimated retention parameters
+  - **Weighted start parameter estimation**: Added `estimate_start_parameter_single_ramp_weighted()` function that gives more weight to measurements with higher heating rates
+    - Accounts for the observation that higher heating rates provide more accurate Tchar estimates
+    - Uses exponential weighting: `weight = exp(α * (rT - rT_min))` where `α` controls the strength (default 2.0)
+    - Combines weighted average (default 70%) with interpolation to rT_nom (default 30%) for theoretical correction
+    - Configurable via `α` parameter (weighting strength) and `weighted_fraction` parameter (mix ratio)
+    - Original `estimate_start_parameter_single_ramp()` function remains unchanged and is still the default
 
 ### Fixed
 

@@ -33,6 +33,12 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
     - Shows summary of failed optimizations and improved solutions found
     - Added optional `verbose` parameter to `optimize_Kcentric_multistart` and `optimize_dKcentric_multistart` for detailed logging
     - Helps identify why multistart might give worse results than non-multistart (e.g., if original starting point fails)
+  - **Coupled parameter perturbation for multistart**: Added option to maintain empirical relationships between retention parameters during multistart perturbations
+    - Created `perturb_retention_parameters_coupled()` function: only perturbs Tchar, recalculates θchar and ΔCp using empirical formulas (default behavior)
+    - Created `perturb_retention_parameters_independent()` function: perturbs all three parameters independently (previous behavior)
+    - Added `coupled_perturbation=true` parameter to `optimize_Kcentric_multistart`, `optimize_dKcentric_multistart`, and `estimate_parameters`
+    - When `coupled_perturbation=true` (default), maintains empirical relationships: `θchar = 22.0 * (Tchar/Tst)^0.7 * (1000*col.df/col.d)^0.09` and `ΔCp = -52.0 + 0.34*Tchar`
+    - When `coupled_perturbation=false`, all parameters are perturbed independently (allows exploration of parameter space that doesn't follow empirical trends)
 
 ### Changed
 

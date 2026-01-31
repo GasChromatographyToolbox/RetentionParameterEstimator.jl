@@ -149,12 +149,12 @@ for meas_idx in 1:n_measurements
             mode="Kcentric_single", pout=meas_single[5], time_unit=meas_single[6],
             method=RetentionParameterEstimator.NewtonTrustRegion(), 
             opt=RetentionParameterEstimator.std_opt,
-            maxiters=maxiters, maxtime=maxtime, multistart_n=0
+            maxiters=maxiters, maxtime=maxtime, multistart_n=0, coupled_perturbation=true
         )[1]
     end
     
     # Benchmark with multistart
-    println("  Running with multistart (n=$multistart_n)...")
+    println("  Running with multistart (n=$multistart_n, coupled_perturbation=true)...")
     time_multistart = @elapsed begin
         res_multistart = RetentionParameterEstimator.estimate_parameters(
             meas_single[3], meas_single[4], col, meas_single[2], 
@@ -162,7 +162,7 @@ for meas_idx in 1:n_measurements
             mode="Kcentric_single", pout=meas_single[5], time_unit=meas_single[6],
             method=RetentionParameterEstimator.NewtonTrustRegion(), 
             opt=RetentionParameterEstimator.std_opt,
-            maxiters=maxiters, maxtime=maxtime, multistart_n=multistart_n
+            maxiters=maxiters, maxtime=maxtime, multistart_n=multistart_n, coupled_perturbation=true
         )[1]
     end
     

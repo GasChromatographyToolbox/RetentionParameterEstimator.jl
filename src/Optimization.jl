@@ -234,10 +234,12 @@ function optimize_Kcentric_multistart(tR::Vector{T}, substance_list, col, prog, 
         # Generate random perturbations
         if coupled_perturbation
             # Maintain empirical relationships: only Tchar is perturbed; θchar and ΔCp are recalculated
-            Tchar_perturbed, θchar_perturbed, ΔCp_perturbed = perturb_retention_parameters_coupled(Tchar_e, θchar_e, ΔCp_e, col; perturbation=perturbation)
+            # Use invokelatest to avoid world age issues in Julia 1.12+
+            Tchar_perturbed, θchar_perturbed, ΔCp_perturbed = Base.invokelatest(perturb_retention_parameters_coupled, Tchar_e, θchar_e, ΔCp_e, col; perturbation=perturbation)
         else
             # Independent perturbations: all three parameters are perturbed independently
-            Tchar_perturbed, θchar_perturbed, ΔCp_perturbed = perturb_retention_parameters_independent(Tchar_e, θchar_e, ΔCp_e; perturbation=perturbation)
+            # Use invokelatest to avoid world age issues in Julia 1.12+
+            Tchar_perturbed, θchar_perturbed, ΔCp_perturbed = Base.invokelatest(perturb_retention_parameters_independent, Tchar_e, θchar_e, ΔCp_e; perturbation=perturbation)
         end
         
         try
@@ -318,10 +320,12 @@ function optimize_dKcentric_multistart(tR::Vector{T}, substance_list, col, prog,
             # Maintain empirical relationships: only Tchar is perturbed; θchar and ΔCp are recalculated
             # Note: We need to create a temporary column with the perturbed diameter for θchar calculation
             col_perturbed = GasChromatographySimulator.Column(col.L, d_perturbed, col.df, col.sp, col.gas)
-            Tchar_perturbed, θchar_perturbed, ΔCp_perturbed = perturb_retention_parameters_coupled(Tchar_e, θchar_e, ΔCp_e, col_perturbed; perturbation=perturbation)
+            # Use invokelatest to avoid world age issues in Julia 1.12+
+            Tchar_perturbed, θchar_perturbed, ΔCp_perturbed = Base.invokelatest(perturb_retention_parameters_coupled, Tchar_e, θchar_e, ΔCp_e, col_perturbed; perturbation=perturbation)
         else
             # Independent perturbations: all three parameters are perturbed independently
-            Tchar_perturbed, θchar_perturbed, ΔCp_perturbed = perturb_retention_parameters_independent(Tchar_e, θchar_e, ΔCp_e; perturbation=perturbation)
+            # Use invokelatest to avoid world age issues in Julia 1.12+
+            Tchar_perturbed, θchar_perturbed, ΔCp_perturbed = Base.invokelatest(perturb_retention_parameters_independent, Tchar_e, θchar_e, ΔCp_e; perturbation=perturbation)
         end
         
         try

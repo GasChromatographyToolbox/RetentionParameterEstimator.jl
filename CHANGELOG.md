@@ -39,6 +39,13 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
     - Added `coupled_perturbation=true` parameter to `optimize_Kcentric_multistart`, `optimize_dKcentric_multistart`, and `estimate_parameters`
     - When `coupled_perturbation=true` (default), maintains empirical relationships: `θchar = 22.0 * (Tchar/Tst)^0.7 * (1000*col.df/col.d)^0.09` and `ΔCp = -52.0 + 0.34*Tchar`
     - When `coupled_perturbation=false`, all parameters are perturbed independently (allows exploration of parameter space that doesn't follow empirical trends)
+    - Updated benchmark scripts (`benchmark_multistart_m1.jl`, `benchmark_multistart_m2.jl`, `benchmark_multistart_m4.jl`) to use `coupled_perturbation=true`
+
+### Fixed
+
+- **Julia 1.12+ compatibility**: Fixed world age warnings for `perturb_retention_parameters_coupled` and `perturb_retention_parameters_independent` functions
+  - Used `Base.invokelatest()` when calling perturbation functions from multistart functions to ensure compatibility with Julia 1.12+ stricter world age semantics
+  - Prevents warnings that could become errors in future Julia versions
 
 ### Changed
 

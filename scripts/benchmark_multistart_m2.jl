@@ -194,44 +194,51 @@ for meas_idx in 1:n_measurements
         0.0
     end
     
-    # Compare with database if available
-    db_comparison = nothing
-    if db !== nothing
-        try
-            # Extract values from Measurements if needed
-            res_no_multistart_values = DataFrame(
-                Name=res_no_multistart.Name,
-                Tchar=[isa(x, Measurements.Measurement) ? Measurements.value(x) : x for x in res_no_multistart.Tchar],
-                θchar=[isa(x, Measurements.Measurement) ? Measurements.value(x) : x for x in res_no_multistart.θchar],
-                ΔCp=[isa(x, Measurements.Measurement) ? Measurements.value(x) : x for x in res_no_multistart.ΔCp]
-            )
-            diff = RetentionParameterEstimator.difference_estimation_to_alternative_data(res_no_multistart_values, db)
-            
-            # Check if any matches were found (not all NaN)
-            valid_relΔTchar = collect(skipmissing(abs.(diff.relΔTchar)))
-            valid_relΔθchar = collect(skipmissing(abs.(diff.relΔθchar)))
-            valid_relΔΔCp = collect(skipmissing(abs.(diff.relΔΔCp)))
-            
-            if length(valid_relΔTchar) > 0 && length(valid_relΔθchar) > 0 && length(valid_relΔΔCp) > 0
-                db_comparison = (
-                    mean_abs_relΔTchar=mean(valid_relΔTchar) * 100,
-                    mean_abs_relΔθchar=mean(valid_relΔθchar) * 100,
-                    mean_abs_relΔΔCp=mean(valid_relΔΔCp) * 100,
-                    n_matched=length(valid_relΔTchar)
+    # Compare with database if available (for both no multistart and multistart)
+    db_comparison_no_multistart = nothing
+    db_comparison_multistart = nothing
+    
+    # Helper function to compute database comparison
+    function compute_db_comparison(res_df, label)
+        if db !== nothing
+            try
+                # Extract values from Measurements if needed
+                res_values = DataFrame(
+                    Name=res_df.Name,
+                    Tchar=[isa(x, Measurements.Measurement) ? Measurements.value(x) : x for x in res_df.Tchar],
+                    θchar=[isa(x, Measurements.Measurement) ? Measurements.value(x) : x for x in res_df.θchar],
+                    ΔCp=[isa(x, Measurements.Measurement) ? Measurements.value(x) : x for x in res_df.ΔCp]
                 )
-            else
-                # No matches found - substances in results don't match database
-                db_comparison = (n_matched=0,)
+                diff = RetentionParameterEstimator.difference_estimation_to_alternative_data(res_values, db)
+                
+                # Check if any matches were found (not all NaN)
+                valid_relΔTchar = collect(skipmissing(abs.(diff.relΔTchar)))
+                valid_relΔθchar = collect(skipmissing(abs.(diff.relΔθchar)))
+                valid_relΔΔCp = collect(skipmissing(abs.(diff.relΔΔCp)))
+                
+                if length(valid_relΔTchar) > 0 && length(valid_relΔθchar) > 0 && length(valid_relΔΔCp) > 0
+                    return (
+                        mean_abs_relΔTchar=mean(valid_relΔTchar) * 100,
+                        mean_abs_relΔθchar=mean(valid_relΔθchar) * 100,
+                        mean_abs_relΔΔCp=mean(valid_relΔΔCp) * 100,
+                        n_matched=length(valid_relΔTchar)
+                    )
+                else
+                    # No matches found - substances in results don't match database
+                    return (n_matched=0,)
+                end
+            catch e
+                # If comparison fails, show error for debugging
+                println("    Warning: Database comparison failed for $label: $(typeof(e)) - $(e)")
+                return nothing
             end
-        catch e
-            # If comparison fails, show error for debugging
-            println("    Warning: Database comparison failed: $(typeof(e)) - $(e)")
-            println("    Stacktrace: $(sprint(showerror, e, catch_backtrace()))")
+        else
+            return nothing
         end
-    else
-        # Debug: why is db nothing?
-        println("    Debug: db is nothing, cannot compare with database")
     end
+    
+    db_comparison_no_multistart = compute_db_comparison(res_no_multistart, "no multistart")
+    db_comparison_multistart = compute_db_comparison(res_multistart, "multistart")
     
     # Store results
     push!(results, (
@@ -242,7 +249,8 @@ for meas_idx in 1:n_measurements
         avg_loss_multistart=avg_loss_multistart,
         loss_improvement=loss_improvement,
         speedup=time_no_multistart / time_multistart,
-        db_comparison=db_comparison
+        db_comparison_no_multistart=db_comparison_no_multistart,
+        db_comparison_multistart=db_comparison_multistart
     ))
     
     # Format loss values appropriately
@@ -263,14 +271,27 @@ for meas_idx in 1:n_measurements
     if loss_improvement != 0.0
         println("    Loss improvement:         $(@sprintf("%.2f", loss_improvement))%")
     end
-    if db_comparison !== nothing
-        if haskey(db_comparison, :n_matched) && db_comparison.n_matched == 0
-            println("    Database comparison: No matching substances found (check CAS numbers)")
-        elseif haskey(db_comparison, :mean_abs_relΔTchar)
-            println("    Database comparison (no multistart, $(db_comparison.n_matched) substances):")
-            println("      Mean |rel ΔTchar|: $(@sprintf("%.2f", db_comparison.mean_abs_relΔTchar))%")
-            println("      Mean |rel Δθchar|: $(@sprintf("%.2f", db_comparison.mean_abs_relΔθchar))%")
-            println("      Mean |rel ΔΔCp|:   $(@sprintf("%.2f", db_comparison.mean_abs_relΔΔCp))%")
+    # Database comparison for no multistart
+    if db_comparison_no_multistart !== nothing
+        if haskey(db_comparison_no_multistart, :n_matched) && db_comparison_no_multistart.n_matched == 0
+            println("    Database comparison (no multistart): No matching substances found (check CAS numbers)")
+        elseif haskey(db_comparison_no_multistart, :mean_abs_relΔTchar)
+            println("    Database comparison (no multistart, $(db_comparison_no_multistart.n_matched) substances):")
+            println("      Mean |rel ΔTchar|: $(@sprintf("%.2f", db_comparison_no_multistart.mean_abs_relΔTchar))%")
+            println("      Mean |rel Δθchar|: $(@sprintf("%.2f", db_comparison_no_multistart.mean_abs_relΔθchar))%")
+            println("      Mean |rel ΔΔCp|:   $(@sprintf("%.2f", db_comparison_no_multistart.mean_abs_relΔΔCp))%")
+        end
+    end
+    
+    # Database comparison for multistart
+    if db_comparison_multistart !== nothing
+        if haskey(db_comparison_multistart, :n_matched) && db_comparison_multistart.n_matched == 0
+            println("    Database comparison (multistart): No matching substances found (check CAS numbers)")
+        elseif haskey(db_comparison_multistart, :mean_abs_relΔTchar)
+            println("    Database comparison (multistart, $(db_comparison_multistart.n_matched) substances):")
+            println("      Mean |rel ΔTchar|: $(@sprintf("%.2f", db_comparison_multistart.mean_abs_relΔTchar))%")
+            println("      Mean |rel Δθchar|: $(@sprintf("%.2f", db_comparison_multistart.mean_abs_relΔθchar))%")
+            println("      Mean |rel ΔΔCp|:   $(@sprintf("%.2f", db_comparison_multistart.mean_abs_relΔΔCp))%")
         end
     end
     println()
@@ -306,10 +327,11 @@ for r in results
     println("    Time: $(@sprintf("%.2f", r.time_no_multistart))s → $(@sprintf("%.2f", r.time_multistart))s ($(@sprintf("%.2f", r.speedup))x)")
     println("    Loss: $(format_loss(r.avg_loss_no_multistart)) → $(format_loss(r.avg_loss_multistart))", 
             r.loss_improvement != 0.0 ? " ($(@sprintf("%+.2f", r.loss_improvement))%)" : "")
-    if r.db_comparison !== nothing
-        if haskey(r.db_comparison, :mean_abs_relΔTchar)
-            println("    DB ($(r.db_comparison.n_matched) matched): |rel ΔTchar|=$(@sprintf("%.2f", r.db_comparison.mean_abs_relΔTchar))%, |rel Δθchar|=$(@sprintf("%.2f", r.db_comparison.mean_abs_relΔθchar))%, |rel ΔΔCp|=$(@sprintf("%.2f", r.db_comparison.mean_abs_relΔΔCp))%")
-        end
+    if r.db_comparison_no_multistart !== nothing && haskey(r.db_comparison_no_multistart, :mean_abs_relΔTchar)
+        println("    DB no multistart ($(r.db_comparison_no_multistart.n_matched) matched): |rel ΔTchar|=$(@sprintf("%.2f", r.db_comparison_no_multistart.mean_abs_relΔTchar))%, |rel Δθchar|=$(@sprintf("%.2f", r.db_comparison_no_multistart.mean_abs_relΔθchar))%, |rel ΔΔCp|=$(@sprintf("%.2f", r.db_comparison_no_multistart.mean_abs_relΔΔCp))%")
+    end
+    if r.db_comparison_multistart !== nothing && haskey(r.db_comparison_multistart, :mean_abs_relΔTchar)
+        println("    DB multistart ($(r.db_comparison_multistart.n_matched) matched): |rel ΔTchar|=$(@sprintf("%.2f", r.db_comparison_multistart.mean_abs_relΔTchar))%, |rel Δθchar|=$(@sprintf("%.2f", r.db_comparison_multistart.mean_abs_relΔθchar))%, |rel ΔΔCp|=$(@sprintf("%.2f", r.db_comparison_multistart.mean_abs_relΔΔCp))%")
     end
 end
 

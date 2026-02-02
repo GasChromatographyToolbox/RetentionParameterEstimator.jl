@@ -43,10 +43,88 @@ function elution_temperature(tRs, prog)
 end
 
 """
-    estimate_start_parameter_single_ramp(tRs::DataFrame, col, prog; time_unit="min", control="Pressure")
+    average_ramp_rate(prog; time_unit="min")
+
+Calculate the average ramp rate from the first to the last temperature plateau, ignoring holding times at the beginning and end.
+
+The function:
+1. Identifies the first temperature plateau (initial temperature)
+2. Identifies the last temperature plateau (final temperature)
+3. Calculates the cumulative time to reach the last plateau (excluding initial hold)
+4. Returns the average ramp rate: (T_last - T_first) / (t_cumulative_to_last - t_cumulative_to_first)
+
+# Arguments
+* `prog` ... GC program object with `time_steps` and `temp_steps` fields
+* `time_unit="min"` ... Time unit for the calculation
+
+# Returns
+* Average ramp rate in °C per time unit
+"""
+function average_ramp_rate(prog; time_unit="min")
+    a = time_unit_conversion_factor(time_unit)
+    time_steps = prog.time_steps
+    temp_steps = prog.temp_steps
+    
+    # First temperature plateau (initial temperature)
+    T_first = temp_steps[1]
+    
+    # Last temperature plateau (final temperature)
+    T_last = temp_steps[end]
+    
+    # Find when the first temperature change occurs (end of initial hold)
+    # This is when temp_steps changes from the initial value
+    first_change_idx = 1
+    for i = 2:length(temp_steps)
+        if temp_steps[i] != T_first
+            first_change_idx = i - 1  # Last index with initial temperature
+            break
+        end
+    end
+    
+    # Find when the last temperature plateau is reached (start of final hold)
+    # This is when temp_steps reaches the final value
+    last_reached_idx = length(temp_steps)
+    for i = (length(temp_steps)-1):-1:1
+        if temp_steps[i] != T_last
+            last_reached_idx = i + 1  # First index with final temperature
+            break
+        end
+    end
+    
+    # Calculate cumulative times
+    # Time to reach first change (end of initial hold) - this is the start of ramping
+    t_cumulative_first = sum(time_steps[1:first_change_idx])
+    
+    # Time to reach last plateau (start of final hold) - this is the end of ramping
+    t_cumulative_last = sum(time_steps[1:last_reached_idx])
+    
+    # Calculate average ramp rate
+    # Check for valid ramp: must have temperature change and time difference
+    if T_last != T_first && t_cumulative_last > t_cumulative_first && last_reached_idx > first_change_idx
+        RT = (T_last - T_first) / (t_cumulative_last - t_cumulative_first) * a
+    else
+        # Fallback: if no valid ramp detected (e.g., isothermal program, no time difference)
+        # Return 0.0 - caller should handle this case (e.g., fall back to original method)
+        RT = 0.0
+    end
+    
+    return RT
+end
+
+"""
+    estimate_start_parameter_single_ramp(tRs::DataFrame, col, prog; time_unit="min", control="Pressure", use_average_ramp=false)
 
 Estimation of initial parameters for `Tchar`, `θchar` and `ΔCp` based on the elution temperatures calculated from the retention times `tR` and GC programs `prog` for column `col`.
 For this function it is assumed, that single ramp heating programs are used. The elution temperatures of all measurements are calculated and than interpolated over the heating rates. For a dimensionless heating rate of 0.69 the elution temperature and the characteristic temperature of a substance are nearly equal.
+
+# Arguments
+* `tRs` ... DataFrame with retention times
+* `col` ... Column object
+* `prog` ... Array of GC programs
+* `time_unit="min"` ... Time unit of the retention times
+* `control="Pressure"` ... Control mode for holdup time calculation
+* `use_average_ramp=false` ... If `true`, calculates average ramp rate from first to last temperature plateau (ignoring holding times). If `false`, uses the original method assuming a single ramp between time_steps 2 and 3.
+
 Based on this estimated `Tchar` estimates for the initial values of `θchar` and `ΔCp` are calculated as
     ``
     \\theta_{char,init} = 22 \\left(\\frac{T_{char,init}}{T_{st}}\\right)^{0.7} \\left(1000\\frac{d_f}{d}\\right)^{0.09} °C
@@ -62,7 +140,7 @@ and
 * `ΔCp_est` ... estimate for initial guess of ΔCp
 * `Telu_max` ... the maximum of the calculated elution temperatures of the solutes
 """    
-function estimate_start_parameter_single_ramp(tRs::DataFrame, col, prog; time_unit="min", control="Pressure")
+function estimate_start_parameter_single_ramp(tRs::DataFrame, col, prog; time_unit="min", control="Pressure", use_average_ramp=false)
     a = time_unit_conversion_factor(time_unit)
     tR_meas = Array(tRs[:,2:end]).*a
     nt, ns = size(tR_meas)
@@ -71,8 +149,17 @@ function estimate_start_parameter_single_ramp(tRs::DataFrame, col, prog; time_un
     Telu_meas = Array{Float64}(undef, nt, ns)
     for i=1:nt
         tMref[i] = reference_holdup_time(col, prog[i]; control=control)/a
-        # single-ramp temperature programs with ramp between time_steps 2 and 3 are assumed
-        RT[i] = (prog[i].temp_steps[3] - prog[i].temp_steps[2])/prog[i].time_steps[3]*a 
+        if use_average_ramp
+            # Calculate average ramp rate from first to last temperature plateau
+            RT[i] = average_ramp_rate(prog[i]; time_unit=time_unit)
+            # Fallback to original method if average_ramp_rate returns 0 (e.g., isothermal program)
+            if RT[i] == 0.0 && length(prog[i].temp_steps) >= 3
+                RT[i] = (prog[i].temp_steps[3] - prog[i].temp_steps[2])/prog[i].time_steps[3]*a 
+            end
+        else
+            # single-ramp temperature programs with ramp between time_steps 2 and 3 are assumed
+            RT[i] = (prog[i].temp_steps[3] - prog[i].temp_steps[2])/prog[i].time_steps[3]*a 
+        end
         Telu_meas[i,:] = elution_temperature(tR_meas[i,:], prog[i])
     end 
     rT = RT.*tMref./θref
@@ -102,7 +189,7 @@ function estimate_start_parameter_single_ramp(tRs::DataFrame, col, prog; time_un
 end
 
 """
-    estimate_start_parameter_single_ramp_weighted(tRs::DataFrame, col, prog; time_unit="min", control="Pressure", α=2.0, weighted_fraction=0.7)
+    estimate_start_parameter_single_ramp_weighted(tRs::DataFrame, col, prog; time_unit="min", control="Pressure", α=2.0, weighted_fraction=0.7, use_average_ramp=false)
 
 Estimation of initial parameters for `Tchar`, `θchar` and `ΔCp` based on the elution temperatures calculated from the retention times `tR` and GC programs `prog` for column `col`.
 This function is similar to `estimate_start_parameter_single_ramp`, but uses a weighted approach that gives more weight to measurements with higher heating rates, as these typically provide more accurate Tchar estimates.
@@ -123,6 +210,7 @@ The weighting uses exponential scaling: `weight = exp(α * (rT - rT_min))`, wher
 * `control="Pressure"` ... Control mode for holdup time calculation
 * `α=2.0` ... Weighting factor for exponential weighting (higher values give more weight to high heating rates)
 * `weighted_fraction=0.7` ... Fraction of weighted average in the final estimate (remaining fraction uses interpolation)
+* `use_average_ramp=false` ... If `true`, calculates average ramp rate from first to last temperature plateau (ignoring holding times). If `false`, uses the original method assuming a single ramp between time_steps 2 and 3.
 
 # Output
 * `Tchar_est` ... estimate for initial guess of the characteristic temperature
@@ -139,7 +227,7 @@ and
     \\Delta C_p = (-52 + 0.34 T_{char,init}) \\mathrm{J mol^{-1} K^{-1}}
     ``
 """    
-function estimate_start_parameter_single_ramp_weighted(tRs::DataFrame, col, prog; time_unit="min", control="Pressure", α=2.0, weighted_fraction=0.7)
+function estimate_start_parameter_single_ramp_weighted(tRs::DataFrame, col, prog; time_unit="min", control="Pressure", α=2.0, weighted_fraction=0.7, use_average_ramp=false)
     a = time_unit_conversion_factor(time_unit)
     tR_meas = Array(tRs[:,2:end]).*a
     nt, ns = size(tR_meas)
@@ -148,8 +236,17 @@ function estimate_start_parameter_single_ramp_weighted(tRs::DataFrame, col, prog
     Telu_meas = Array{Float64}(undef, nt, ns)
     for i=1:nt
         tMref[i] = reference_holdup_time(col, prog[i]; control=control)/a
-        # single-ramp temperature programs with ramp between time_steps 2 and 3 are assumed
-        RT[i] = (prog[i].temp_steps[3] - prog[i].temp_steps[2])/prog[i].time_steps[3]*a 
+        if use_average_ramp
+            # Calculate average ramp rate from first to last temperature plateau
+            RT[i] = average_ramp_rate(prog[i]; time_unit=time_unit)
+            # Fallback to original method if average_ramp_rate returns 0 (e.g., isothermal program)
+            if RT[i] == 0.0 && length(prog[i].temp_steps) >= 3
+                RT[i] = (prog[i].temp_steps[3] - prog[i].temp_steps[2])/prog[i].time_steps[3]*a 
+            end
+        else
+            # single-ramp temperature programs with ramp between time_steps 2 and 3 are assumed
+            RT[i] = (prog[i].temp_steps[3] - prog[i].temp_steps[2])/prog[i].time_steps[3]*a 
+        end
         Telu_meas[i,:] = elution_temperature(tR_meas[i,:], prog[i])
     end 
     rT = RT.*tMref./θref

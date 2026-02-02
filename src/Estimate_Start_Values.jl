@@ -313,6 +313,112 @@ end
 
 
 """
+    estimate_start_parameter_single_measurement_corrected(tRs, col, prog; time_unit="min", control="Pressure", use_average_ramp=false)
+
+Estimation of initial parameters for `Tchar`, `θchar` and `ΔCp` from a single measurement using a correction model based on the dimensionless heating rate.
+
+This function is designed for estimating retention parameters from a single chromatogram, ideally with a single ramp program. It uses the empirical relationship:
+    ``
+    T_{elu}/T_{char} = 0.25 \\sqrt{rT} + 0.8
+    ``
+which leads to the corrected estimate:
+    ``
+    T_{char,est} = T_{elu} / (0.25 \\sqrt{rT} + 0.8)
+    ``
+
+where `rT` is the dimensionless heating rate.
+
+Based on this estimated `Tchar` estimates for the initial values of `θchar` and `ΔCp` are calculated as
+    ``
+    \\theta_{char,init} = 22 \\left(\\frac{T_{char,init}}{T_{st}}\\right)^{0.7} \\left(1000\\frac{d_f}{d}\\right)^{0.09} °C
+    ``
+and
+    ``
+    \\Delta C_p = (-52 + 0.34 T_{char,init}) \\mathrm{J mol^{-1} K^{-1}}
+    ``
+
+# Arguments
+* `tRs` ... Vector of retention times or single-row DataFrame with retention times (first column is substance names, remaining columns are retention times)
+* `col` ... Column object
+* `prog` ... Single GC program object (not an array)
+* `time_unit="min"` ... Time unit of the retention times
+* `control="Pressure"` ... Control mode for holdup time calculation
+* `use_average_ramp=false` ... If `true`, calculates average ramp rate from first to last temperature plateau. If `false`, uses the original method assuming a single ramp between time_steps 2 and 3.
+
+# Output
+* `Tchar_est` ... estimate for initial guess of the characteristic temperature (vector, one value per substance)
+* `θchar_est` ... estimate for initial guess of θchar (vector, one value per substance)
+* `ΔCp_est` ... estimate for initial guess of ΔCp (vector, one value per substance)
+* `Telu_max` ... the maximum of the calculated elution temperatures of the solutes (vector, one value per substance)
+
+# Note
+This function is intended for use with a single measurement. For multiple measurements, use `estimate_start_parameter_single_ramp()` or `estimate_start_parameter_single_ramp_weighted()` instead.
+""" 
+function estimate_start_parameter_single_measurement_corrected(tRs, col, prog; time_unit="min", control="Pressure", use_average_ramp=false)
+    a = time_unit_conversion_factor(time_unit)
+    
+    # Handle input: tRs can be a vector or a DataFrame
+    if isa(tRs, DataFrame)
+        # DataFrame: extract first row (single measurement), skip first column with substance names
+        # Get retention times as a vector
+        tR_meas = vec(Array(tRs[1, 2:end])) .* a
+        ns = length(tR_meas)  # number of substances
+    else
+        # Vector: assume it's a single row of retention times
+        tR_meas = (tRs .* a)[:]  # ensure it's a column vector
+        ns = length(tR_meas)
+    end
+    
+    # Calculate reference holdup time
+    tMref = reference_holdup_time(col, prog; control=control)/a
+    
+    # Calculate ramp rate
+    if use_average_ramp
+        RT = average_ramp_rate(prog; time_unit=time_unit)
+        # Fallback to original method if average_ramp_rate returns 0
+        if RT == 0.0 && length(prog.temp_steps) >= 3
+            RT = (prog.temp_steps[3] - prog.temp_steps[2])/prog.time_steps[3]*a 
+        end
+    else
+        # single-ramp temperature programs with ramp between time_steps 2 and 3 are assumed
+        RT = (prog.temp_steps[3] - prog.temp_steps[2])/prog.time_steps[3]*a 
+    end
+    
+    # Calculate dimensionless heating rate
+    rT = RT * tMref / θref
+    
+    # Calculate elution temperatures (elution_temperature expects a vector)
+    Telu_meas = elution_temperature(tR_meas, prog)
+    
+    # Initialize output arrays
+    Telu_max = Array{Float64}(undef, ns)
+    Tchar_est = Array{Float64}(undef, ns)
+    θchar_est = Array{Float64}(undef, ns)
+    ΔCp_est = Array{Float64}(undef, ns)
+    
+    # Apply correction model: Tchar_est = Telu / (0.25*sqrt(rT) + 0.8)
+    correction_factor = 0.25 * sqrt(rT) + 0.8
+    
+    for i=1:ns
+        if !isnan(Telu_meas[i])
+            Telu_max[i] = Telu_meas[i]
+            # Apply correction: Tchar_est = Telu / (0.25*sqrt(rT) + 0.8)
+            Tchar_est[i] = Telu_meas[i] / correction_factor
+            # Calculate θchar and ΔCp from Tchar
+            θchar_est[i] = 22.0*(Tchar_est[i]/Tst)^0.7*(1000*col.df/col.d)^0.09
+            ΔCp_est[i] = -52.0 + 0.34*Tchar_est[i]
+        else
+            Telu_max[i] = NaN
+            Tchar_est[i] = NaN
+            θchar_est[i] = NaN
+            ΔCp_est[i] = NaN
+        end
+    end
+    
+    return Tchar_est, θchar_est, ΔCp_est, Telu_max
+end
+
+"""
     estimate_start_parameter_mean_elu_temp(tRs::DataFrame, col, prog; time_unit="min", control="Pressure")
 
 Estimation of initial parameters for `Tchar`, `θchar` and `ΔCp` based on the elution temperatures calculated from the retention times `tR` and GC programs `prog` for column `col`.

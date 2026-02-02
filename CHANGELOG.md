@@ -56,6 +56,13 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
     - When `use_average_ramp=true`, works with complex temperature programs (multiple ramps, holds) instead of assuming single ramp between time_steps 2 and 3
     - Falls back to original method if average ramp rate calculation fails (e.g., isothermal programs)
     - Default behavior (`use_average_ramp=false`) maintains backward compatibility
+  - **Corrected single measurement parameter estimation**: Added `estimate_start_parameter_single_measurement_corrected()` function for estimating retention parameters from a single chromatogram
+    - Uses empirical correction model: `Tchar_est = Telu / (0.25*sqrt(rT) + 0.8)` where `rT` is the dimensionless heating rate
+    - Designed for single measurement scenarios, ideally with single ramp programs
+    - Accepts both DataFrame (single row) and Vector inputs for retention times
+    - Supports `use_average_ramp` parameter for flexible ramp rate calculation
+    - Calculates θchar and ΔCp from corrected Tchar using standard empirical relationships
+    - Useful when only one chromatogram is available and correction for heating rate effects is needed
 
 ### Fixed
 

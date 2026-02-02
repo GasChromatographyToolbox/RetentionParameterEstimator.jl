@@ -50,6 +50,12 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
     - Combines weighted average (default 70%) with interpolation to rT_nom (default 30%) for theoretical correction
     - Configurable via `α` parameter (weighting strength) and `weighted_fraction` parameter (mix ratio)
     - Original `estimate_start_parameter_single_ramp()` function remains unchanged and is still the default
+  - **Generalized ramp rate calculation**: Added `average_ramp_rate()` function and `use_average_ramp` parameter for more flexible temperature program handling
+    - New `average_ramp_rate()` function calculates average ramp rate from first to last temperature plateau, ignoring holding times at beginning and end
+    - Added optional `use_average_ramp=false` parameter to `estimate_start_parameter_single_ramp()` and `estimate_start_parameter_single_ramp_weighted()`
+    - When `use_average_ramp=true`, works with complex temperature programs (multiple ramps, holds) instead of assuming single ramp between time_steps 2 and 3
+    - Falls back to original method if average ramp rate calculation fails (e.g., isothermal programs)
+    - Default behavior (`use_average_ramp=false`) maintains backward compatibility
 
 ### Fixed
 

@@ -8,8 +8,8 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
 
 - **Multi-start optimization**: Added optional multi-start optimization for single-substance modes (`Kcentric_single`, `dKcentric_single`)
   - New `multistart_n` parameter in `estimate_parameters` to control number of random starting points
-  - Automatically enabled with 10 starts when only one chromatogram is available (improves accuracy with poor initial guesses)
-  - Can be manually enabled for any case by setting `multistart_n > 0`
+  - Controlled solely by `multistart_n` parameter: `0` (default) = disabled, `>0` = enabled with specified number of starts
+  - Single and multiple chromatograms are treated the same way (no automatic multistart for single chromatograms)
   - Created `optimize_Kcentric_multistart` and `optimize_dKcentric_multistart` wrapper functions
   - Uses random perturbations (±20% by default) around initial parameter estimates
   - Returns the best solution (lowest loss) across all starting points
@@ -71,6 +71,14 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
   - Prevents warnings that could become errors in future Julia versions
 
 ### Changed
+
+- **Multi-start optimization behavior**: Changed multistart control to be consistent across all cases
+  - Removed automatic multistart activation when only one chromatogram is provided
+  - Multistart is now controlled solely by the `multistart_n` parameter, regardless of the number of chromatograms
+  - Single and multiple chromatograms are treated identically (no special case behavior)
+  - Simplified code by removing intermediate `use_multistart` variable and using `multistart_n` directly
+  - Updated both `estimate_parameters` and `estimate_parameters_` functions for consistency
+  - **Note**: This is a behavior change. Previously, single chromatograms automatically used 10 multistart runs. Now multistart must be explicitly enabled via `multistart_n > 0`
 
 - **Dependencies**: Added `Random` as an explicit dependency in `Project.toml`
   - Required for multi-start optimization random number generation

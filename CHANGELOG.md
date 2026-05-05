@@ -44,6 +44,12 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
     - Added database comparison computation for multistart results in all benchmark scripts
     - Displays mean relative differences for Tchar, θchar, and ΔCp for both optimization strategies
     - Helps evaluate how multistart affects the accuracy of estimated retention parameters
+  - **Exploration and test helper files for multistart**:
+    - Added `scripts/multistart_test.jl` for ad-hoc multistart experiments
+    - Added `notebooks/multistart.jl` for interactive multistart exploration and diagnostics
+  - **Temporary benchmark/result artifacts**:
+    - Added intermediate benchmark/output files in `data/multistart_test/`, plus `m1.txt`, `m1_old.txt`, and `data/Method_benchmark.xlsx`
+    - These files are temporary test artifacts and should be removed in a future cleanup once multistart testing is finalized
   - **Weighted start parameter estimation**: Added `estimate_start_parameter_single_ramp_weighted()` function that gives more weight to measurements with higher heating rates
     - Accounts for the observation that higher heating rates provide more accurate Tchar estimates
     - Uses exponential weighting: `weight = exp(α * (rT - rT_min))` where `α` controls the strength (default 2.0)
@@ -69,6 +75,10 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
 - **Julia 1.12+ compatibility**: Fixed world age warnings for `perturb_retention_parameters_coupled` and `perturb_retention_parameters_independent` functions
   - Used `Base.invokelatest()` when calling perturbation functions from multistart functions to ensure compatibility with Julia 1.12+ stricter world age semantics
   - Prevents warnings that could become errors in future Julia versions
+- **Test refactoring**: Updated tests to use helper functions for data preparation
+  - Replaced manual time unit conversion with `time_unit_conversion_factor()` helper
+  - Replaced manual data preparation with `prepare_optimization_data()` and `prepare_single_substance_data()` helpers
+  - Improved test maintainability and consistency
 
 ### Changed
 
@@ -83,13 +93,6 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
 - **Dependencies**: Added `Random` as an explicit dependency in `Project.toml`
   - Required for multi-start optimization random number generation
   - `Random` is a standard library but must be declared as a dependency when used in packages
-
-### Fixed
-
-- **Test refactoring**: Updated tests to use helper functions for data preparation
-  - Replaced manual time unit conversion with `time_unit_conversion_factor()` helper
-  - Replaced manual data preparation with `prepare_optimization_data()` and `prepare_single_substance_data()` helpers
-  - Improved test maintainability and consistency
 
 ## [0.2.1] - 2025-01-27
 

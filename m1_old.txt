@@ -1,0 +1,185 @@
+================================================================================
+Benchmark: method_m1 with multistart (single chromatograms)
+================================================================================
+
+Configuration:
+  Data file: /Users/janleppert/Documents/GitHub/RetentionParameterEstimator/scripts/../data/meas_df05_Rxi5SilMS.csv
+  Multistart runs: 10
+  Optimization limits: maxiters=10000, maxtime=600.0
+
+Note: Multistart can sometimes be faster if non-multistart hits time limits.
+      Multistart should never give worse loss than non-multistart (it tries the
+      original starting point first). If it does, it's likely due to:
+      - Non-determinism when hitting time/iteration limits
+      - Different convergence paths due to numerical precision
+      - The first optimization in multistart failing (caught silently)
+
+  Database file found: /Users/janleppert/Documents/GitHub/RetentionParameterEstimator/scripts/../data/database_Rxi5SilMS_beta125.csv
+  Will compare results with database parameters
+  Loaded 12 substances from database
+
+Loading data...
+  Loaded 12 substances with 7 measurements
+
+--------------------------------------------------------------------------------
+Processing measurement 1 of 7: meas1
+--------------------------------------------------------------------------------
+  Running without multistart...
+  Running with multistart (n=10)...
+  Results:
+    Time (no multistart): 41.31 s
+    Time (multistart):    259.04 s
+    Speedup:              0.16x
+    Avg loss (no multistart): 2.65e-08
+    Avg loss (multistart):    1.10e-07
+    Loss improvement:         -313.99%
+    Database comparison (no multistart, 12 substances):
+      Mean |rel ΔTchar|: 10.60%
+      Mean |rel Δθchar|: 63.06%
+      Mean |rel ΔΔCp|:   19.86%
+
+--------------------------------------------------------------------------------
+Processing measurement 2 of 7: meas2
+--------------------------------------------------------------------------------
+  Running without multistart...
+  Running with multistart (n=10)...
+  Results:
+    Time (no multistart): 62.49 s
+    Time (multistart):    106.14 s
+    Speedup:              0.59x
+    Avg loss (no multistart): 3.93e-08
+    Avg loss (multistart):    3.34e-08
+    Loss improvement:         15.05%
+    Database comparison (no multistart, 12 substances):
+      Mean |rel ΔTchar|: 8.12%
+      Mean |rel Δθchar|: 72.32%
+      Mean |rel ΔΔCp|:   26.99%
+
+--------------------------------------------------------------------------------
+Processing measurement 3 of 7: meas3
+--------------------------------------------------------------------------------
+  Running without multistart...
+  Running with multistart (n=10)...
+  Results:
+    Time (no multistart): 101.97 s
+    Time (multistart):    101.72 s
+    Speedup:              1.00x
+    Avg loss (no multistart): 3.82e-08
+    Avg loss (multistart):    2.37e-08
+    Loss improvement:         38.02%
+    Database comparison (no multistart, 12 substances):
+      Mean |rel ΔTchar|: 4.84%
+      Mean |rel Δθchar|: 50.99%
+      Mean |rel ΔΔCp|:   22.65%
+
+--------------------------------------------------------------------------------
+Processing measurement 4 of 7: meas4
+--------------------------------------------------------------------------------
+  Running without multistart...
+  Running with multistart (n=10)...
+  Results:
+    Time (no multistart): 119.45 s
+    Time (multistart):    86.36 s
+    Speedup:              1.38x
+    Avg loss (no multistart): 7.76e-09
+    Avg loss (multistart):    7.46e-09
+    Loss improvement:         3.84%
+    Database comparison (no multistart, 12 substances):
+      Mean |rel ΔTchar|: 3.61%
+      Mean |rel Δθchar|: 54.11%
+      Mean |rel ΔΔCp|:   28.54%
+
+--------------------------------------------------------------------------------
+Processing measurement 5 of 7: meas5
+--------------------------------------------------------------------------------
+  Running without multistart...
+  Running with multistart (n=10)...
+  Results:
+    Time (no multistart): 87.35 s
+    Time (multistart):    74.48 s
+    Speedup:              1.17x
+    Avg loss (no multistart): 9.51e-09
+    Avg loss (multistart):    1.02e-09
+    Loss improvement:         89.30%
+    Database comparison (no multistart, 12 substances):
+      Mean |rel ΔTchar|: 2.30%
+      Mean |rel Δθchar|: 34.06%
+      Mean |rel ΔΔCp|:   46.37%
+
+--------------------------------------------------------------------------------
+Processing measurement 6 of 7: meas6
+--------------------------------------------------------------------------------
+  Running without multistart...
+  Running with multistart (n=10)...
+  Results:
+    Time (no multistart): 51.57 s
+    Time (multistart):    50.09 s
+    Speedup:              1.03x
+    Avg loss (no multistart): 2.31e-09
+    Avg loss (multistart):    4.23e-09
+    Loss improvement:         -82.96%
+    Database comparison (no multistart, 12 substances):
+      Mean |rel ΔTchar|: 1.74%
+      Mean |rel Δθchar|: 49.77%
+      Mean |rel ΔΔCp|:   78.00%
+
+--------------------------------------------------------------------------------
+Processing measurement 7 of 7: meas7
+--------------------------------------------------------------------------------
+  Running without multistart...
+  Running with multistart (n=10)...
+  Results:
+    Time (no multistart): 82.81 s
+    Time (multistart):    91.64 s
+    Speedup:              0.90x
+    Avg loss (no multistart): 1.82e-08
+    Avg loss (multistart):    8.97e-09
+    Loss improvement:         50.84%
+    Database comparison (no multistart, 12 substances):
+      Mean |rel ΔTchar|: 0.89%
+      Mean |rel Δθchar|: 45.05%
+      Mean |rel ΔΔCp|:   85.37%
+
+================================================================================
+Summary
+================================================================================
+
+Average across all measurements:
+  Average time (no multistart): 78.14 s
+  Average time (multistart):    109.92 s
+  Average speedup:              0.89x
+  Average loss improvement:    -28.56%
+
+Per-measurement details:
+  meas1:
+    Time: 41.31s → 259.04s (0.16x)
+    Loss: 2.65e-08 → 1.10e-07 (-313.99%)
+    DB (12 matched): |rel ΔTchar|=10.60%, |rel Δθchar|=63.06%, |rel ΔΔCp|=19.86%
+  meas2:
+    Time: 62.49s → 106.14s (0.59x)
+    Loss: 3.93e-08 → 3.34e-08 (+15.05%)
+    DB (12 matched): |rel ΔTchar|=8.12%, |rel Δθchar|=72.32%, |rel ΔΔCp|=26.99%
+  meas3:
+    Time: 101.97s → 101.72s (1.00x)
+    Loss: 3.82e-08 → 2.37e-08 (+38.02%)
+    DB (12 matched): |rel ΔTchar|=4.84%, |rel Δθchar|=50.99%, |rel ΔΔCp|=22.65%
+  meas4:
+    Time: 119.45s → 86.36s (1.38x)
+    Loss: 7.76e-09 → 7.46e-09 (+3.84%)
+    DB (12 matched): |rel ΔTchar|=3.61%, |rel Δθchar|=54.11%, |rel ΔΔCp|=28.54%
+  meas5:
+    Time: 87.35s → 74.48s (1.17x)
+    Loss: 9.51e-09 → 1.02e-09 (+89.30%)
+    DB (12 matched): |rel ΔTchar|=2.30%, |rel Δθchar|=34.06%, |rel ΔΔCp|=46.37%
+  meas6:
+    Time: 51.57s → 50.09s (1.03x)
+    Loss: 2.31e-09 → 4.23e-09 (-82.96%)
+    DB (12 matched): |rel ΔTchar|=1.74%, |rel Δθchar|=49.77%, |rel ΔΔCp|=78.00%
+  meas7:
+    Time: 82.81s → 91.64s (0.90x)
+    Loss: 1.82e-08 → 8.97e-09 (+50.84%)
+    DB (12 matched): |rel ΔTchar|=0.89%, |rel Δθchar|=45.05%, |rel ΔΔCp|=85.37%
+
+================================================================================
+Benchmark complete!
+================================================================================

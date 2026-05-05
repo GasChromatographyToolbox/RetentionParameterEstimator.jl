@@ -188,6 +188,7 @@ function estimate_start_parameter_single_ramp(tRs::DataFrame, col, prog; time_un
     return Tchar_est, θchar_est, ΔCp_est, Telu_max
 end
 
+# remove this function
 """
     estimate_start_parameter_single_ramp_weighted(tRs::DataFrame, col, prog; time_unit="min", control="Pressure", α=2.0, weighted_fraction=0.7, use_average_ramp=false)
 

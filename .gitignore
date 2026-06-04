@@ -23,5 +23,8 @@ docs/site/
 # environment.
 Manifest.toml
 
-# developer folder for notebooks
+# developer folder for notebooks, local benchmarks, and scratch outputs
 .dev
+
+# Excel lock/temp files (do not commit)
+~$*

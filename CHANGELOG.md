@@ -16,17 +16,15 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
   - Robust error handling: if an optimization attempt fails, it continues with the next starting point
   - If all optimization attempts fail, throws a clear error message
   - Added comprehensive tests for multi-start optimization in `test/runtests.jl`
-  - Created benchmark scripts for multistart optimization:
-    - `scripts/benchmark_multistart_m1.jl`: Benchmarks method_m1 with single chromatograms
-    - `scripts/benchmark_multistart_m2.jl`: Benchmarks method_m2 with single chromatograms
-    - `scripts/benchmark_multistart_m4.jl`: Benchmarks method_m4 with single chromatograms
-  - Each benchmark script processes every chromatogram individually and compares optimization with/without multistart
-  - Improved benchmark scripts:
-    - Fixed loss value formatting (uses scientific notation for very small values, prevents "0.000000" display)
-    - Suppressed warnings during benchmark execution using `NullLogger()`
-    - Added automatic database parameter comparison with `database_Rxi5SilMS_beta125.csv` when available
-    - Reports mean absolute relative differences for Tchar, θchar, and ΔCp compared to database values
-    - Added explanatory notes about multistart behavior (speed and loss differences)
+  - Optional `multistart_n` and `coupled_perturbation` keyword arguments on `method_m1`, `method_m2`, and `method_m4` (defaults keep prior behavior: multistart off)
+  - `method_m3` accepts the same keywords for API consistency; they have no effect on joint `dKcentric` optimization
+  - Local multistart validation assets (not shipped in the package repo; `.dev/` is gitignored):
+    - `.dev/scripts/benchmark_multistart_m{1,2,4}.jl` — per-chromatogram with/without multistart comparison
+    - `.dev/scripts/multistart_test.jl` — ad-hoc experiments and CSV export
+    - `.dev/notebooks/multistart.jl` — interactive exploration
+    - `.dev/data/multistart_test/` — benchmark output CSVs
+    - `.dev/data/Method_benchmark.xlsx`, `.dev/output/m1.txt`, `.dev/output/m1_old.txt` — scratch comparison logs
+  - Run from package root, e.g. `julia .dev/scripts/benchmark_multistart_m1.jl` (scripts use package `data/` for inputs)
   - **Multistart optimization logging**: Added logging for failed optimization steps in multistart functions
     - Always logs when the original starting point fails (critical for debugging)
     - Always logs when random starting points fail
@@ -39,17 +37,9 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
     - Added `coupled_perturbation=true` parameter to `optimize_Kcentric_multistart`, `optimize_dKcentric_multistart`, and `estimate_parameters`
     - When `coupled_perturbation=true` (default), maintains empirical relationships: `θchar = 22.0 * (Tchar/Tst)^0.7 * (1000*col.df/col.d)^0.09` and `ΔCp = -52.0 + 0.34*Tchar`
     - When `coupled_perturbation=false`, all parameters are perturbed independently (allows exploration of parameter space that doesn't follow empirical trends)
-    - Updated benchmark scripts (`benchmark_multistart_m1.jl`, `benchmark_multistart_m2.jl`, `benchmark_multistart_m4.jl`) to use `coupled_perturbation=true`
-  - **Database comparison for multistart results**: Enhanced benchmark scripts to show database comparisons for both no multistart and multistart cases
-    - Added database comparison computation for multistart results in all benchmark scripts
-    - Displays mean relative differences for Tchar, θchar, and ΔCp for both optimization strategies
-    - Helps evaluate how multistart affects the accuracy of estimated retention parameters
-  - **Exploration and test helper files for multistart**:
-    - Added `scripts/multistart_test.jl` for ad-hoc multistart experiments
-    - Added `notebooks/multistart.jl` for interactive multistart exploration and diagnostics
-  - **Temporary benchmark/result artifacts**:
-    - Added intermediate benchmark/output files in `data/multistart_test/`, plus `m1.txt`, `m1_old.txt`, and `data/Method_benchmark.xlsx`
-    - These files are temporary test artifacts and should be removed in a future cleanup once multistart testing is finalized
+    - Local benchmark scripts under `.dev/scripts/` use `coupled_perturbation=true` by default
+  - **Database comparison for multistart results**: Local benchmark scripts compare against `data/database_Rxi5SilMS_beta125.csv` when available
+    - Reports mean relative differences for Tchar, θchar, and ΔCp for with/without multistart runs
   - **Weighted start parameter estimation**: Added `estimate_start_parameter_single_ramp_weighted()` function that gives more weight to measurements with higher heating rates
     - Accounts for the observation that higher heating rates provide more accurate Tchar estimates
     - Uses exponential weighting: `weight = exp(α * (rT - rT_min))` where `α` controls the strength (default 2.0)

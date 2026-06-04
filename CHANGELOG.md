@@ -6,83 +6,30 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
 
 ### Added
 
-- **Multi-start optimization**: Added optional multi-start optimization for single-substance modes (`Kcentric_single`, `dKcentric_single`)
-  - New `multistart_n` parameter in `estimate_parameters` to control number of random starting points
-  - Controlled solely by `multistart_n` parameter: `0` (default) = disabled, `>0` = enabled with specified number of starts
-  - Single and multiple chromatograms are treated the same way (no automatic multistart for single chromatograms)
-  - Created `optimize_Kcentric_multistart` and `optimize_dKcentric_multistart` wrapper functions
-  - Uses random perturbations (±20% by default) around initial parameter estimates
-  - Returns the best solution (lowest loss) across all starting points
-  - Robust error handling: if an optimization attempt fails, it continues with the next starting point
-  - If all optimization attempts fail, throws a clear error message
-  - Added comprehensive tests for multi-start optimization in `test/runtests.jl`
-  - Optional `multistart_n` and `coupled_perturbation` keyword arguments on `method_m1`, `method_m2`, and `method_m4` (defaults keep prior behavior: multistart off)
-  - `method_m3` accepts the same keywords for API consistency; they have no effect on joint `dKcentric` optimization
-  - Local multistart validation assets (not shipped in the package repo; `.dev/` is gitignored):
-    - `.dev/scripts/benchmark_multistart_m{1,2,4}.jl` — per-chromatogram with/without multistart comparison
-    - `.dev/scripts/multistart_test.jl` — ad-hoc experiments and CSV export
-    - `.dev/notebooks/multistart.jl` — interactive exploration
-    - `.dev/data/multistart_test/` — benchmark output CSVs
-    - `.dev/data/Method_benchmark.xlsx`, `.dev/output/m1.txt`, `.dev/output/m1_old.txt` — scratch comparison logs
-  - Run from package root, e.g. `julia .dev/scripts/benchmark_multistart_m1.jl` (scripts use package `data/` for inputs)
-  - **Multistart optimization logging**: Added logging for failed optimization steps in multistart functions
-    - Always logs when the original starting point fails (critical for debugging)
-    - Always logs when random starting points fail
-    - Shows summary of failed optimizations and improved solutions found
-    - Added optional `verbose` parameter to `optimize_Kcentric_multistart` and `optimize_dKcentric_multistart` for detailed logging
-    - Helps identify why multistart might give worse results than non-multistart (e.g., if original starting point fails)
-  - **Coupled parameter perturbation for multistart**: Added option to maintain empirical relationships between retention parameters during multistart perturbations
-    - Created `perturb_retention_parameters_coupled()` function: only perturbs Tchar, recalculates θchar and ΔCp using empirical formulas (default behavior)
-    - Created `perturb_retention_parameters_independent()` function: perturbs all three parameters independently (previous behavior)
-    - Added `coupled_perturbation=true` parameter to `optimize_Kcentric_multistart`, `optimize_dKcentric_multistart`, and `estimate_parameters`
-    - When `coupled_perturbation=true` (default), maintains empirical relationships: `θchar = 22.0 * (Tchar/Tst)^0.7 * (1000*col.df/col.d)^0.09` and `ΔCp = -52.0 + 0.34*Tchar`
-    - When `coupled_perturbation=false`, all parameters are perturbed independently (allows exploration of parameter space that doesn't follow empirical trends)
-    - Local benchmark scripts under `.dev/scripts/` use `coupled_perturbation=true` by default
-  - **Database comparison for multistart results**: Local benchmark scripts compare against `data/database_Rxi5SilMS_beta125.csv` when available
-    - Reports mean relative differences for Tchar, θchar, and ΔCp for with/without multistart runs
-  - **Weighted start parameter estimation**: Added `estimate_start_parameter_single_ramp_weighted()` function that gives more weight to measurements with higher heating rates
-    - Accounts for the observation that higher heating rates provide more accurate Tchar estimates
-    - Uses exponential weighting: `weight = exp(α * (rT - rT_min))` where `α` controls the strength (default 2.0)
-    - Combines weighted average (default 70%) with interpolation to rT_nom (default 30%) for theoretical correction
-    - Configurable via `α` parameter (weighting strength) and `weighted_fraction` parameter (mix ratio)
-    - Original `estimate_start_parameter_single_ramp()` function remains unchanged and is still the default
-  - **Generalized ramp rate calculation**: Added `average_ramp_rate()` function and `use_average_ramp` parameter for more flexible temperature program handling
-    - New `average_ramp_rate()` function calculates average ramp rate from first to last temperature plateau, ignoring holding times at beginning and end
-    - Added optional `use_average_ramp=false` parameter to `estimate_start_parameter_single_ramp()` and `estimate_start_parameter_single_ramp_weighted()`
-    - When `use_average_ramp=true`, works with complex temperature programs (multiple ramps, holds) instead of assuming single ramp between time_steps 2 and 3
-    - Falls back to original method if average ramp rate calculation fails (e.g., isothermal programs)
-    - Default behavior (`use_average_ramp=false`) maintains backward compatibility
-  - **Corrected single measurement parameter estimation**: Added `estimate_start_parameter_single_measurement_corrected()` function for estimating retention parameters from a single chromatogram
-    - Uses empirical correction model: `Tchar_est = Telu / (0.25*sqrt(rT) + 0.8)` where `rT` is the dimensionless heating rate
-    - Designed for single measurement scenarios, ideally with single ramp programs
-    - Accepts both DataFrame (single row) and Vector inputs for retention times
-    - Supports `use_average_ramp` parameter for flexible ramp rate calculation
-    - Calculates θchar and ΔCp from corrected Tchar using standard empirical relationships
-    - Useful when only one chromatogram is available and correction for heating rate effects is needed
+- **Multi-start optimization** for per-substance modes `Kcentric_single` and `dKcentric_single`
+  - `multistart_n` keyword on `estimate_parameters` and `estimate_parameters(chrom)` (`0` = off, `>0` = number of starts; default unchanged)
+  - `optimize_Kcentric_multistart` and `optimize_dKcentric_multistart`; optional `coupled_perturbation` (default `true`) and `verbose`
+  - `perturb_retention_parameters_coupled` / `perturb_retention_parameters_independent` for start-point sampling
+  - Same keywords on `method_m1`, `method_m2`, and `method_m4` (forwarded to `*_single` steps; `method_m3` accepts them but joint `dKcentric` ignores multistart)
+  - Tests in `test/runtests.jl`
+- **Start-parameter helpers** in `Estimate_Start_Values.jl`
+  - `average_ramp_rate` and `use_average_ramp` on single-ramp estimators
+  - `estimate_start_parameter_single_ramp_weighted`
+  - `estimate_start_parameter_single_measurement_corrected` (single-chromatogram / heating-rate correction)
+- **`Random`** declared in `Project.toml`
 
 ### Fixed
 
-- **Julia 1.12+ compatibility**: Fixed world age warnings for `perturb_retention_parameters_coupled` and `perturb_retention_parameters_independent` functions
-  - Used `Base.invokelatest()` when calling perturbation functions from multistart functions to ensure compatibility with Julia 1.12+ stricter world age semantics
-  - Prevents warnings that could become errors in future Julia versions
-- **Test refactoring**: Updated tests to use helper functions for data preparation
-  - Replaced manual time unit conversion with `time_unit_conversion_factor()` helper
-  - Replaced manual data preparation with `prepare_optimization_data()` and `prepare_single_substance_data()` helpers
-  - Improved test maintainability and consistency
+- Julia 1.12+ world-age warnings when calling perturbation helpers from multistart (`Base.invokelatest`)
 
 ### Changed
 
-- **Multi-start optimization behavior**: Changed multistart control to be consistent across all cases
-  - Removed automatic multistart activation when only one chromatogram is provided
-  - Multistart is now controlled solely by the `multistart_n` parameter, regardless of the number of chromatograms
-  - Single and multiple chromatograms are treated identically (no special case behavior)
-  - Simplified code by removing intermediate `use_multistart` variable and using `multistart_n` directly
-  - Updated both `estimate_parameters` and `estimate_parameters_` functions for consistency
-  - **Note**: This is a behavior change. Previously, single chromatograms automatically used 10 multistart runs. Now multistart must be explicitly enabled via `multistart_n > 0`
+- Developer benchmark scripts removed from `scripts/`; keep local copies under gitignored `.dev/` if needed
+- `.gitignore`: ignore Excel lock files (`~$*`)
 
-- **Dependencies**: Added `Random` as an explicit dependency in `Project.toml`
-  - Required for multi-start optimization random number generation
-  - `Random` is a standard library but must be declared as a dependency when used in packages
+### Breaking
+
+None.
 
 ## [0.2.1] - 2025-01-27
 

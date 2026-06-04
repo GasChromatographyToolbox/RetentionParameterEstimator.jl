@@ -11,7 +11,7 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
   - `optimize_Kcentric_multistart` and `optimize_dKcentric_multistart`; optional `coupled_perturbation` (default `true`) and `verbose`
   - `perturb_retention_parameters_coupled` / `perturb_retention_parameters_independent` for start-point sampling
   - Same keywords on `method_m1`, `method_m2`, and `method_m4` (forwarded to `*_single` steps; `method_m3` accepts them but joint `dKcentric` ignores multistart)
-  - Tests in `test/runtests.jl`
+  - Expanded tests in `test/runtests.jl`: multistart loss not worse than off, `optimize_dKcentric_multistart`, `method_m1`/`method_m4` with `multistart_n`, `coupled_perturbation=false`, default `multistart_n=0` vs `check_measurement`, start-parameter smoke tests
 - **Start-parameter helpers** in `Estimate_Start_Values.jl`
   - `average_ramp_rate` and `use_average_ramp` on single-ramp estimators
   - `estimate_start_parameter_single_ramp_weighted`
@@ -24,7 +24,7 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
 
 ### Changed
 
-- Developer benchmark scripts removed from `scripts/`; keep local copies under gitignored `.dev/` if needed
+- Removed from tracked `scripts/`: `benchmark_m1.jl`, `benchmark_methods.jl` (previously on `main`), and multistart benchmark helpers; keep local copies under gitignored `.dev/scripts/` if needed
 - `.gitignore`: ignore Excel lock files (`~$*`)
 
 ### Breaking

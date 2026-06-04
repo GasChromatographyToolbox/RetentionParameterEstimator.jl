@@ -21,6 +21,7 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
 ### Fixed
 
 - Julia 1.12+ world-age warnings when calling perturbation helpers from multistart (`Base.invokelatest`)
+- **CI Codecov upload**: `.github/workflows/ci.yml` now uses `codecov/codecov-action@v4` with `secrets.CODECOV_TOKEN` and `file: ./lcov.info` (replaces v1 action and `CODECOV_SECRET` secret name)
 
 ### Changed
 

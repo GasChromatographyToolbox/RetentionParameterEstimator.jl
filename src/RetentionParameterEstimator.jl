@@ -17,6 +17,7 @@ using OptimizationOptimisers
 @reexport using StatsPlots
 using UrlDownload
 @reexport using Statistics
+using Random
 
 include("Load.jl")
 include("Loss.jl")

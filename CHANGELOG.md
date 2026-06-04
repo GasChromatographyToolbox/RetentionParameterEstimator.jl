@@ -4,6 +4,33 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
 
 ## [Unreleased]
 
+### Added
+
+- **Multi-start optimization** for per-substance modes `Kcentric_single` and `dKcentric_single`
+  - `multistart_n` keyword on `estimate_parameters` and `estimate_parameters(chrom)` (`0` = off, `>0` = number of starts; default unchanged)
+  - `optimize_Kcentric_multistart` and `optimize_dKcentric_multistart`; optional `coupled_perturbation` (default `true`) and `verbose`
+  - `perturb_retention_parameters_coupled` / `perturb_retention_parameters_independent` for start-point sampling
+  - Same keywords on `method_m1`, `method_m2`, and `method_m4` (forwarded to `*_single` steps; `method_m3` accepts them but joint `dKcentric` ignores multistart)
+  - Expanded tests in `test/runtests.jl`: multistart loss not worse than off, `optimize_dKcentric_multistart`, `method_m1`/`method_m4` with `multistart_n`, `coupled_perturbation=false`, default `multistart_n=0` vs `check_measurement`, start-parameter smoke tests
+- **Start-parameter helpers** in `Estimate_Start_Values.jl`
+  - `average_ramp_rate` and `use_average_ramp` on single-ramp estimators
+  - `estimate_start_parameter_single_ramp_weighted`
+  - `estimate_start_parameter_single_measurement_corrected` (single-chromatogram / heating-rate correction)
+- **`Random`** declared in `Project.toml`
+
+### Fixed
+
+- Julia 1.12+ world-age warnings when calling perturbation helpers from multistart (`Base.invokelatest`)
+
+### Changed
+
+- Removed from tracked `scripts/`: `benchmark_m1.jl`, `benchmark_methods.jl` (previously on `main`), and multistart benchmark helpers; keep local copies under gitignored `.dev/scripts/` if needed
+- `.gitignore`: ignore Excel lock files (`~$*`)
+
+### Breaking
+
+None.
+
 ## [0.2.1] - 2025-01-27
 
 ### Fixed

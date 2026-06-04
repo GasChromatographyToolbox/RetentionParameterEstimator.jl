@@ -21,10 +21,12 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
 ### Fixed
 
 - Julia 1.12+ world-age warnings when calling perturbation helpers from multistart (`Base.invokelatest`)
+- **`load_chromatograms`** for Pluto/FilePicker dicts: Julia 1.12-safe empty check on `IOBuffer`, `seekstart` before repeated `CSV.File` reads, path strings from `download_data`
 - **CI Codecov upload**: `.github/workflows/ci.yml` now uses `codecov/codecov-action@v4` with `secrets.CODECOV_TOKEN` and `file: ./lcov.info` (replaces v1 action and `CODECOV_SECRET` secret name)
 
 ### Changed
 
+- **`download_data`** (notebook helper): use stdlib **`Downloads.download`** instead of **UrlDownload.jl**; **UrlDownload** removed from `Project.toml`
 - Removed from tracked `scripts/`: `benchmark_m1.jl`, `benchmark_methods.jl` (previously on `main`), and multistart benchmark helpers; keep local copies under gitignored `.dev/scripts/` if needed
 - `.gitignore`: ignore Excel lock files (`~$*`)
 

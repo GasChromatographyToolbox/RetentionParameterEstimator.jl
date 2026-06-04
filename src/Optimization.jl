@@ -1086,7 +1086,7 @@ function flagged_loss(meas, df, index_flag)
 end
 
 """
-    method_m1(meas, col_input; se_col=true, parallel=false)
+    method_m1(meas, col_input; se_col=true, parallel=false, multistart_n=0, coupled_perturbation=true)
 
 Estimation of the three retention parameters ``T_{char}``, ``θ_{char}`` and ``ΔC_p`` including standard errors, see `stderror`.
 
@@ -1095,18 +1095,20 @@ Estimation of the three retention parameters ``T_{char}``, ``θ_{char}`` and ``�
 * `col_input` ... Named tuple with `col_input.L` the column length in m and `col_input.d` the column diameter in mm. 
 * `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see `stderror`) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
 * `parallel=false` ... If `true`, use parallelization for per-substance optimizations and standard error calculations (requires Julia to be started with multiple threads, e.g., `julia -t 4`).
+* `multistart_n=0` ... Number of multistart runs for `Kcentric_single` (`0` = disabled, `>0` = enabled).
+* `coupled_perturbation=true` ... If `true`, multistart only perturbs `Tchar` and recalculates `θchar` and `ΔCp` from empirical relations.
 
 # Output 
 * `res` ... Dataframe with the optimized parameters and the found minima.
 * `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
 """   
-function method_m1(meas, col_input; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, parallel=false)
+function method_m1(meas, col_input; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, parallel=false, multistart_n=0, coupled_perturbation=true)
 	# definition of the column
 	col = GasChromatographySimulator.Column(col_input.L, col_input.d*1e-3, meas[1].df, meas[1].sp, meas[1].gas)
 	# calculate start parameters	
 	Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter(meas[3], col, meas[2]; time_unit=meas[6])
 	# optimize every solute separatly for the 3 remaining parameters `Tchar`, `θchar`, `ΔCp`
-	res_ = estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6], method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel)[1]
+	res_ = estimate_parameters(meas[3], meas[4], col, meas[2], Tchar_est, θchar_est, ΔCp_est; mode="Kcentric_single", pout=meas[5], time_unit=meas[6], method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel, multistart_n=multistart_n, coupled_perturbation=coupled_perturbation)[1]
 	# calculate the standard errors of the 3 parameters using the hessian matrix
 	stderrors = stderror(meas, res_, col_input; opt=opt, parallel=parallel)[1]
 	# Match standard errors by name only if parallel (non-parallel: already in correct order)
@@ -1127,7 +1129,7 @@ function method_m1(meas, col_input; se_col=true, method=NewtonTrustRegion(), opt
 end
 
 """
-    method_m2(meas; se_col=true, parallel=false)
+    method_m2(meas; se_col=true, parallel=false, multistart_n=0, coupled_perturbation=true)
 
 Estimation of the column diameter ``d`` and three retention parameters ``T_{char}``, ``θ_{char}`` and ``Δ C_p`` including standard errors, see `stderror`.
 In a first run all four parameters are estimated for every substance separatly, resulting in different optimized column diameters. The mean value of the column diameter is used for 
@@ -1137,16 +1139,18 @@ a second optimization using this mean diameter and optimize the remainig thre re
 * `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
 * `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see `stderror`) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
 * `parallel=false` ... If `true`, use parallelization for per-substance optimizations and standard error calculations (requires Julia to be started with multiple threads, e.g., `julia -t 4`).
+* `multistart_n=0` ... Number of multistart runs for `dKcentric_single` and `Kcentric_single` (`0` = disabled, `>0` = enabled).
+* `coupled_perturbation=true` ... If `true`, multistart only perturbs `Tchar` and recalculates `θchar` and `ΔCp` from empirical relations.
 
 # Output 
 * `res` ... Dataframe with the optimized parameters and the found minima.
 * `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
 """   
-function method_m2(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, parallel=false)
+function method_m2(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, parallel=false, multistart_n=0, coupled_perturbation=true)
 	# calculate start parameters	
 	Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter(meas[3], meas[1], meas[2]; time_unit=meas[6])
 	# optimize every solute separatly for the 4 parameters `Tchar`, `θchar`, `ΔCp` and `d`	
-	res_dKcentric_single = estimate_parameters(meas[3], meas[4], meas[1], meas[2], Tchar_est, θchar_est, ΔCp_est; pout=meas[5], time_unit=meas[6], mode="dKcentric_single", method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel)[1]
+	res_dKcentric_single = estimate_parameters(meas[3], meas[4], meas[1], meas[2], Tchar_est, θchar_est, ΔCp_est; pout=meas[5], time_unit=meas[6], mode="dKcentric_single", method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel, multistart_n=multistart_n, coupled_perturbation=coupled_perturbation)[1]
 	# define a new column with the mean value of the estimated `d` over all solutes
 	new_col = GasChromatographySimulator.Column(meas[1].L, mean(res_dKcentric_single.d), meas[1].df, meas[1].sp, meas[1].gas)
 	
@@ -1176,7 +1180,7 @@ function method_m2(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 	end
 	
 	# optimize every solute separatly for the 3 remaining parameters `Tchar`, `θchar`, `ΔCp`
-	res_ = estimate_parameters(meas[3], meas[4], new_col, meas[2], Tchar_from_res, θchar_from_res, ΔCp_from_res; pout=meas[5], time_unit=meas[6], mode="Kcentric_single", method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel)[1]
+	res_ = estimate_parameters(meas[3], meas[4], new_col, meas[2], Tchar_from_res, θchar_from_res, ΔCp_from_res; pout=meas[5], time_unit=meas[6], mode="Kcentric_single", method=method, opt=std_opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel, multistart_n=multistart_n, coupled_perturbation=coupled_perturbation)[1]
 
 	res_[!, :d] = mean(res_dKcentric_single.d).*ones(length(res_.Name))
 	
@@ -1202,7 +1206,7 @@ function method_m2(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 end
 
 """
-    method_m3(meas; se_col=true, parallel=false)
+    method_m3(meas; se_col=true, parallel=false, multistart_n=0, coupled_perturbation=true)
 
 Estimation of the column diameter ``d`` and three retention parameters ``T_{char}``, ``θ_{char}`` and ``Δ C_p`` including standard errors, see `stderror`.
 Brute-force method, where all parameters (`3n+1` for `n` substances) are estimate in one optimization. 
@@ -1213,12 +1217,14 @@ ATTENTION: This method can take long time to finish. The more substances, the lo
 * `meas` ... Tuple with the loaded measurement data, see [`load_chromatograms`](@ref).
 * `se_col=true` ... If `true` the standard errors (from the Hessian matrix, see `stderror`) of the estimated parameters are added as separate columns to the result dataframe. If `false` the standard errors are added to the values as `Masurement` type.  
 * `parallel=false` ... If `true`, use parallelization for standard error calculations (requires Julia to be started with multiple threads, e.g., `julia -t 4`). Note: The main optimization cannot be parallelized as it's a single joint optimization.
+* `multistart_n=0` ... Accepted for API consistency; ignored because `method_m3` uses joint `dKcentric` optimization.
+* `coupled_perturbation=true` ... Accepted for API consistency; ignored for `method_m3`.
 
 # Output 
 * `res` ... Dataframe with the optimized parameters and the found minima.
 * `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
 """  
-function method_m3(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, parallel=false)
+function method_m3(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, parallel=false, multistart_n=0, coupled_perturbation=true)
 	# definition of the column, the given diameter is used as start value
 	col = meas[1]
 	# calculate start parameters	
@@ -1246,7 +1252,7 @@ function method_m3(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 end
 
 """
-    method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, max_alternating_iters=10, tol=1e-6, parallel=false)
+    method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, max_alternating_iters=10, tol=1e-6, parallel=false, multistart_n=0, coupled_perturbation=true)
 
 Estimation of the column diameter ``d`` and three retention parameters ``T_{char}``, ``θ_{char}`` and ``Δ C_p`` including standard errors, see `stderror`.
 Uses alternating/block coordinate descent optimization:
@@ -1267,12 +1273,14 @@ This approach properly enforces that `d` is the same for all substances and is m
 * `max_alternating_iters=10` ... Maximum number of alternating iterations.
 * `tol=1e-6` ... Convergence tolerance for `d` and substance parameters (iteration stops when relative changes in `d`, `Tchar`, `θchar`, and `ΔCp` are all less than `tol`).
 * `parallel=false` ... If `true`, use parallelization for per-substance optimizations (Block 2) and standard error calculations (requires Julia to be started with multiple threads, e.g., `julia -t 4`). This can provide significant speedup for many substances.
+* `multistart_n=0` ... Number of multistart runs for `dKcentric_single` (initialization) and `Kcentric_single` (Block 2); not used for `d_only` (Block 1).
+* `coupled_perturbation=true` ... If `true`, multistart only perturbs `Tchar` and recalculates `θchar` and `ΔCp` from empirical relations.
 
 # Output 
 * `res` ... Dataframe with the optimized parameters and the found minima.
 * `Telu_max` ... The maximum of elution temperatures every solute experiences in the measured programs.
 """   
-function method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, max_alternating_iters=10, tol=1e-6, parallel=false)
+function method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, maxiters=10000, maxtime=600.0, max_alternating_iters=10, tol=1e-6, parallel=false, multistart_n=0, coupled_perturbation=true)
 	# calculate start parameters	
 	Tchar_est, θchar_est, ΔCp_est, Telu_max = estimate_start_parameter(meas[3], meas[1], meas[2]; time_unit=meas[6])
 	
@@ -1282,7 +1290,8 @@ function method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 	res_dKcentric_single_init = estimate_parameters(meas[3], meas[4], meas[1], meas[2], Tchar_est, θchar_est, ΔCp_est; 
 	                                                pout=meas[5], time_unit=meas[6], mode="dKcentric_single", 
 	                                                method=method, opt=std_opt, maxiters=min(maxiters, 1000), 
-	                                                maxtime=min(maxtime, 60.0), parallel=parallel)[1]
+	                                                maxtime=min(maxtime, 60.0), parallel=parallel,
+	                                                multistart_n=multistart_n, coupled_perturbation=coupled_perturbation)[1]
 	d_current = mean(res_dKcentric_single_init.d)
 	
 	# Use initial estimates from the initialization pass
@@ -1333,7 +1342,8 @@ function method_m4(meas; se_col=true, method=NewtonTrustRegion(), opt=std_opt, m
 		new_col = GasChromatographySimulator.Column(meas[1].L, d_current, meas[1].df, meas[1].sp, meas[1].gas)
 		res_ = estimate_parameters(meas[3], meas[4], new_col, meas[2], Tchar_current, θchar_current, ΔCp_current; 
 		                           pout=meas[5], time_unit=meas[6], mode="Kcentric_single", method=method, 
-		                           opt=opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel)[1]
+		                           opt=opt, maxiters=maxiters, maxtime=maxtime, parallel=parallel,
+		                           multistart_n=multistart_n, coupled_perturbation=coupled_perturbation)[1]
 		
 		# IMPORTANT: Extract parameters by name to ensure correct ordering (only needed for parallel)
 		if parallel

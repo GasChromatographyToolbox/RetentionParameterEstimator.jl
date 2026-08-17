@@ -643,7 +643,7 @@ end=#
     min = Array{Float64}(undef, ns)
     #retcode = Array{Any}(undef, ns)
     if mode == "Kcentric_single"
-        sol = Array{SciMLBase.OptimizationSolution}(undef, ns)
+        sol = Vector{Any}(undef, ns)
         for j=1:ns
             sol[j] = optimize_Kcentric(tR_meas[:,j], col, prog, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
             rp1[j] = sol[j][1]
@@ -675,7 +675,7 @@ end=#
         end
         df = DataFrame(Name=solute_names, d=d, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min)#, retcode=retcode)
     elseif mode == "dKcentric_single"
-        sol = Array{SciMLBase.OptimizationSolution}(undef, ns)
+        sol = Vector{Any}(undef, ns)
         d = Array{Float64}(undef, ns)
         for j=1:ns
             sol[j] = optimize_dKcentric(tR_meas[:,j], col, prog, d_e, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)
@@ -718,7 +718,7 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
     #retcode = Array{Any}(undef, ns)
     
     if mode == "Kcentric_single" #-> new version for missing values ok -> check with no missing		
-        sol = Array{SciMLBase.OptimizationSolution}(undef, ns)
+        sol = Vector{Any}(undef, ns)
         if parallel
             Base.Threads.@threads for j=1:ns
                 # filter-out missing values:
@@ -792,7 +792,7 @@ function estimate_parameters(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e; 
         end
         df = DataFrame(Name=solute_names, d=d, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min)#, retcode=retcode)
     elseif mode == "dKcentric_single"#-> new version for missing values ok -> check with no missing
-        sol = Array{SciMLBase.OptimizationSolution}(undef, ns)
+        sol = Vector{Any}(undef, ns)
         d = Array{Float64}(undef, ns)
         if parallel
             Base.Threads.@threads for j=1:ns
@@ -961,7 +961,7 @@ function estimate_parameters_(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e;
     min = Array{Float64}(undef, ns)
     #retcode = Array{Any}(undef, ns)
     if mode == "Kcentric_single"
-        sol = Array{SciMLBase.OptimizationSolution}(undef, ns)
+        sol = Vector{Any}(undef, ns)
         # Multistart is disabled in this legacy function (no multistart_n parameter)
         for j=1:ns
             # filter-out missing values:
@@ -996,7 +996,7 @@ function estimate_parameters_(tRs, solute_names, col, prog, rp1_e, rp2_e, rp3_e;
         end
         df = DataFrame(Name=solute_names, d=d, Tchar=rp1, θchar=rp2, ΔCp=rp3, min=min)#, retcode=retcode)
     elseif mode == "dKcentric_single"
-        sol = Array{SciMLBase.OptimizationSolution}(undef, ns)
+        sol = Vector{Any}(undef, ns)
         d = Array{Float64}(undef, ns)
         for j=1:ns
             sol[j] = optimize_dKcentric_(tR_meas[:,j], col, prog, d_e, rp1_e[j,:], rp2_e[j,:], rp3_e[j,:]; method=method, opt=opt, maxiters=maxiters, maxtime=maxtime, metric=metric)

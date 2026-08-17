@@ -25,6 +25,7 @@ Multistart and `method_m4` are included with tests, but more validation is still
 
 ### Fixed
 
+- **CI `UndefVarError: SciMLBase`**: `estimate_parameters` preallocated `Array{SciMLBase.OptimizationSolution}` without importing `SciMLBase`. Use `Vector{Any}` instead (no extra dependency).
 - Julia 1.12+ world-age warnings when calling perturbation helpers from multistart (`Base.invokelatest`)
 - **`load_chromatograms`** for Pluto/FilePicker dicts: Julia 1.12-safe empty check on `IOBuffer`, `seekstart` before repeated `CSV.File` reads, path strings from `download_data`
 - **CI Codecov upload**: `.github/workflows/ci.yml` now uses `codecov/codecov-action@v4` with `secrets.CODECOV_TOKEN` and `file: ./lcov.info` (replaces v1 action and `CODECOV_SECRET` secret name)

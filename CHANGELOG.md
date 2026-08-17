@@ -4,6 +4,10 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-17
+
+Multistart and `method_m4` are included with tests, but more validation is still expected.
+
 ### Added
 
 - **Multi-start optimization** for per-substance modes `Kcentric_single` and `dKcentric_single`
@@ -17,20 +21,24 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
   - `estimate_start_parameter_single_ramp_weighted`
   - `estimate_start_parameter_single_measurement_corrected` (single-chromatogram / heating-rate correction)
 - **`Random`** declared in `Project.toml`
+- **Development notebook** `notebooks/estimate_retention_parameters_dev.jl` with newer methods (e.g. `method_m4`). The published notebook `estimate_retention_parameters.jl` remains the stable online workflow (`m1` / `m1a` / `m2`).
 
 ### Fixed
 
+- **CI `UndefVarError: SciMLBase`**: `estimate_parameters` preallocated `Array{SciMLBase.OptimizationSolution}` without importing `SciMLBase`. Use `Vector{Any}` instead (no extra dependency).
 - Julia 1.12+ world-age warnings when calling perturbation helpers from multistart (`Base.invokelatest`)
+- **`load_chromatograms`** for Pluto/FilePicker dicts: Julia 1.12-safe empty check on `IOBuffer`, `seekstart` before repeated `CSV.File` reads, path strings from `download_data`
 - **CI Codecov upload**: `.github/workflows/ci.yml` now uses `codecov/codecov-action@v4` with `secrets.CODECOV_TOKEN` and `file: ./lcov.info` (replaces v1 action and `CODECOV_SECRET` secret name)
 
 ### Changed
 
+- **`download_data`** (notebook helper): use stdlib **`Downloads.download`** instead of **UrlDownload.jl**; **UrlDownload** removed from `Project.toml`
 - Removed from tracked `scripts/`: `benchmark_m1.jl`, `benchmark_methods.jl` (previously on `main`), and multistart benchmark helpers; keep local copies under gitignored `.dev/scripts/` if needed
 - `.gitignore`: ignore Excel lock files (`~$*`)
 
 ### Breaking
 
-None.
+None. Defaults are unchanged (`multistart_n=0`). `UrlDownload` is no longer a package dependency.
 
 ## [0.2.1] - 2025-01-27
 

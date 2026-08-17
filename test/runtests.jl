@@ -75,6 +75,14 @@ time_unit = "min"
     @test length(unique(meas_missing[4])) == length(meas_missing[4]) # No duplicate solutes 
     @test all(r -> any(!ismissing, r), eachrow(meas_missing[3]))  # Each solute has some measurements
     @test all(c -> any(!ismissing, c), eachcol(meas_missing[3]))  # Each measurement has some solutes
+
+    file_dict = Dict{Any, Any}("data" => joinpath(@__DIR__, "data", "meas_test.csv"), "name" => "meas_test.csv")
+    meas_dict = RetentionParameterEstimator.load_chromatograms(file_dict)
+    @test meas_dict[4][1] == meas[4][1]
+
+    buf = IOBuffer(read(joinpath(@__DIR__, "data", "meas_test.csv")))
+    meas_buf = RetentionParameterEstimator.load_chromatograms(Dict{Any, Any}("data" => buf, "name" => "meas_test.csv"))
+    @test meas_buf[4][1] == meas[4][1]
 end
 
 # Loss.jl

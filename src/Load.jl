@@ -90,6 +90,50 @@ function extract_measured_program(TPprog, path, L)
 end
 
 """
+    _filepicker_data_empty(data) -> Bool
+
+Return whether `data` from a Pluto `FilePicker` or `download_data` dict (`file["data"]`)
+contains no usable bytes.
+
+Used by [`load_chromatograms`](@ref)(`::Dict`) before parsing. Do not call `isempty` on an
+`IOBuffer` directly: on Julia 1.12+ that can throw `MethodError` (no `iterate(::IOBuffer)`).
+
+# Supported `data` types
+* `IOBuffer` (typical for FilePicker): empty when the underlying byte vector `data.data` is empty.
+* other `IO` (e.g. open file handle): empty only at position 0 with nothing left to read.
+* `AbstractString`, `Vector{UInt8}`, etc.: standard `isempty`.
+
+Path strings from `download_data` are checked with `isfile` in the dict method, not here.
+"""
+function _filepicker_data_empty(data)
+    if data isa IOBuffer
+        return isempty(data.data)
+    elseif data isa IO
+        return position(data) == 0 && eof(data)
+    else
+        return isempty(data)
+    end
+end
+
+"""
+    _filepicker_seekstart!(data) -> typeof(data)
+
+Rewind in-memory file content before each `CSV.File` read in [`load_chromatograms`](@ref)(`::Dict`).
+
+The dict overload parses the same `file["data"]` several times (row count, column block, programs,
+retention times). Each pass must start at the beginning of the stream. After the first `CSV.File`
+call the read position is usually at the end; without `seekstart`, later passes see no data or
+wrong bytes.
+
+Only `IO` subtypes are rewound; path `AbstractString` payloads use the path-based loader instead.
+Returns `data` for convenience (call sites use it for side effect only).
+"""
+function _filepicker_seekstart!(data)
+    data isa IO && seekstart(data)
+    return data
+end
+
+"""
     load_chromatograms(file; delim=";")
 
 Loading of the chromatographic data (column information, GC program information, retention time information, see also "Structure of input data") from a file.
@@ -165,21 +209,28 @@ A tuple of the following quantities:
 * `time_unit` ... unit of time scale used in the retention times and GC programs, "min" or "s".
 """
 function load_chromatograms(file::Dict{Any, Any}; path=joinpath(dirname(pwd()), "data", "exp_pro"), delim=";") # if file is the output of FilePicker()
-    # Check if file data exists
-    if !haskey(file, "data") || isempty(file["data"])
+    if !haskey(file, "data") || _filepicker_data_empty(file["data"])
         throw(ArgumentError("No valid file data found in the provided dictionary"))
     end
+    data = file["data"]
+    if data isa AbstractString
+        return load_chromatograms(data; delim=delim)
+    end
 
-    n = length(CSV.File(file["data"]; silencewarnings=true, comment=";;"))+1
-    col_df = DataFrame(CSV.File(file["data"], header=1, limit=1, stringtype=String, silencewarnings=true, delim=delim))
+    _filepicker_seekstart!(data)
+    n = length(CSV.File(data; silencewarnings=true, comment=";;")) + 1
+    _filepicker_seekstart!(data)
+    col_df = DataFrame(CSV.File(data, header=1, limit=1, stringtype=String, silencewarnings=true, delim=delim))
 	col = GasChromatographySimulator.Column(convert(Float64, col_df.L[1]), col_df.d[1], col_df.df[1], col_df.sp[1], col_df.gas[1])
     pout = col_df.pout[1]
 	time_unit = col_df.time_unit[1]
  
     n_meas = Int((n - 2 - 2)/2) 
-    TPprog = DataFrame(CSV.File(file["data"], header=3, limit=n_meas, stringtype=String, silencewarnings=true, delim=delim))
+    _filepicker_seekstart!(data)
+    TPprog = DataFrame(CSV.File(data, header=3, limit=n_meas, stringtype=String, silencewarnings=true, delim=delim))
     #PP = DataFrame(CSV.File(file, header=3+n_meas+1, limit=n_meas, stringtype=String)) # convert pressures from Pa(g) to Pa(a), add p_atm to this data set
-    tRs = DataFrame(CSV.File(file["data"], header=n-n_meas, stringtype=String, silencewarnings=true, comment=";;", delim=delim))
+    _filepicker_seekstart!(data)
+    tRs = DataFrame(CSV.File(data, header=n - n_meas, stringtype=String, silencewarnings=true, comment=";;", delim=delim))
     solute_names = names(tRs)[2:end] # filter non-solute names out (columnx)
     filter!(x -> !occursin.("Column", x), solute_names)
     if names(TPprog)[2] == "filename"

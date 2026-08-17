@@ -1,9 +1,10 @@
 # functions for the notebook
 
 function download_data(url)
-	io = IOBuffer();
-	download = urldownload(url, save_raw=io);
-	return Dict{Any, Any}("data" => io, "name" => split(url, '/')[end])
+    name = split(url, '/')[end]
+    path = joinpath(tempdir(), "RetentionParameterEstimator_" * name)
+    Downloads.download(url, path)
+    return Dict{Any, Any}("data" => path, "name" => name)
 end
 
 # filter function for selected measurements and selected solutes

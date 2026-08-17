@@ -19,7 +19,7 @@ end
 # ╔═╡ 09422105-a747-40ac-9666-591326850d8f
 begin 
 	# online version
-	import Pkg
+#=	import Pkg
 	version = "0.3.0"
 	Pkg.activate(mktempdir())
 	Pkg.add([
@@ -29,8 +29,8 @@ begin
 	md"""
 	online, Packages, estimate\_retention\_parameters, for RetentionParameterEstimator v$(version)
 	"""
-
-#=	# local version (database is still downloaded from github)
+=#
+	# local version (database is still downloaded from github)
 
 	import Pkg
 	# activate the shared project environment
@@ -41,9 +41,9 @@ begin
 	#])
 	
 	md"""
-	local, Packages, estimate\_retention\_parameters.jl, for RetentionParameterEstimator v0.1.6
+	local, Packages, estimate\_retention\_parameters.jl, for RetentionParameterEstimator v0.3.0
 	"""
-=#
+
 end
 
 # ╔═╡ eb5fc23c-2151-47fa-b56c-5771a4f8b9c5
@@ -65,6 +65,8 @@ md"""
 # 
 $(Resource("https://raw.githubusercontent.com/JanLeppert/RetentionParameterEstimator.jl/main/docs/src/assets/logo_b.svg"))
 Estimation of K-centric retention parameters by temperature programmed GC with different temperature programs.
+
+**Development notebook** (`estimate_retention_parameters_dev.jl`) — extends the published notebook with newer methods (e.g. `method_m4`). Use the original `estimate_retention_parameters.jl` for the stable online workflow.
 """
 
 # ╔═╡ ebc2a807-4413-4721-930a-6328ae72a1a9
@@ -105,7 +107,7 @@ begin
 	if !isnothing(file_meas)
 		md"""
 		Select measurements:
-		$(@bind selected_measurements confirm(MultiSelect(meas[3].measurement; default=meas[3].measurement)))
+		$(@bind selected_measurements confirm(MultiSelect(meas[3].measurement; default=meas[3].measurement[1:end-2])))
 
 		
 		Select solutes:
@@ -120,10 +122,11 @@ meas_select = RetentionParameterEstimator.filter_selected_measurements(meas, sel
 # ╔═╡ f3ffd4ce-a378-4033-88e9-bc1fb8cc4bbe
 md"""
 ## Select mode
-* `m1` ... estimate the three retention parameters (``T_{char}``, ``θ_{char}`` and ``ΔC_p``).
+* `m1` ... estimate the three retention parameters (``T_{char}``, ``θ_{char}`` and ``ΔC_p``) with fixed column diameter from the measurement file.
 * `m1a` ... estimate the three retention parameters (``T_{char}``, ``θ_{char}`` and ``ΔC_p``) and select ``L`` and ``d``.
-* `m2` ... estimate the three retention parameters (``T_{char}``, ``θ_{char}`` and ``ΔC_p``) and the column diameter ``d``.
-$(@bind select_mode confirm(Select(["m1", "m1a", "m2"])))
+* `m2` ... estimate the three retention parameters and ``d`` (two-pass: per-substance ``d``, then mean ``d`` and re-fit).
+* `m4` ... estimate the three retention parameters and ``d`` (alternating optimization; recommended when ``d`` is unknown).
+$(@bind select_mode confirm(Select(["m1", "m1a", "m2", "m4"])))
 """
 
 # ╔═╡ e98f4b1b-e577-40d0-a7d8-71c53d99ee1b
@@ -172,6 +175,18 @@ begin
 		"""
 	elseif select_mode == "m2"
 		res, Telu_max = RetentionParameterEstimator.method_m2(meas_select; se_col=false)
+		check = true
+		md"""
+		## Results
+
+		d = $(1000.0 * res.d[1]) mm
+		
+		L/d ratio: $(meas_select[1].L./(res.d[1]))
+		
+		$(res)
+		"""
+	elseif select_mode == "m4"
+		res, Telu_max = RetentionParameterEstimator.method_m4(meas_select; se_col=false)
 		check = true
 		md"""
 		## Results

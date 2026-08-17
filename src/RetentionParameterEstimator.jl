@@ -15,7 +15,7 @@ using OptimizationOptimisers
 @reexport using Plots
 @reexport using PlutoUI
 @reexport using StatsPlots
-using UrlDownload
+using Downloads
 @reexport using Statistics
 using Random
 

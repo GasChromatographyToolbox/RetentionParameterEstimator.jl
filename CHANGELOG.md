@@ -4,6 +4,10 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-17
+
+Multistart and `method_m4` are included with tests, but more validation is still expected.
+
 ### Added
 
 - **Multi-start optimization** for per-substance modes `Kcentric_single` and `dKcentric_single`
@@ -17,6 +21,7 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
   - `estimate_start_parameter_single_ramp_weighted`
   - `estimate_start_parameter_single_measurement_corrected` (single-chromatogram / heating-rate correction)
 - **`Random`** declared in `Project.toml`
+- **Development notebook** `notebooks/estimate_retention_parameters_dev.jl` with newer methods (e.g. `method_m4`). The published notebook `estimate_retention_parameters.jl` remains the stable online workflow (`m1` / `m1a` / `m2`).
 
 ### Fixed
 
@@ -32,7 +37,7 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
 
 ### Breaking
 
-None.
+None. Defaults are unchanged (`multistart_n=0`). `UrlDownload` is no longer a package dependency.
 
 ## [0.2.1] - 2025-01-27
 

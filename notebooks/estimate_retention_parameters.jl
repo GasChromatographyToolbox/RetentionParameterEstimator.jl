@@ -20,7 +20,7 @@ end
 begin 
 	# online version
 	import Pkg
-	version = "0.2.1"
+	version = "0.3.0"
 	Pkg.activate(mktempdir())
 	Pkg.add([
 		Pkg.PackageSpec(name="RetentionParameterEstimator", version=version)

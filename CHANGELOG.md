@@ -4,6 +4,17 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-08-18
+
+### Fixed
+
+- **`[compat]` for Julia**: `"1.10"` (lower bound). The previous `"1.7, 1.8, 1.9, 1.12"` omitted 1.10 and 1.11, which CI tests.
+
+### Changed
+
+- **`[compat]` for `Optimization`**: `"5.0.0, 5.5"` (5.x; tested with **5.7.0**). In Julia, `"5.0.0"` is a caret bound (all 5.x), not an exact pin, so v0.3.0 already resolved 5.7.0.
+- Published notebook `estimate_retention_parameters.jl`: online `Pkg.add` version **0.3.1**.
+
 ## [0.3.0] - 2026-08-17
 
 Multistart and `method_m4` are included with tests, but more validation is still expected.

@@ -14,6 +14,7 @@ All notable changes to RetentionParameterEstimator.jl will be documented in this
 
 - **`[compat]` for `Optimization`**: `"5.0.0, 5.5"` (5.x; tested with **5.7.0**). In Julia, `"5.0.0"` is a caret bound (all 5.x), not an exact pin, so v0.3.0 already resolved 5.7.0.
 - Published notebook `estimate_retention_parameters.jl`: online `Pkg.add` version **0.3.1**.
+- **Tests**: `method_m1` vs `method_m2` (and m4 vs m2) `Tchar` comparison with missing retention times uses `Measurements.value` and `atol=5.0`. Short CI limits (`maxtime=30`) can leave `method_m1` under-converged on Linux (large Hessian std), so `atol=2.0` failed on Ubuntu while macOS/Windows passed.
 
 ## [0.3.0] - 2026-08-17
 
